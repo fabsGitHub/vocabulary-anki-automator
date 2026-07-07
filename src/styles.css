@@ -1,0 +1,546 @@
+/* ==========================================================================
+   1. DESIGN SYSTEM & DESIGN TOKENS
+   ========================================================================== */
+:root {
+  /* System Background Profiles */
+  --bg-app: #f6f6f6;
+  --bg-card: #ffffff;
+  --bg-field: #f6f6f6;
+  
+  /* Typography Scale */
+  --text-main: #1c1c1e;
+  --text-muted: #8e8e93;
+  --text-inverse: #ffffff;
+  
+  /* Separation & Framing Layers */
+  --border-color: #d1d1d6;
+  
+  /* Brand Activation Pipelines */
+  --primary: #007aff;
+  --primary-hover: #0b66da;
+  --secondary-btn: #e5e5ea;
+  --secondary-btn-hover: #d1d1d6;
+  
+  /* Component Radius Scale */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-app: #1c1c1e;
+    --bg-card: #2c2c2e;
+    --bg-field: #1c1c1e;
+    
+    --text-main: #ffffff;
+    --text-muted: #aeaeae;
+    
+    --border-color: #3a3a3c;
+    
+    --primary: #0a84ff;
+    --primary-hover: #2294ff;
+    --secondary-btn: #3a3a3c;
+    --secondary-btn-hover: #48484a;
+  }
+}
+
+/* ==========================================================================
+   2. GLOBAL RESET & BASE RULES
+   ========================================================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-size: 13px;
+  line-height: 1.4;
+  user-select: none;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Guard: Hidden viewport containers must never paint on screen */
+.hidden {
+  display: none !important;
+}
+
+/* ==========================================================================
+   3. STRUCTURAL VIEW LAYOUTS & COMPONENT CARDS
+   ========================================================================== */
+.view {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-app);
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.config-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+/* Layout headers matching macOS desktop architecture models */
+.mac-header, .settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.mac-header h2, .settings-header h2 { 
+  font-size: 18px; 
+  font-weight: 600; 
+  letter-spacing: -0.2px;
+}
+
+.mac-header p, .settings-header p { 
+  color: var(--text-muted); 
+  font-size: 12px; 
+  margin-top: 2px;
+}
+
+/* ==========================================================================
+   4. NAVIGATION BAR (SEGMENTED CONTROLS)
+   ========================================================================== */
+.segmented-bar, .wizard-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.segment-btn, .tab-lnk {
+  background: transparent;
+  border: none;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.segment-btn:hover, .tab-lnk:hover {
+  color: var(--text-main);
+}
+
+.segment-btn.active, .tab-lnk.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+.pane-layout, .tab-content {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-card);
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.active-content {
+  display: flex !important;
+}
+
+/* ==========================================================================
+   5. FORM INTERFACE CONTROLS & FIELD LAYOUTS
+   ========================================================================== */
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+
+/* Consolidated layout rules for standard inputs, selectors, and dropdown overrides */
+.mac-input, .select-input, input[type="text"], textarea, .mac-select {
+  width: 100%;
+  background: var(--bg-field);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+  appearance: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Standardized focus styling rules */
+.mac-input:focus, .select-input:focus, input[type="text"]:focus, textarea:focus, .mac-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+}
+
+/* System configuration alignment structures */
+.form-row, .grid-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.input-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.pane-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.pane-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   6. NATIVE OS BUTTON DESIGNS
+   ========================================================================== */
+.btn {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary { 
+  background: var(--primary); 
+  color: var(--text-inverse); 
+}
+
+.btn-primary:hover:not(:disabled) { 
+  background: var(--primary-hover); 
+}
+
+.btn-secondary { 
+  background: var(--secondary-btn); 
+  color: var(--text-main); 
+}
+
+.btn-secondary:hover:not(:disabled) { 
+  background: var(--secondary-btn-hover); 
+}
+
+.btn-mini { 
+  padding: 4px 10px; 
+  font-size: 11px; 
+  border-radius: var(--radius-sm);
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-text:hover {
+  text-decoration: underline;
+}
+
+/* Help Dialog circle elements */
+.help-circle {
+  background: var(--secondary-btn);
+  border: none;
+  color: var(--text-main);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.help-circle:hover { 
+  background: var(--primary); 
+  color: var(--text-inverse); 
+}
+
+/* ==========================================================================
+   7. MODAL OVERLAY CONTAINERS & DIALOG BOXES
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vw;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(8px);
+}
+
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  width: 400px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.help-list li {
+  margin-bottom: 14px;
+  list-style: none;
+}
+
+.help-list strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.help-list p {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.help-list code {
+  background: var(--bg-field);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-family: SFMono-Regular, Consolas, Monaco, monospace;
+  color: #ff453a;
+  font-size: 11px;
+}
+
+/* ==========================================================================
+   8. SYSTEM ENGINE FEEDBACK FLOATS & BADGES
+   ========================================================================== */
+.action-row, .footer-action-bar {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+}
+
+.footer-row {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.action-row-center {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+}
+
+.position-right {
+  margin-left: auto;
+}
+
+/* Link Connection Status Monitors */
+.status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.status-badge.online {
+  background: rgba(52, 199, 89, 0.12);
+  color: #34c759;
+}
+
+.status-badge.offline {
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+}
+
+/* Three-step automated wizard banners */
+.onboarding-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 30px 20px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-field);
+  margin: auto 0;
+  max-width: 100%;
+}
+
+.notice-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.onboarding-notice h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.onboarding-notice p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 320px;
+  margin-bottom: 18px;
+}
+
+.btn-wide {
+  width: 100%;
+  max-width: 280px;
+}
+
+.success-notice-card {
+  margin-top: 16px;
+  background: rgba(52, 199, 89, 0.08);
+  border: 1px solid rgba(52, 199, 89, 0.15);
+  color: #34c759;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Unified Dynamic Interactivity Toast Alerts */
+.interactive-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  margin-right: auto;
+  max-width: 70%;
+  animation: app-fade-in 0.2s ease-out;
+}
+
+.interactive-toast.info {
+  background: rgba(0, 122, 255, 0.08);
+  color: var(--primary);
+  border: 1px solid rgba(0, 122, 255, 0.15);
+}
+
+.interactive-toast.success {
+  background: rgba(52, 199, 89, 0.08);
+  color: #34c759;
+  border: 1px solid rgba(52, 199, 89, 0.15);
+}
+
+.interactive-toast.error {
+  background: rgba(255, 59, 48, 0.08);
+  color: #ff3b30;
+  border: 1px solid rgba(255, 59, 48, 0.15);
+}
+
+/* ==========================================================================
+   9. SYSTEM HARDWARE ACCELERATED ANIMATIONS
+   ========================================================================== */
+.spinner {
+  display: inline-block;
+  animation: pulse-loader 1s infinite alternate;
+}
+
+@keyframes pulse-loader {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+
+.app-fade-in {
+  animation: app-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes app-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide {
+  animation: pane-slide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pane-slide {
+  from { opacity: 0; transform: scale(0.99); }
+  to { opacity: 1; transform: scale(1); }
+}

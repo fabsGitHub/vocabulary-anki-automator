@@ -1,0 +1,38 @@
+[package]
+name = "anki-clipboard-deepl-automator"
+version = "0.1.0"
+description = "Streamlined background vocabulary automation for Anki"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "anki_clipboard_deepl_automator_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri Core Framework & Core Engine Plugins
+tauri = { version = "2.0", features = ["tray-icon"] }
+tauri-plugin-opener = "2.0"
+tauri-plugin-log = "2.0.0-rc"
+tauri-plugin-global-shortcut = "2.0"
+tauri-plugin-clipboard-manager = "2.0"
+
+# Networking & Modern Async Subsystems (Consolidated Duplicates)
+reqwest = { version = "0.12", features = ["json", "multipart", "blocking"] }
+tokio = { version = "1.0", features = ["full"] }
+urlencoding = "2.1"
+
+# Serialization, Diagnostics & Data Utilities
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dirs = "5.0"
+log = "0.4"
+base64 = "0.22"
+thiserror = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+
+# OS Native Automation Layer
+enigo = { version = "0.2", features = ["serde"] }
