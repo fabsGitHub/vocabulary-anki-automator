@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "anki-clipboard-deepl-automator",
+  "productName": "Vocabulary Automator",
   "version": "0.1.0",
   "identifier": "com.ankiautomator.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "anki-clipboard-deepl-automator",
+        "title": "Vocabulary Automator",
         "width": 800,
         "height": 600
       }
@@ -24,6 +24,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -32,8 +33,27 @@
       "icons/icon.ico"
     ],
     "macOS": {
-    "entitlements": "./entitlements.mac.plist",
-    "minimumSystemVersion": "10.13"
-  }
+      "signingIdentity": "{{env.APPLE_SIGNING_IDENTITY:::}}",
+      "entitlements": "./entitlements.mac.plist",
+      "minimumSystemVersion": "10.13"
+    },
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
+    },
+    "linux": {
+      "targets": ["deb", "rpm", "appimage"]
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "KEYS_PLACEHOLDER_REPLACE_AFTER_GENERATION",
+      "endpoints": [
+        "https://github.com/fabsGitHub/vocabulary-anki-automator/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

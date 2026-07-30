@@ -19,6 +19,7 @@ tauri-plugin-opener = "2.0"
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-global-shortcut = "2.0"
 tauri-plugin-clipboard-manager = "2.0"
+tauri-plugin-updater = "2.0"
 
 # Networking & Modern Async Subsystems (Consolidated Duplicates)
 reqwest = { version = "0.12", features = ["json", "multipart", "blocking"] }
