@@ -1,5 +1,5 @@
-import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
 
 // Separate from vite.config.ts on purpose: that file is tailored for Tauri
 // dev/build (fixed port, HMR host, ignoring src-tauri/) and none of that
@@ -8,8 +8,8 @@ import vue from "@vitejs/plugin-vue";
 export default defineConfig({
   plugins: [vue()],
   test: {
-    environment: "jsdom",
-    include: ["src/**/*.{test,spec}.{ts,js}"],
+    environment: 'jsdom',
+    include: ['src/**/*.{test,spec}.{ts,js}'],
     globals: false,
     // Milestone A installs the runner; Milestone G writes the actual specs.
     // Vitest's default (exit 1 on zero test files) would otherwise break
@@ -17,4 +17,4 @@ export default defineConfig({
     // for the entire gap between the two milestones.
     passWithNoTests: true,
   },
-});
+})

@@ -20,8 +20,8 @@ Two options were on the table:
   scripting a temp `ANKI_BASE` still means launching and driving the real
   GUI, which is slow and brittle for anything faster than the nightly E2E
   tier.
-- What this codebase actually needs to verify is *the shape of the HTTP
-  requests it sends to AnkiConnect* (`addNote` payload, deck/model names,
+- What this codebase actually needs to verify is _the shape of the HTTP
+  requests it sends to AnkiConnect_ (`addNote` payload, deck/model names,
   field mapping produced by `anki/mapper.rs`) — a mock server that records
   and asserts on incoming requests tests exactly that, directly, without a
   GUI dependency.
@@ -46,10 +46,10 @@ run would be a correctness and safety bug, not just a slow test.
 Concretely:
 
 - `scripts/bootstrap-macos.sh` (Milestone A2) never calls into Anki/
-  AnkiConnect install logic — it only installs *developer tooling*
+  AnkiConnect install logic — it only installs _developer tooling_
   (cargo-watch, tauri-driver, gh, watchman, rtk, npm test deps).
 - `scripts/run-all-checks.sh` and the `just test-unit` / `just
-  test-integration` recipes only ever talk to the mock AnkiConnect stub
+test-integration` recipes only ever talk to the mock AnkiConnect stub
   above, never a real AnkiConnect endpoint.
 - Whoever implements Milestone G's integration tests should assert this
   directly (e.g., the mock stub is the only `http://127.0.0.1:8765`-style
