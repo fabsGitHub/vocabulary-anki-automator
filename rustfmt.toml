@@ -1,0 +1,13 @@
+# rustfmt configuration for vocabulary-anki-automator.
+# Applies to src-tauri/ today and to crates/vocab-core/ once Milestone B
+# stands up the Cargo workspace — kept at the repo root so it covers every
+# workspace member without duplication.
+
+edition = "2021"
+max_width = 100
+use_small_heuristics = "Default"
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+reorder_imports = true
+reorder_modules = true
+newline_style = "Unix"

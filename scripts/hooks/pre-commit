@@ -1,0 +1,27 @@
+#!/bin/bash
+# Pre-commit hook for vocabulary-anki-automator (Milestone A).
+#
+# This file is the tracked source of truth; it is not itself picked up by
+# git (git only reads .git/hooks/pre-commit, which is never committed).
+# `scripts/bootstrap-macos.sh` installs it by copying this file into
+# .git/hooks/pre-commit and marking it executable. Re-run the bootstrap
+# script any time this file changes.
+#
+# Milestone A scope only: cargo fmt --check, cargo clippy -D warnings,
+# vue-tsc --noEmit. Milestone G wires the fast test tiers (test:unit /
+# test:integration) into this same hook — not done here to avoid scope creep.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+echo "[pre-commit] cargo fmt --check"
+(cd src-tauri && cargo fmt --check)
+
+echo "[pre-commit] cargo clippy -- -D warnings"
+(cd src-tauri && cargo clippy --all-targets -- -D warnings)
+
+echo "[pre-commit] vue-tsc --noEmit"
+npx vue-tsc --noEmit
+
+echo "[pre-commit] all checks passed"

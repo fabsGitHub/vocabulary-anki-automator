@@ -13,6 +13,11 @@ Status: **planning only** — nothing in this document has been implemented yet.
 7. **Chinese/HSK support extends the neutral `Card` model via a `ScriptMetadata` enum** (a `Chinese { pinyin, hsk_level, script_variant }` variant) rather than bolting hardcoded fields onto the base struct — the same seam accommodates a future script (Japanese furigana/JLPT, Korean romanization, …) without another migration.
 8. **Scheduling algorithm: FSRS, not classic SM-2.** Modern Anki itself defaults to FSRS since 23.10, so building on the same algorithm family keeps the Anki-export/import portability guarantee (decision 6) semantically meaningful instead of requiring lossy conversion between two different scheduling models.
 9. **HSK curriculum content (hanzi, pinyin, level, example sentences) ships as bundled static reference data**, not a live API call — consistent with the "zero-setup for anyone who clones the repo" principle already applied to the translation provider (decision 2).
+10. **Target platforms, decided 2026-07-28 (resolves Milestone M3's open fork):** the product is two apps sharing one Rust core, not one app trying to be everything.
+    - **`Automator`** (this existing app) stays **desktop-only (macOS, Windows, Linux) permanently** — not a phase to grow out of. Global-hotkey capture is an OS-level desktop capability; there is no iOS/Android/Web equivalent, so the automator was never a candidate for those targets regardless of timeline.
+    - **`Learn`** (`apps/learn/`, Milestone I's "second Tauri app," moved up from "not scheduled") is the one that reaches **all six targets**: macOS/Windows/Linux/iOS/Android natively via Tauri 2, plus a standalone **web build of the same frontend** for the Web target. The web build requires every Tauri-specific call (`invoke`, `listen`, native storage) to sit behind a platform-adapter interface so a browser build can substitute browser-native equivalents (IndexedDB, etc.) instead of the Rust/SQLite backend — a concrete design task for whoever starts Milestone I's UI work, not fully specified here.
+    - `crates/vocab-core` (decision 6) gets extracted as a real Cargo workspace member **as part of Milestone B**, not deferred "once a second consumer exists" — the second consumer (`Learn`) is starting immediately, not hypothetically, now that cross-platform reach is a stated requirement rather than a someday-maybe.
+11. **Release/distribution infrastructure (Milestone N, added 2026-07-29) targets `Automator`'s three desktop platforms first; `Learn`'s mobile/web distribution is designed in the same milestone for planning purposes but built as its own later milestone once Learn's UI work actually begins (Milestone I).** This isn't optional infrastructure to defer indefinitely — as of this decision, the pipeline had never defined what happens *after* an operator's Tier 2 merge approval. Nothing currently gets built, signed, or reaches anyone. Sequenced immediately after Milestone B: B's crate restructuring (`crates/vocab-core`) is what a real build/release pipeline needs to target, so the packaging work waits for B, but the account/certificate/key setup in N has no code dependency and starts in parallel now.
 
 ---
 
@@ -21,22 +26,25 @@ Status: **planning only** — nothing in this document has been implemented yet.
 
 Default unless a row below says otherwise: **Sonnet 5 at `high` effort.** Escalate to **Opus 4.8**, and to **`xhigh`/`max`** effort specifically, whenever the work touches one of four things: the provider-trait/`Card`-model boundary (Milestone B), the FSRS scheduler (Milestone L), the vocabulary-isolation guarantee in the quiz engine (Milestone M), or the auto-install/consent security surface (Milestone E).
 
-| Milestone | Model | Effort | Why |
-|---|---|---|---|
-| A — Workspace & dev tooling | Sonnet 5 | high | mechanical setup |
-| B — Core architecture refactor | **Opus 4.8** | **high** | foundational boundary everything else builds on |
-| C — Translation provider swap | Sonnet 5 | high | mechanical, well-scoped |
-| D — Approval window UI | Sonnet 5 | high | UI wiring |
-| E — Consent & supply-chain hardening | **Opus 4.8** | **xhigh/max** | security-sensitive (auto-install, unpinned script download) |
-| F — Local history store | Sonnet 5 | high | mechanical CRUD |
-| G — Testing infrastructure (general) | Sonnet 5 | high | scaffolding |
-| G+ — SRS/quiz leak test specifically | **Opus 4.8** | **xhigh/max** | the one test that has to actually catch a real correctness bug |
-| H — Secondary feature polish | Sonnet 5 | high | mechanical |
-| I — Native-app foundations | Sonnet 5 | high | not scheduled; revisit when actioned |
-| J — Chinese pipeline & curriculum ETL | Sonnet 5 | high | mechanical, well-scoped |
-| K — SRS data layer / schema | **Opus 4.8** | high | schema decisions ripple through L/M |
-| L — Adaptive daily queue engine | **Opus 4.8** | **xhigh/max** | FSRS math — a subtle bug here is hard to notice and wrong for a long time |
-| M — Gamified quiz engine | **Opus 4.8** | **xhigh/max** for the isolation-constraint logic; Sonnet 5 / high for exercise-type UI | isolation guarantee is the one correctness property explicitly required by spec |
+| Milestone | Model | Effort | Subagent (`.claude/agents/`) | Why |
+|---|---|---|---|---|
+| A — Workspace & dev tooling | Sonnet 5 | high | `milestone-sonnet` | mechanical setup |
+| B — Core architecture refactor | **Opus 4.8** | **high** | `milestone-opus` | foundational boundary everything else builds on |
+| C — Translation provider swap | Sonnet 5 | high | `milestone-sonnet` | mechanical, well-scoped |
+| D — Approval window UI | Sonnet 5 | high | `milestone-sonnet` | UI wiring |
+| E — Consent & supply-chain hardening | **Opus 4.8** | **xhigh/max** | `milestone-opus-critical` | security-sensitive (auto-install, unpinned script download) |
+| F — Local history store | Sonnet 5 | high | `milestone-sonnet` | mechanical CRUD |
+| G — Testing infrastructure (general) | Sonnet 5 | high | `milestone-sonnet` | scaffolding |
+| G+ — SRS/quiz leak test specifically | **Opus 4.8** | **xhigh/max** | `milestone-opus-critical` | the one test that has to actually catch a real correctness bug |
+| H — Secondary feature polish | Sonnet 5 | high | `milestone-sonnet` | mechanical |
+| I — Native-app foundations (`Learn`) | Sonnet 5 | high | `milestone-sonnet` | scheduled alongside B per decision 10 (2026-07-28) — no longer deferred |
+| J — Chinese pipeline & curriculum ETL | Sonnet 5 | high | `milestone-sonnet` | mechanical, well-scoped |
+| K — SRS data layer / schema | **Opus 4.8** | high | `milestone-opus` | schema decisions ripple through L/M |
+| L — Adaptive daily queue engine | **Opus 4.8** | **xhigh/max** | `milestone-opus-critical` | FSRS math — a subtle bug here is hard to notice and wrong for a long time |
+| M — Gamified quiz engine | **Opus 4.8** / Sonnet 5 | **xhigh/max** for isolation logic; high for exercise-type UI | `milestone-opus-critical` (isolation logic) / `milestone-sonnet` (exercise UI) | isolation guarantee is the one correctness property explicitly required by spec |
+| N — Release, distribution & auto-update | **Opus 4.8** | **xhigh/max** | `milestone-opus-critical` | signing-key custody and updater-trust-chain mistakes are the highest-blast-radius category of bug this company can ship — a compromised updater pushes malicious code to every user automatically, worse than any single milestone's own bug |
+
+Subagent definitions live in `.claude/agents/` in this repo. They set **model** (the one lever Claude Code actually exposes per-subagent); the "effort" column above is approximated through each subagent's own instructions (verification rigor, edge-case coverage) rather than a literal API parameter — Claude Code CLI doesn't expose `output_config.effort` as a user-facing dial, so `milestone-opus-critical`'s system prompt spells out concretely what "xhigh/max" should mean in practice for each of its four milestones instead of just naming a setting.
 
 ---
 
@@ -44,38 +52,41 @@ Default unless a row below says otherwise: **Sonnet 5 at `high` effort.** Escala
 *Ungated — can start immediately, no app-code dependency.*
 
 ### A1. macOS environment (verified against dev machine on 2026-07-27)
-- [ ] `cargo install cargo-watch` — not installed; needed for the Rust watch loop
-- [ ] `cargo install tauri-driver` — not installed; needed for E2E automation of the compiled app
-- [ ] `brew install gh` — not installed; needed for PR/issue CLI workflow
-- [ ] `npm install -D vitest @vue/test-utils jsdom` — no frontend test runner exists yet
-- [ ] `safaridriver --enable` — one-time enable of the built-in WebDriver backend (binary already present on macOS)
-- [ ] Standardize on a single file watcher for the cross-tree (Rust + Vue) watch loop: Watchman is already installed — use it, or install `fswatch` as an alternative. Pick one.
+- [ ] `cargo install cargo-watch` — scripted in `scripts/bootstrap-macos.sh` (idempotent); run it on the actual macOS dev machine — no `cargo`/Homebrew toolchain exists in the Linux sandbox this milestone was implemented in
+- [ ] `cargo install tauri-driver` — scripted in `scripts/bootstrap-macos.sh`; same caveat as above
+- [ ] `brew install gh` — scripted in `scripts/bootstrap-macos.sh`; same caveat as above
+- [x] `npm install -D vitest @vue/test-utils jsdom` — added to `package.json` devDependencies (plus `eslint`/`prettier` tooling for A2); installed and verified in `node_modules`
+- [ ] `safaridriver --enable` — scripted in `scripts/bootstrap-macos.sh`; macOS-only, cannot be run from this sandbox
+- [x] Standardize on a single file watcher for the cross-tree (Rust + Vue) watch loop: **decision — Watchman** (see `scripts/bootstrap-macos.sh`); `just watch` otherwise relies on `cargo-watch` for the Rust side and Vite's own HMR for the Vue side
 
 ### A2. Repo scaffolding
-- [ ] Add `justfile` (or root `package.json` scripts) with: `dev`, `test:unit`, `test:integration`, `test:e2e`, `watch`, `lint`
-- [ ] Add `rustfmt.toml`
-- [ ] Add `.eslintrc`/`eslint.config.js` + Prettier config for the Vue/TS side (no lint config exists today)
-- [ ] Add a pre-commit hook (`husky` or a plain `.git/hooks/pre-commit` script) running: `cargo fmt --check`, `cargo clippy -- -D warnings`, `vue-tsc --noEmit`
-- [ ] Create `scripts/bootstrap-macos.sh` — installs everything in A1 idempotently, checks versions, exits non-zero on failure, no interactive prompts
-- [ ] Create `scripts/run-all-checks.sh` — chains the unit + integration test tiers; used by both the watch loop and any future CI
+- [x] Add `justfile` (or root `package.json` scripts) with: `dev`, `test:unit`, `test:integration`, `test:e2e`, `watch`, `lint`
+- [x] Add `rustfmt.toml`
+- [x] Add `.eslintrc`/`eslint.config.js` + Prettier config for the Vue/TS side (no lint config exists today)
+- [x] Add a pre-commit hook (`husky` or a plain `.git/hooks/pre-commit` script) running: `cargo fmt --check`, `cargo clippy -- -D warnings`, `vue-tsc --noEmit`
+- [x] Create `scripts/bootstrap-macos.sh` — installs everything in A1 idempotently, checks versions, exits non-zero on failure, no interactive prompts
+- [x] Create `scripts/run-all-checks.sh` — chains the unit + integration test tiers; used by both the watch loop and any future CI
+- **Sandbox caveat (self-tested 2026-07-29):** in this Linux sandbox, both `npm run build` (`vite build`) and `npm run test:unit` (`vitest run`) fail with `ENOENT` reading their own just-written temp config bundle (`vite.config.ts.timestamp-*.mjs` / `vitest.config.ts.timestamp-*.mjs`) — a read-after-write race on this sandbox's host-mounted filesystem, reproducible against the pre-existing, untouched `vite.config.ts` too, so it predates this milestone and isn't caused by anything added here. Confirmed workaround for the plain Vite CLI: `vite build --configLoader runner` succeeds. Not applied to `package.json`'s `dev`/`build`/`preview` scripts since editing those is outside this milestone's file list; `vitest@2.x`'s CLI doesn't expose an equivalent flag at all, and bumping vitest's major version to chase a sandbox-only bug is its own can of worms, out of scope here. Expected to be a non-issue on the real macOS dev machine's local disk — re-verify there before relying on this note.
+- **Sandbox caveat (self-tested 2026-07-30):** the same read-after-write race hits plain `npm install` / `npm install --package-lock-only` in this sandbox too — npm truncates `package-lock.json` to 0 bytes while regenerating it, then fails with `ENOENT` reading it back, reproduced twice. Net effect: `package-lock.json` (committed at the first-commit revision) is **not yet in sync** with the `vitest`/`eslint`/`prettier`/`@vue/test-utils`/`jsdom` etc. devDependencies this milestone added to `package.json` — `node_modules` has them (installed successfully before this race was understood) but a fresh `npm ci` against the committed lockfile would not. Left uncommitted/unresolved rather than risking a corrupted lockfile; whoever runs `scripts/bootstrap-macos.sh` on the real macOS dev machine should run a plain `npm install` there first to regenerate `package-lock.json` correctly, then commit it.
 
 ### A3. Token-efficiency / assistant-workflow setup
-- [ ] Install RTK (`brew install rtk`) and adopt it for wrapping `cargo build` / `cargo tauri build` / `npm run build` output during local dev sessions
-- [ ] Write `CLAUDE.md` using the tiered-doc convention (only essential context loads by default; deeper notes live in linked files loaded on demand) — do this once real docs exist, not before
+- [ ] Install RTK (`brew install rtk`) and adopt it for wrapping `cargo build` / `cargo tauri build` / `npm run build` output during local dev sessions — scripted in `scripts/bootstrap-macos.sh`; requires Homebrew on the real dev machine
+- [ ] Write `CLAUDE.md` using the tiered-doc convention (only essential context loads by default; deeper notes live in linked files loaded on demand) — do this once real docs exist, not before (still not before: no app-code docs exist yet)
 - [ ] Deferred (tracked so it isn't forgotten, not actioned yet): CodeGraph, Token Optimizer MCP — revisit once the file count outgrows a single Explore pass
 
 ### A4. Test harness prerequisites
-- [ ] Design a disposable Anki test profile strategy: either a temp `ANKI_BASE` directory the E2E harness points AnkiConnect at, or a lightweight mock AnkiConnect server (`wiremock`-based Rust binary or small Node stub) that records/asserts `addNote` payloads without needing real Anki
-- [ ] **Hard rule:** `download_and_install_anki` / `auto_provision_ankiconnect` must never fire inside any automated test or watch-loop run — only against a developer's real Anki install after explicit consent (see Milestone E)
+- [x] Design a disposable Anki test profile strategy: either a temp `ANKI_BASE` directory the E2E harness points AnkiConnect at, or a lightweight mock AnkiConnect server (`wiremock`-based Rust binary or small Node stub) that records/asserts `addNote` payloads without needing real Anki — decision recorded in `docs/test-harness-strategy.md` (mock AnkiConnect stub, chosen over a real disposable Anki profile); actual stub implementation is Milestone G's job
+- [x] **Hard rule:** `download_and_install_anki` / `auto_provision_ankiconnect` must never fire inside any automated test or watch-loop run — only against a developer's real Anki install after explicit consent (see Milestone E) — encoded in `docs/test-harness-strategy.md` and called out in `scripts/bootstrap-macos.sh`'s header comment
 
 ---
 
 ## Milestone B — Core Architecture Refactor
 *Restructures `src-tauri/src` so Anki-specific assumptions stop leaking into capture/enrichment logic. Prerequisite for C, D, and F.*
+*Per decision 10: this milestone now also stands up `crates/vocab-core` as a real Cargo workspace member (not just an in-tree `src-tauri/src/core/` module) — `Learn` (Milestone I) consumes it as a second, real workspace member from the start, not "once a second consumer exists."*
 
 ### B1. Module layout
-- [ ] Create `src-tauri/src/core/mod.rs` — new home for platform-agnostic logic
-- [ ] Create `src-tauri/src/core/model.rs` — the neutral `Card` struct:
+- [ ] Create `crates/vocab-core/` as a Cargo workspace member; `src-tauri` becomes one consumer of it, not the sole home of this logic
+- [ ] Create `crates/vocab-core/src/model.rs` — the neutral `Card` struct:
   ```rust
   pub struct Card {
       pub front: String,
@@ -90,17 +101,17 @@ Default unless a row below says otherwise: **Sonnet 5 at `high` effort.** Escala
       pub audio_front: Option<Vec<u8>>,
   }
   ```
-- [ ] Create `src-tauri/src/core/providers/mod.rs` with trait definitions:
+- [ ] Create `crates/vocab-core/src/providers/mod.rs` with trait definitions:
   - `trait TranslationProvider { async fn translate(&self, text: &str, source: &str, target: &str) -> Result<String, ProviderError>; }`
   - `trait ExampleProvider { async fn fetch_example(&self, word: &str) -> Result<String, ProviderError>; }`
   - `trait RarityProvider { async fn analyze(&self, word: &str) -> Result<RarityResult, ProviderError>; }`
   - `trait TtsProvider { async fn synthesize(&self, text: &str, lang: &str) -> Result<Vec<u8>, ProviderError>; }`
-- [ ] Create `src-tauri/src/core/providers/mymemory.rs` — implements `TranslationProvider` against MyMemory's REST API
-- [ ] Move existing Datamuse logic out of `api_client.rs` into `src-tauri/src/core/providers/datamuse.rs` implementing `RarityProvider`
-- [ ] Move existing dictionaryapi.dev logic into `src-tauri/src/core/providers/dictionary_api.rs` implementing `ExampleProvider`
-- [ ] Move existing Google-Translate-TTS logic into `src-tauri/src/core/providers/google_tts.rs` implementing `TtsProvider` (kept only as the TTS source — not as the translation provider)
+- [ ] Create `crates/vocab-core/src/providers/mymemory.rs` — implements `TranslationProvider` against MyMemory's REST API
+- [ ] Move existing Datamuse logic out of `src-tauri/src/api_client.rs` into `crates/vocab-core/src/providers/datamuse.rs` implementing `RarityProvider`
+- [ ] Move existing dictionaryapi.dev logic into `crates/vocab-core/src/providers/dictionary_api.rs` implementing `ExampleProvider`
+- [ ] Move existing Google-Translate-TTS logic into `crates/vocab-core/src/providers/google_tts.rs` implementing `TtsProvider` (kept only as the TTS source — not as the translation provider)
 - [ ] Delete `src-tauri/src/api_client.rs` once its contents are fully redistributed into the provider modules above
-- [ ] Create `src-tauri/src/core/pipeline.rs` — orchestrates capture → translate → rarity-check → example → tts → `Card`, replacing the inline logic currently in `trigger_clipboard_sequence` (`lib.rs:206-310`)
+- [ ] Create `crates/vocab-core/src/pipeline.rs` — orchestrates capture → translate → rarity-check → example → tts → `Card`, replacing the inline logic currently in `trigger_clipboard_sequence` (`lib.rs:206-310`). `src-tauri` calls into this; the Anki-specific mapping stays in `src-tauri/src/anki/mapper.rs` below since that boundary is automator-specific, not shared core (decision 4).
 - [ ] Create `src-tauri/src/anki/mapper.rs` — the *only* place that converts a `Card` into Anki's `Front`/`Back`/`Context Sentence`/`Notes` field names; `anki.rs`'s `add_vocab_card` takes a `Card`, not raw strings
 
 ### B2. Config cleanup
@@ -183,11 +194,11 @@ Default unless a row below says otherwise: **Sonnet 5 at `high` effort.** Escala
 ---
 
 ## Milestone I — Advanced / Native-App Foundations
-*Long-term north star. Not scheduled — listed so the shared-core decisions in Milestone B stay intentional rather than accidental.*
+*Per decision 10 (2026-07-28): no longer "not scheduled." The cross-platform requirement means `Learn` starts alongside Milestone B, not as a someday-maybe — this milestone is the first real installment, not a long-term aspiration.*
 *Note: Milestones L and M below pull the SRS-scheduler and gamified-quiz items of this milestone forward, scoped concretely to the Chinese/HSK use case. Treat those two milestones as the first real installment of what this milestone describes, not a separate track.*
 
-- [ ] Extract `src-tauri/src/core/` into an actual Cargo workspace member (`crates/vocab-core`) once a second consumer exists
-- [ ] Second Tauri app (`apps/learn/`) consuming `vocab-core` — own review-session UI, FSRS-based scheduler instead of relying on Anki's
+- [x] `crates/vocab-core` extraction — moved into Milestone B directly, see B1
+- [ ] Second Tauri app (`apps/learn/`) consuming `vocab-core` — own review-session UI, FSRS-based scheduler instead of relying on Anki's. Targets macOS/Windows/Linux/iOS/Android via Tauri 2, plus a standalone web build (see decision 10) — this app is where the six-platform requirement actually gets satisfied, not the automator.
 - [ ] `ArgosTranslateProvider` — fully offline translation (implements the same `TranslationProvider` trait), likely via bundled ONNX-exported Argos models rather than shelling out to Python
 - [ ] FSRS scheduler integration operating over the local SQLite store from Milestone F
 - [ ] Duolingo-style mechanics: XP tally, streak + streak-freeze, tied to completed review sessions (not raw captures)
@@ -351,8 +362,81 @@ fn build_daily_queue(new_quota: u32) -> Vec<QueueItem> {
 - [ ] **Sentence Builder (word bank)**: tokenize a sentence into tiles — prefer splitting on known-vocabulary word boundaries from `hsk_curriculum`/`captures`, falling back to per-character tiles for anything not recognized as a known unit; shuffle tile order; drag-and-drop or tap-to-place UI; check ordering on submit
 - [ ] **Audio Listening Comprehension**: reuse the TTS audio already generated for the card (Milestone J4); two variants — (a) play audio → multiple-choice identify the character, (b) play audio → sentence-builder using the heard sentence's tiles
 
-### M3. UI surface — open decision
-- [ ] **Recommendation:** build the quiz/review session as a new view/window (`src/views/PracticeSession.vue`) inside the *existing* Tauri app, not as Milestone I's separate second app. Keep all scheduling/quiz logic in the shared `core` module (per Milestone B) so extracting it into a standalone app later is a packaging change, not a rewrite. This avoids standing up a second app+workspace before there's any usage validating the feature — **flagging for confirmation before building, since it's a real fork in strategy** (single-app-for-now vs. start the second app now)
+### M3. UI surface — resolved by decision 10 (2026-07-28)
+- [ ] Build the quiz/review session as its own view in the `Learn` app (`apps/learn/`, Milestone I), **not** inside the automator. This reverses the milestone's original recommendation (build it as a view in the existing single Tauri app) — that made sense before the six-platform requirement existed, but the automator is permanently desktop-only (global-hotkey capture), so anything that needs to reach iOS/Android/Web cannot live there regardless of how early or validated it is. All scheduling/quiz logic still lives in `crates/vocab-core` (Milestone B) so both apps consume the same implementation — only the UI shell differs per app.
+
+---
+
+## Milestone N — Release, Distribution & Auto-Update Infrastructure
+
+*Added 2026-07-29. Priority: highest — sequenced immediately after Milestone B (see decision 11). Closes a real, previously-undefined gap: the operator-approval pipeline (Engineer → QA → Test Manager → operator Tier 2 approval) has never had anything after it. Nothing currently builds, signs, publishes, or updates anywhere. Scope here is `Automator` (desktop: macOS/Windows/Linux) — `Learn`'s mobile/web distribution is evaluated in N8 for planning purposes but is its own future milestone, not built here.*
+
+### N0. The prerequisite nobody's built yet: a real git workflow
+Every engineering session so far has deliberately left changes uncommitted in the working tree ("git safety protocol says never auto-commit without explicit ask" — a real quote from an actual Engineer run this week). That's correct caution, but it means the "Tier 2 merge approval" step in `HOW_THE_COMPANY_WORKS.md` has been a conceptual placeholder, not a working mechanism — there's nothing to merge yet.
+- [ ] Engineer's own last step becomes: commit to a feature branch named after the Paperclip ticket (e.g. `pot-7-milestone-n`), not just leave the working tree dirty. The existing "don't auto-commit to `main`" caution stays exactly right — a feature branch isn't `main`.
+- [ ] Set up a real GitHub remote for this repo now, specifically because N5's CI/CD needs a remote to trigger from (`push` → tag → Actions). Staying fully local blocks the release pipeline entirely, not just makes it less convenient.
+- [ ] The operator's Tier 2 approval becomes concrete: review the branch's diff (`git diff main..<branch>` or a GitHub PR if pushed), merge into `main` themselves. This is the existing Tier 2 gate in `SOUL.md` — nothing new is being authorized here, just making the action actually possible.
+- [ ] Tag convention: `v0.MINOR.PATCH` while pre-1.0 (the app has no real users yet — see N8's App Store versioning note for why this matters later). One tag = one release; N5's pipeline triggers off tag push, not off every merge to `main`.
+
+### N1. macOS: code signing & notarization
+- [ ] Apple Developer Program enrollment ($99/year, operator's own account — not something an agent can do, this requires a human with a credit card and an Apple ID)
+- [ ] Generate a Developer ID Application certificate + Developer ID Installer certificate from that account
+- [ ] Wire signing/notarization into `tauri.conf.json` / build-time env vars: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (an **app-specific password**, generated separately — never the real Apple ID password), `APPLE_TEAM_ID`
+- [ ] Confirm `tauri build` runs `xcrun notarytool submit --wait` and staples the ticket automatically once those env vars are set — Tauri does this natively, don't hand-roll a separate notarization script
+- [ ] Distribution channel: **direct notarized `.dmg` download**, not the Mac App Store, for v1 — no review process, no 30% cut, no sandboxing rework required. Revisit only if App Store discoverability becomes worth the tradeoff later.
+
+### N2. Windows: code signing
+- [ ] Obtain a code-signing certificate — **OV (Organization Validation), not EV.** Verified current as of this writing: Microsoft's 2024 Trusted Root Program change removed EV's instant SmartScreen bypass — EV and OV now both build SmartScreen reputation the same way, via download volume over time. Paying the EV premium buys nothing here.
+- [ ] Real, current constraint: certificate validity is capped at **458 days** (CA/Browser Forum requirement effective March 2026, enforced across all public CAs) — budget for near-annual renewal regardless of which CA is chosen.
+- [ ] Options: a traditional CA-issued cert (DigiCert, SSL.com, Sectigo) or a cloud-HSM-backed option like Azure Trusted Signing (usually cheaper, no physical hardware token to manage/lose)
+- [ ] Wire into Tauri's Windows bundle config — plain `.pfx` certs reference directly; HSM-backed certs need `signtool` invoked with the HSM's provider, check whichever option is chosen against Tauri's current Windows signing docs at implementation time
+- [ ] **Expect SmartScreen warnings on early releases regardless of cert type** — this is real, unavoidable UX cost from having near-zero download volume yet, not a sign the signing setup is broken. Don't debug this as if it were a bug.
+- [ ] Distribution: direct `.msi`/`.exe` download for v1, same reasoning as N1 (Microsoft Store would need MSIX repackaging and a review process for a trust benefit direct signing already covers reasonably well).
+
+### N3. Linux: packaging & distribution
+- [ ] Build `.deb` and `.rpm` via Tauri's native bundler (`bundle.targets` in `tauri.conf.json` — no extra tooling needed beyond what `tauri build` already does)
+- [ ] **Also build an AppImage — not optional if N4's auto-updater should cover Linux at all.** Verified: Tauri's updater plugin only supports AppImage as the Linux update artifact. `.deb`/`.rpm` installs would update via their normal package manager instead, which is fine, but decide this explicitly: AppImage is the auto-update-integrated distribution, `.deb`/`.rpm` are secondary convenience downloads without auto-update.
+- [ ] No code-signing/notarization requirement at the OS level on Linux (unlike macOS/Windows) — meaningfully lower barrier to entry here
+- [ ] Flathub (Flatpak) as a secondary channel is worth real consideration once the app is stable — genuine Linux-user discoverability — but it's its own manifest/review process, not urgent for v1
+
+### N4. Auto-updater (Tauri, all three desktop platforms)
+- [ ] Generate the updater signing keypair: `tauri signer generate`. Public key → `plugins.updater.pubkey` in `tauri.conf.json` (safe to commit). Private key → **only** as a CI-injected secret (`TAURI_SIGNING_PRIVATE_KEY`) — never committed to this repo, never written into company-workspace, never pasted into a Paperclip/Plane ticket or comment. See N7.
+- [ ] Set `bundle.createUpdaterArtifacts: true` — `tauri build` then produces a `.sig` file alongside every platform artifact automatically
+- [ ] Hosting: a static `latest.json` manifest published as a GitHub Release asset (updated by N5's CI on every release), not a dynamic update server — no infrastructure to run or secure, GitHub's own CDN handles availability, and staged/percentage rollout isn't a real need at this app's current scale
+- [ ] App-side: check for updates on startup/idle via the updater plugin's `check()` call, surface a small non-blocking "update available, restart to apply" banner — never a silent forced restart, and never a check mid-capture (would interrupt the actual core workflow this app exists for)
+
+### N5. CI/CD release pipeline
+- [ ] GitHub Actions workflow triggered on `v*` tag push, built around `tauri-apps/tauri-action` (Tauri's own official action) — one step builds signed artifacts for all three desktop platforms in a runner matrix, generates the updater manifest, and publishes the GitHub Release
+- [ ] Runner matrix: `macos-latest` (`.dmg`, notarized per N1), `windows-latest` (`.msi`/`.exe`, signed per N2), `ubuntu-latest` (`.deb`/`.rpm`/AppImage per N3)
+- [ ] All N1/N2/N4 secrets live only in GitHub Actions repo secrets — this is the actual point of N0's remote-repo requirement
+- [ ] **This is the literal, mechanical answer to "how does an approved milestone reach the user":** operator approves (Tier 2, already exists, unchanged) → operator tags a release (`git tag vX.Y.Z && git push --tags` — an explicit, deliberate human action, not something any agent triggers autonomously) → CI builds, signs, and publishes automatically → already-installed apps pick up the update via N4's next startup check. No step in this chain is autonomous end-to-end; the human-triggered tag push is the deliberate release gate, same spirit as the existing Tier 2 merge gate.
+
+### N6. Signing-key custody (why this milestone is opus-critical, not routine)
+- [ ] The updater private key and both platform signing credentials are collectively the single highest-blast-radius secret this company holds — whoever has them can push a signed, auto-installed "update" to every user's machine. Hold this to at least Milestone E's supply-chain rigor, not routine config-file handling.
+- [ ] No agent (Engineer, QA, Test Manager, or PM) ever sees, requests, or handles these credentials directly, under any circumstance — they exist only as GitHub Actions secrets, referenced by name in workflow YAML, never echoed to a log, never pasted into a ticket/comment/chat message by anyone, human or agent.
+- [ ] This is an extension of the exact Tier 2/3 boundary `SOUL.md` already draws, not a new category of rule: publishing/releasing stays a deliberate, human-triggered action, full stop, regardless of how "ready to publish" the label on a ticket says a milestone is.
+
+### N7. Forward-looking: `Learn`'s six-platform distribution (informational — not this milestone's checklist)
+*Per decision 11 and the operator's explicit request to think this through now even though it's built later, as its own milestone, once Learn's UI work begins (Milestone I). Nothing below is a checkbox for N — it's context for whoever scopes that future milestone.*
+
+**iOS:**
+- Public distribution is realistically App-Store-only — no meaningful sideloading path for non-technical end users. Same Apple Developer Program membership as N1 covers this; it's one $99/year account, not a second cost.
+- TestFlight is the real, well-supported beta channel — use it before any public release.
+- No custom auto-updater is possible or needed here, unlike desktop's from-scratch N4 — the App Store *is* the update mechanism; users get updates per their OS's own automatic-update setting.
+- App Review adds real, variable latency (historically on the order of 1–3 days, and a real rejection is possible) — this shapes release cadence in a way desktop doesn't have; a future milestone should budget for it rather than assume tag-push-to-live speed.
+- Verified current as of this research (2026-07-29): Tauri 2 has shipped real, stable iOS support since the 2.0 stable release (October 2024) — same shared Rust core as `Automator`/`Learn`-desktop, genuinely not a separate codebase or rewrite.
+
+**Android:**
+- Google Play: one-time $25 developer account (cheaper and less friction than Apple's model), APK/AAB upload, Play Console review (generally faster/less strict than Apple's), and **staged rollout is natively supported** — a real advantage over iOS for catching a bad release before it reaches everyone.
+- Unlike iOS, direct APK sideloading is technically viable for end users, which opens two real secondary-channel options: F-Droid (open-source-friendly store, no Google account required for users — a good fit if this project stays open-source) and/or a custom Tauri-updater-based direct-APK channel (verify at implementation time whether Tauri's updater plugin covers the Android target the same way it covers desktop — mobile-target updater support should not be assumed identical to desktop without checking Tauri's docs at that point). Play-Store-installed users update through the Store regardless, same as iOS.
+- Same Tauri 2 mobile support as iOS, one shared build configuration (`tauri android build`).
+
+**Web:**
+- Not an app store model at all — closer to N1–N3's "direct download," but simpler: static hosting (GitHub Pages, Vercel, Netlify, or S3+CloudFront are all real, standard options).
+- "Update" is trivial here — there's no user-installed binary at all; every page load serves whatever was last deployed. This makes Web by far the cheapest platform to iterate on, worth weighing when a future milestone sequences `Learn`'s rollout order.
+- Requires the platform-adapter work decision 10 already flagged (every Tauri-specific call needs a browser-native fallback) — that's `Learn`/Milestone I's own scope, not N's. N5's tag-triggered build+publish pattern extends naturally to "also deploy the web build on every release," though — no new CI concept needed, just an added job.
+
+**Windows/Linux for `Learn`:** the same N2/N3 mechanics apply once `Learn`'s desktop build exists — no new research needed when that milestone starts, this section exists purely so the operator has the full six-platform picture now rather than macOS being the only one considered.
 
 ---
 
