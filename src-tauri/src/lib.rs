@@ -329,6 +329,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_current_settings, apply_settings, execute_card_generation,
             check_ankiconnect_installed, auto_provision_ankiconnect, launch_anki_desktop,
