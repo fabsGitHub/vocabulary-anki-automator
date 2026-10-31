@@ -131,6 +131,30 @@ mod tests {
         assert_eq!(end, Utc.with_ymd_and_hms(2026, 11, 1, 23, 0, 0).unwrap());
     }
 
+    /// docs/architecture.md § 2: with the offset sampled when the clock is
+    /// read, the local date is right on both sides of a DST switch, and the
+    /// end of that day is an hour early until the switch has happened.
+    #[test]
+    fn a_dst_switch_moves_the_end_of_the_day_only_until_it_happens() {
+        // Berlin, 2026-10-25: CEST (UTC+2) until 01:00 UTC, then CET
+        // (UTC+1). That local day ends at 23:00 UTC.
+        let (cest, cet) = (
+            FixedOffset::east_opt(2 * 3600).unwrap(),
+            FixedOffset::east_opt(3600).unwrap(),
+        );
+        let switch = Utc.with_ymd_and_hms(2026, 10, 25, 1, 0, 0).unwrap();
+        let date = NaiveDate::from_ymd_opt(2026, 10, 25).unwrap();
+        for (now, offset) in [(switch - Duration::milliseconds(1), cest), (switch, cet)] {
+            assert_eq!(FixedClock::new(now, offset).today(), date, "{now}");
+        }
+        let midnight = Utc.with_ymd_and_hms(2026, 10, 25, 23, 0, 0).unwrap();
+        assert_eq!(
+            local_day_bounds(date, cest).1,
+            midnight - Duration::hours(1)
+        );
+        assert_eq!(local_day_bounds(date, cet).1, midnight);
+    }
+
     #[test]
     fn date_format_round_trips() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 3).unwrap();

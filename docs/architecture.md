@@ -36,6 +36,19 @@ scripts/                   bootstrap, run-all-checks, git hooks
 - **Time:** anything that depends on "now" or the local date takes
   `&dyn vocab_core::time::Clock`. Never call `Utc::now()`/`Local::now()` in
   scheduling, session, streak or prompt logic.
+- **Local dates and DST:** the UTC offset is a `FixedOffset` sampled when the
+  clock is read (`Local::now().offset()`; the web build's
+  `Date.getTimezoneOffset()`), and each command reads the clock once (both
+  apps snapshot it), so its instant, local date and offset always agree:
+  `session_date`, XP dates, streak days and the prompt date are the local
+  date of that instant, DST switches included. Only "the end of today"
+  (`local_day_bounds(today, offset)`: local midnight at that offset plus 24 h)
+  is approximate on the day of a DST switch, and only while the switch is
+  still ahead: before a spring-forward switch the day ends an hour late
+  (cards due in the next day's first hour count as due today), before a
+  fall-back switch an hour early (cards due in the day's last hour wait for
+  the switch). The due queue, `reviews_due_count` and `due_today` are
+  computed from that bound; nothing stores it.
 - **Timestamps** are stored and serialized as RFC 3339 UTC with milliseconds
   (`to_rfc3339_opts(SecondsFormat::Millis, true)`, e.g.
   `2026-10-31T12:00:00.000Z`), which sorts lexicographically. Local calendar
