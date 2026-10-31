@@ -1,0 +1,15 @@
+{
+  "ui_lang": "de",
+  "hotkeys": "CommandOrControl+Alt+V",
+  "deepl": {
+    "api_key": "00000000-0000-0000-0000-000000000000:fx",
+    "source_lang": "EN",
+    "target_lang": "FR",
+    "max_chars": 80
+  },
+  "anki": {
+    "connect_url": "http://localhost:8765",
+    "deck_name": "Vocabulary::Mined",
+    "model_name": "Basic (and reversed card)"
+  }
+}
