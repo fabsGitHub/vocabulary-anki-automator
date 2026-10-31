@@ -1,0 +1,76 @@
+{
+  "sources": [
+    {
+      "repository": "https://github.com/drkameleon/complete-hsk-vocabulary",
+      "commit": "7ac65bf1a6387d35f1ade478906172a19311c7f9",
+      "license": "MIT"
+    },
+    {
+      "repository": "https://github.com/ivankra/hsk30",
+      "commit": "4ff9e3915ce87baaecd7ebe263085573a4ea3192",
+      "license": "MIT"
+    }
+  ],
+  "files": [
+    {
+      "path": "complete-hsk-vocabulary/wordlists/exclusive/new/1.json",
+      "url": "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/7ac65bf1a6387d35f1ade478906172a19311c7f9/wordlists/exclusive/new/1.json",
+      "sha256": "7ebcdbd2548ebdcf2413713d975ce095065f0f3447a5967e9caa4f4bf3d82c26",
+      "bytes": 495350
+    },
+    {
+      "path": "complete-hsk-vocabulary/wordlists/exclusive/new/2.json",
+      "url": "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/7ac65bf1a6387d35f1ade478906172a19311c7f9/wordlists/exclusive/new/2.json",
+      "sha256": "77f325f8a664a6179e664a94e810c36c134963a8cc575cc2b6a8e3eed2342997",
+      "bytes": 659502
+    },
+    {
+      "path": "complete-hsk-vocabulary/wordlists/exclusive/new/3.json",
+      "url": "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/7ac65bf1a6387d35f1ade478906172a19311c7f9/wordlists/exclusive/new/3.json",
+      "sha256": "ee322faf86bab14d719f356748b3adb4f07000d8dfa6e73d3ba60cefa938f0d5",
+      "bytes": 804735
+    },
+    {
+      "path": "complete-hsk-vocabulary/wordlists/exclusive/new/4.json",
+      "url": "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/7ac65bf1a6387d35f1ade478906172a19311c7f9/wordlists/exclusive/new/4.json",
+      "sha256": "7e0695b3e62174f646b9dd588424b7c2c0a38d2d33e7368e52fbc93ca770c9b3",
+      "bytes": 804440
+    },
+    {
+      "path": "complete-hsk-vocabulary/wordlists/exclusive/new/5.json",
+      "url": "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/7ac65bf1a6387d35f1ade478906172a19311c7f9/wordlists/exclusive/new/5.json",
+      "sha256": "4e76a8ff6cd8755c6be61268bd102d08b4182f52d49202a8dea37fcc2dd0e5bf",
+      "bytes": 841905
+    },
+    {
+      "path": "complete-hsk-vocabulary/wordlists/exclusive/new/6.json",
+      "url": "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/7ac65bf1a6387d35f1ade478906172a19311c7f9/wordlists/exclusive/new/6.json",
+      "sha256": "03cac80f1bee6433dddbc1d83c77c582ea6f5ba5b47bcd83ff266b03d2ac2ee7",
+      "bytes": 914960
+    },
+    {
+      "path": "complete-hsk-vocabulary/wordlists/exclusive/new/7.json",
+      "url": "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/7ac65bf1a6387d35f1ade478906172a19311c7f9/wordlists/exclusive/new/7.json",
+      "sha256": "8f74a29b946dc724ebf54d9b7290ffe575fbf785346390606304a9cbaa3ddb48",
+      "bytes": 4325996
+    },
+    {
+      "path": "complete-hsk-vocabulary/LICENSE",
+      "url": "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/7ac65bf1a6387d35f1ade478906172a19311c7f9/LICENSE",
+      "sha256": "21094287f6e487f6978cf240c67603e4a0e9f341c6e732558d052feb44210c8f",
+      "bytes": 1075
+    },
+    {
+      "path": "hsk30/hsk30.csv",
+      "url": "https://raw.githubusercontent.com/ivankra/hsk30/4ff9e3915ce87baaecd7ebe263085573a4ea3192/hsk30.csv",
+      "sha256": "8c2b73f74776240bcf154624730fc6fb2c42c254d5c5d0f88943878b8e575b9b",
+      "bytes": 948891
+    },
+    {
+      "path": "hsk30/LICENSE",
+      "url": "https://raw.githubusercontent.com/ivankra/hsk30/4ff9e3915ce87baaecd7ebe263085573a4ea3192/LICENSE",
+      "sha256": "9cd70c000ea23c899e71b2cbe7c28e18c60937f6e74d1b344d2923f6bddae44a",
+      "bytes": 1129
+    }
+  ]
+}
