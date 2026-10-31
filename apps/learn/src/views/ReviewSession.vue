@@ -8,7 +8,9 @@
  *
  * The meaning is labelled with the card's own `target_lang`: German
  * meanings are not bundled, so a German learner's new HSK words carry
- * English meanings (docs/architecture.md § 6.4), and the card says so.
+ * English meanings (docs/architecture.md § 6.4), and the card says so. The
+ * learner's meaning language is read again whenever the tab comes back,
+ * since the settings tab can change it while a pass is open.
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -16,7 +18,7 @@ import { useI18n } from 'vue-i18n'
 import AudioButton from '../components/AudioButton.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import { useReviewSession } from '../composables/useReviewSession'
-import { useShortcuts } from '../composables/useShortcuts'
+import { usePanelActive, useShortcuts } from '../composables/useShortcuts'
 import { useClock, usePlatform } from '../context'
 import {
   INTERVAL_KEYS,
@@ -31,7 +33,7 @@ import type { LearnSettings, Rating } from '../platform/types'
 const props = defineProps<{
   /** Bumped by the main window when today's goal changed: rebuild the queue. */
   round: number
-  /** Today's quota of new characters, once known. */
+  /** Today's quota of new characters, once known; an empty queue on a reviews-only day (0) offers to change it. */
   newGoal: number | null
 }>()
 
@@ -85,10 +87,6 @@ const audioSource = computed(() =>
       }
     : null,
 )
-const goalText = computed(() => {
-  if (props.newGoal === null) return null
-  return props.newGoal > 0 ? t('goal.newWords', { count: props.newGoal }) : t('goal.reviewsOnly')
-})
 const progressText = computed(() =>
   t('review.progress', { current: Math.min(index.value + 1, total.value), total: total.value }),
 )
@@ -140,22 +138,24 @@ watch(
   () => void session.start(),
 )
 
-onMounted(() => {
-  void session.start()
-  void loadMeaningLang()
-})
+watch(
+  usePanelActive(),
+  (isActive) => {
+    if (isActive) void loadMeaningLang()
+  },
+  { immediate: true },
+)
+
+onMounted(() => void session.start())
 </script>
 
 <template>
   <section class="pane-layout review-pane" data-test="review">
     <div class="pane-title-row">
       <h2 class="pane-title">{{ t('review.title') }}</h2>
-      <div class="review-goal">
-        <span v-if="goalText" class="badge badge-muted" data-test="goal">{{ goalText }}</span>
-        <span v-if="xpEarned > 0" class="badge badge-success" data-test="session-xp">
-          {{ t('exercise.xp', { xp: xpEarned }) }}
-        </span>
-      </div>
+      <span v-if="xpEarned > 0" class="badge badge-success" data-test="session-xp">
+        {{ t('exercise.xp', { xp: xpEarned }) }}
+      </span>
     </div>
 
     <p v-if="phase === 'loading'" class="input-hint spinner" data-test="review-loading">

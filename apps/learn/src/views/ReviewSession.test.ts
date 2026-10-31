@@ -5,6 +5,7 @@ import type { QueueItem, StoredCapture } from '../platform/types'
 import {
   deferred,
   fakePlatform,
+  fixedClock,
   mountWith,
   pressKey,
   type FakePlatform,
@@ -313,14 +314,16 @@ describe('a review session', () => {
     const platform = fakePlatform()
     await mountReview(platform, { newGoal: 0 })
     expect(find('[data-test="review-empty"]').text()).toContain('All caught up')
-    expect(find('[data-test="goal"]').text()).toBe('Today: reviews only')
+    expect(find('[data-test="review-empty"]').text()).toContain(
+      'Want to learn new characters today?',
+    )
     await click('[data-test="change-goal"]')
     expect(wrapper!.emitted('change-goal')).toHaveLength(1)
   })
 
   it('does not offer a goal change when today has new words', async () => {
     await mountReview(fakePlatform(), { newGoal: 5 })
-    expect(find('[data-test="goal"]').text()).toBe('New characters today: 5')
+    expect(find('[data-test="review-empty"]').text()).not.toContain('Want to learn new characters')
     expect(find('[data-test="change-goal"]').exists()).toBe(false)
   })
 })
@@ -350,6 +353,19 @@ describe('when something fails', () => {
     expect(platform.submitReviewRating).not.toHaveBeenCalled()
     expect(front()).toBe('serendipity')
     expect(find('[data-test="review-card-error"]').exists()).toBe(false)
+  })
+
+  it('still offers a card whose intervals cannot be previewed', async () => {
+    const platform = reviewPlatform()
+    platform.previewRatings.mockRejectedValueOnce('database is locked')
+    await mountReview(platform)
+    expect(find('[data-test="review-card-error"]').exists()).toBe(false)
+    await key(' ')
+    expect(find('[data-test="rate-3"]').attributes('aria-label')).toBe('Good')
+    expect(find('[data-test="interval"]').exists()).toBe(false)
+    await key('3')
+    expect(platform.submitReviewRating).toHaveBeenCalledWith(1, 3)
+    expect(front()).toBe('serendipity')
   })
 
   it('keeps the card when a rating is not saved, so it can be rated again', async () => {

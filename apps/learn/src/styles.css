@@ -133,6 +133,14 @@ kbd {
   background-color: var(--bg-app);
 }
 
+/* Everything but the daily prompt, which can make it inert as a whole. */
+.learn-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .pane-scroll {
   flex: 1 1 auto;
   min-height: 0;
@@ -685,13 +693,6 @@ input[type='number']:focus {
 /* ==========================================================================
    9. REVIEW SESSION
    ========================================================================== */
-.review-goal {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
 .progress-row {
   display: flex;
   align-items: center;
@@ -857,8 +858,10 @@ input[type='number']:focus {
   width: 100%;
 }
 
+/* The review summary: two by two rather than three and a straggler. */
 .stat-grid-compact {
-  max-width: 520px;
+  max-width: 420px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .stat-tile {
@@ -1022,18 +1025,23 @@ input[type='number']:focus {
   gap: 12px;
 }
 
+/* Both rows are one tile high (40px tiles + padding + border) even when
+   empty, so placing the first tile never pushes the bank down under the
+   pointer between two taps. */
 .tile-answer,
 .tile-bank {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  min-height: 48px;
+  min-height: 58px;
   padding: 8px;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
 }
 
 .tile-answer {
-  border: 1px dashed var(--border-color);
+  border-style: dashed;
+  border-color: var(--border-color);
   align-items: center;
 }
 
@@ -1045,6 +1053,7 @@ input[type='number']:focus {
 .tile {
   padding: 8px 12px;
   font-size: 16px;
+  line-height: 22px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--bg-card);

@@ -9,7 +9,9 @@
  * exercises, lessons, stats, and settings with the Anki export and import.
  * A tab is mounted on its first visit and kept afterwards, so switching tabs
  * never loses a half-done review. The menu reopens the prompt to change
- * today's goal, after which the review rebuilds its queue.
+ * today's goal, after which the review rebuilds its queue. While the prompt
+ * is open, everything behind it is inert: out of reach of the keyboard,
+ * the pointer and assistive technology.
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -113,99 +115,101 @@ onBeforeUnmount(() => window.removeEventListener('focus', onWindowFocus))
 
 <template>
   <div class="view learn-shell">
-    <header class="mac-header">
-      <div class="header-titles">
-        <h1>{{ t('app.title') }}</h1>
-        <p>{{ goalText ?? t('app.subtitle') }}</p>
-      </div>
-      <div class="controls-cluster">
-        <select
-          class="mac-select compact-select"
-          data-test="ui-lang"
-          :value="locale"
-          :aria-label="t('app.uiLanguage')"
-          :title="t('app.uiLanguage')"
-          @change="switchUiLang"
+    <div class="learn-body" :inert="open || undefined" data-test="app-body">
+      <header class="mac-header">
+        <div class="header-titles">
+          <h1>{{ t('app.title') }}</h1>
+          <p>{{ goalText ?? t('app.subtitle') }}</p>
+        </div>
+        <div class="controls-cluster">
+          <select
+            class="mac-select compact-select"
+            data-test="ui-lang"
+            :value="locale"
+            :aria-label="t('app.uiLanguage')"
+            :title="t('app.uiLanguage')"
+            @change="switchUiLang"
+          >
+            <option v-for="lang in UI_LANGS" :key="lang" :value="lang" :lang="lang">
+              {{ UI_LANG_LABELS[lang] }}
+            </option>
+          </select>
+          <AppMenu v-if="started" :items="menuItems" @select="onMenu" />
+        </div>
+      </header>
+
+      <div v-if="reopenError" class="notice error toast-row" role="alert" data-test="reopen-error">
+        <span>{{ t('app.reopenFailed', { error: reopenError }) }}</span>
+        <button
+          type="button"
+          class="close-btn"
+          :aria-label="t('app.dismiss')"
+          @click="clearReopenError"
         >
-          <option v-for="lang in UI_LANGS" :key="lang" :value="lang" :lang="lang">
-            {{ UI_LANG_LABELS[lang] }}
-          </option>
-        </select>
-        <AppMenu v-if="started" :items="menuItems" @select="onMenu" />
+          &times;
+        </button>
       </div>
-    </header>
 
-    <div v-if="reopenError" class="notice error toast-row" role="alert" data-test="reopen-error">
-      <span>{{ t('app.reopenFailed', { error: reopenError }) }}</span>
-      <button
-        type="button"
-        class="close-btn"
-        :aria-label="t('app.dismiss')"
-        @click="clearReopenError"
-      >
-        &times;
-      </button>
-    </div>
+      <template v-if="started">
+        <div v-if="phase === 'error'" class="notice error toast-row" role="alert">
+          <span>{{ t('app.loadFailed', { error: loadError ?? '' }) }}</span>
+          <button type="button" class="btn btn-secondary btn-mini" @click="prompt.load()">
+            {{ t('app.retry') }}
+          </button>
+        </div>
 
-    <template v-if="started">
-      <div v-if="phase === 'error'" class="notice error toast-row" role="alert">
-        <span>{{ t('app.loadFailed', { error: loadError ?? '' }) }}</span>
-        <button type="button" class="btn btn-secondary btn-mini" @click="prompt.load()">
+        <nav class="segmented-bar" role="tablist" :aria-label="t('tabs.label')">
+          <button
+            v-for="(tab, index) in TABS"
+            :id="`tab-${tab.id}`"
+            :key="tab.id"
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === tab.id"
+            :aria-controls="`panel-${tab.id}`"
+            :tabindex="activeTab === tab.id ? 0 : -1"
+            :class="['segment-btn', { active: activeTab === tab.id }]"
+            :data-test="`tab-${tab.id}`"
+            @click="selectTab(tab.id)"
+            @keydown="onTabKeydown($event, index)"
+          >
+            {{ t(tab.label) }}
+          </button>
+        </nav>
+
+        <main class="pane-scroll">
+          <template v-for="tab in TABS" :key="tab.id">
+            <TabPanel
+              v-if="visited.has(tab.id)"
+              :id="`panel-${tab.id}`"
+              :labelled-by="`tab-${tab.id}`"
+              :selected="activeTab === tab.id"
+              :interactive="!open"
+            >
+              <ReviewSession
+                v-if="tab.id === 'review'"
+                :round="round"
+                :new-goal="newGoal"
+                @change-goal="prompt.reopen()"
+              />
+              <PracticeView v-else-if="tab.id === 'practice'" />
+              <LessonsView v-else-if="tab.id === 'lessons'" />
+              <StatsView v-else-if="tab.id === 'stats'" />
+              <AnkiView v-else />
+            </TabPanel>
+          </template>
+        </main>
+      </template>
+
+      <p v-else-if="phase === 'loading'" class="input-hint spinner" data-test="app-loading">
+        {{ t('app.loading') }}
+      </p>
+      <div v-else-if="phase === 'error'" class="onboarding-notice warning" data-test="app-error">
+        <p role="alert">{{ t('app.loadFailed', { error: loadError ?? '' }) }}</p>
+        <button type="button" class="btn btn-primary" data-test="app-retry" @click="prompt.load()">
           {{ t('app.retry') }}
         </button>
       </div>
-
-      <nav class="segmented-bar" role="tablist" :aria-label="t('tabs.label')">
-        <button
-          v-for="(tab, index) in TABS"
-          :id="`tab-${tab.id}`"
-          :key="tab.id"
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === tab.id"
-          :aria-controls="`panel-${tab.id}`"
-          :tabindex="activeTab === tab.id ? 0 : -1"
-          :class="['segment-btn', { active: activeTab === tab.id }]"
-          :data-test="`tab-${tab.id}`"
-          @click="selectTab(tab.id)"
-          @keydown="onTabKeydown($event, index)"
-        >
-          {{ t(tab.label) }}
-        </button>
-      </nav>
-
-      <main class="pane-scroll">
-        <template v-for="tab in TABS" :key="tab.id">
-          <TabPanel
-            v-if="visited.has(tab.id)"
-            :id="`panel-${tab.id}`"
-            :labelled-by="`tab-${tab.id}`"
-            :selected="activeTab === tab.id"
-            :interactive="!open"
-          >
-            <ReviewSession
-              v-if="tab.id === 'review'"
-              :round="round"
-              :new-goal="newGoal"
-              @change-goal="prompt.reopen()"
-            />
-            <PracticeView v-else-if="tab.id === 'practice'" />
-            <LessonsView v-else-if="tab.id === 'lessons'" />
-            <StatsView v-else-if="tab.id === 'stats'" />
-            <AnkiView v-else />
-          </TabPanel>
-        </template>
-      </main>
-    </template>
-
-    <p v-else-if="phase === 'loading'" class="input-hint spinner" data-test="app-loading">
-      {{ t('app.loading') }}
-    </p>
-    <div v-else-if="phase === 'error'" class="onboarding-notice warning" data-test="app-error">
-      <p role="alert">{{ t('app.loadFailed', { error: loadError ?? '' }) }}</p>
-      <button type="button" class="btn btn-primary" data-test="app-retry" @click="prompt.load()">
-        {{ t('app.retry') }}
-      </button>
     </div>
 
     <DailyPromptModal

@@ -7,12 +7,17 @@
  * call), and kept for repeats. A refused autoplay is not an error: the
  * listening exercises try to play on their own, and the "play" button is
  * there for when the webview wants a click first.
+ *
+ * Sound belongs to the component that asked for it. Once it is gone (the
+ * next card, the next exercise) its recording stops, and a fetch still on
+ * its way is never played: a slow TTS answer would otherwise speak the
+ * previous word over the exercise that replaced it.
  */
 
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 
 import { usePlatform } from '../context'
-import { playMp3 } from '../domain/audio'
+import { playMp3, stopAudio } from '../domain/audio'
 import { errorMessage } from '../domain/errors'
 
 export interface AudioSource {
@@ -32,6 +37,9 @@ export function useAudio() {
   const status = ref<AudioStatus>('idle')
   const error = ref<string | null>(null)
   const cache = new Map<string, string | null>()
+  /** Marks this component's recordings, so only its own are stopped. */
+  const owner = {}
+  let disposed = false
 
   async function fetchAudio(source: AudioSource): Promise<string | null> {
     if (source.inline) return source.inline
@@ -45,7 +53,7 @@ export function useAudio() {
 
   /** Plays `source`; `quiet` keeps a refused autoplay silent. */
   async function play(source: AudioSource, { quiet = false } = {}): Promise<void> {
-    if (status.value === 'loading') return
+    if (status.value === 'loading' || disposed) return
     status.value = 'loading'
     error.value = null
     const key = JSON.stringify([source.cardId, source.text, source.lang, Boolean(source.inline)])
@@ -60,18 +68,24 @@ export function useAudio() {
       error.value = errorMessage(err)
       return
     }
+    if (disposed) return
     if (!audio) {
       status.value = 'unavailable'
       return
     }
     try {
-      await playMp3(audio)
+      await playMp3(audio, owner)
       status.value = 'idle'
     } catch (err) {
       status.value = quiet ? 'idle' : 'failed'
       error.value = quiet ? null : errorMessage(err)
     }
   }
+
+  onBeforeUnmount(() => {
+    disposed = true
+    stopAudio(owner)
+  })
 
   return { status, error, play }
 }

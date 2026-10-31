@@ -102,13 +102,18 @@ describe('practice', () => {
   it('moves on to a new, unanswered exercise after an answer', async () => {
     const platform = practicePlatform()
     await mountPractice(platform)
+    const button = () => find('[data-test="generate"]')
+    expect(button().classes()).toContain('btn-primary')
     await generate()
-    expect(find('[data-test="generate"]').text()).toBe('Skip')
+    // While the exercise waits for its answer, skipping it is the lesser action.
+    expect(button().text()).toBe('Skip')
+    expect(button().classes()).toContain('btn-secondary')
     await find('[data-test="option-1"]').trigger('click')
     await flushPromises()
     expect(platform.recordExerciseResult).toHaveBeenCalledWith(1, 'multiple_choice', true)
     expect(find('[data-test="verdict"]').exists()).toBe(true)
-    expect(find('[data-test="generate"]').text()).toBe('Next exercise')
+    expect(button().text()).toBe('Next exercise')
+    expect(button().classes()).toContain('btn-primary')
 
     await generate()
     expect(platform.nextExercise).toHaveBeenCalledTimes(2)

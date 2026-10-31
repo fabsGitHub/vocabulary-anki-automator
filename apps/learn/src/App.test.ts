@@ -225,6 +225,22 @@ describe('the daily prompt', () => {
     expect(platform.getDailyQueue).toHaveBeenCalledTimes(3)
   })
 
+  it('makes everything behind it inert while it is open', async () => {
+    const platform = needsPrompt(fakePlatform())
+    await mountApp(platform)
+    const body = () => find('[data-test="app-body"]')
+    expect(body().attributes('inert')).toBeDefined()
+    expect(body().find('[data-test="daily-prompt"]').exists()).toBe(false)
+
+    await click('[data-test="prompt-start"]')
+    expect(body().attributes('inert')).toBeUndefined()
+
+    await openMenuAction()
+    expect(body().attributes('inert')).toBeDefined()
+    await click('[data-test="prompt-dismiss"]')
+    expect(body().attributes('inert')).toBeUndefined()
+  })
+
   it('keeps the review’s shortcuts away while it is open', async () => {
     const platform = fakePlatform()
     platform.getDailyQueue.mockResolvedValue([
@@ -310,6 +326,26 @@ describe('the main window', () => {
     await find('[data-test="menu-change-goal"]').trigger('keydown', { key: 'Escape' })
     expect(button.attributes('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(button.element)
+  })
+
+  it('reads the meaning language again when the review comes back', async () => {
+    const platform = fakePlatform()
+    platform.getDailyQueue.mockResolvedValue([{ kind: 'new', hanzi: '学', curriculum_order: 7 }])
+    platform.startNewItem.mockResolvedValue(30)
+    platform.getCard.mockResolvedValue(
+      fx.capture({ id: 30, origin: 'curriculum', card: { front: '学', back: 'to learn' } }),
+    )
+    await mountApp(platform)
+    pressKey(' ')
+    await flushPromises()
+    // A German learner's curriculum word with its English meaning.
+    expect(find('[data-test="meaning-fallback"]').exists()).toBe(true)
+
+    platform.getSettings.mockResolvedValue(fx.settings((value) => (value.meaning_lang = 'en')))
+    await click('[data-test="tab-anki"]')
+    await click('[data-test="tab-review"]')
+    expect(find('[data-test="back"]').text()).toBe('to learn')
+    expect(find('[data-test="meaning-fallback"]').exists()).toBe(false)
   })
 
   it('switches the UI language and remembers it', async () => {

@@ -24,8 +24,12 @@ import type {
   StreakSummary,
 } from '../platform/types'
 
-/** 2026-10-31 12:00:00.000 UTC, the instant every fixture is relative to. */
-export const NOW = Date.UTC(2026, 9, 31, 12, 0, 0)
+/**
+ * 2026-10-31 at local noon, the instant every fixture is relative to. Local,
+ * not UTC, so that it falls on `TODAY` in whatever time zone the tests run:
+ * the main window compares the clock's local date with the backend's today.
+ */
+export const NOW = new Date(2026, 9, 31, 12, 0, 0).getTime()
 export const TODAY = '2026-10-31'
 
 const iso = (ms: number) => new Date(ms).toISOString()

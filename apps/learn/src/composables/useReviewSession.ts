@@ -45,7 +45,7 @@ export interface CurrentCard {
   previewedAt: number
 }
 
-/** What failed: building the queue, loading the current card, or saving a rating. */
+/** What failed: building the queue, loading or introducing the current card, or saving a rating. */
 export interface ReviewError {
   step: 'queue' | 'card' | 'rate'
   message: string
@@ -108,7 +108,9 @@ export function useReviewSession(platform: PlatformAdapter, clock: Clock) {
       const cardId = item.kind === 'new' ? await platform.startNewItem(item.hanzi) : item.card_id
       const [capture, previews] = await Promise.all([
         platform.getCard(cardId),
-        platform.previewRatings(cardId),
+        // The intervals only label the buttons (the core itself has none for
+        // a state FSRS cannot read), so without them the card is still rated.
+        platform.previewRatings(cardId).catch((): RatingPreview[] => []),
       ])
       if (run !== pass) return
       current.value = { item, cardId, capture, previews, previewedAt: clock.now() }

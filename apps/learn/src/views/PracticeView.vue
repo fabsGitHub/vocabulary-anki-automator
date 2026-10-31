@@ -54,10 +54,12 @@ const kinds = computed(() =>
 const kindAvailable = computed(
   () => !kinds.value.find((entry) => entry.value === kind.value)?.reason,
 )
+/** An exercise waits for its answer: the button only skips it, so it steps back for "Check". */
+const skipping = computed(() => exercise.value !== null && !answered.value)
 const generateLabel = computed(() => {
   if (generating.value) return t('practice.generating')
   if (exercise.value === null) return t('practice.start')
-  return answered.value ? t('practice.next') : t('practice.skip')
+  return skipping.value ? t('practice.skip') : t('practice.next')
 })
 
 function cardLabel(card: LearnedCard): string {
@@ -173,7 +175,8 @@ watch(
       <div class="action-row">
         <button
           type="button"
-          class="btn btn-primary"
+          class="btn"
+          :class="skipping ? 'btn-secondary' : 'btn-primary'"
           data-test="generate"
           :disabled="generating || cardId === null || !kindAvailable"
           @click="generate"

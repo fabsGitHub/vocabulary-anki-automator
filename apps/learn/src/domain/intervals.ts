@@ -47,9 +47,7 @@ export function nextInterval(preview: RatingPreview, previewedAtMs: number): Int
   if (days >= 30) return { value: oneDecimal(days / 30), unit: 'months' }
   if (days >= 1) return { value: days, unit: 'days' }
   const due = Date.parse(preview.due_date)
-  const minutes = Number.isNaN(due)
-    ? 1
-    : Math.max(1, Math.round((due - previewedAtMs) / MINUTE_MS))
+  const minutes = Number.isNaN(due) ? 1 : Math.max(1, Math.round((due - previewedAtMs) / MINUTE_MS))
   if (minutes >= 24 * 60) return { value: Math.round(minutes / (24 * 60)), unit: 'days' }
   if (minutes >= 60) return { value: Math.round(minutes / 60), unit: 'hours' }
   return { value: minutes, unit: 'minutes' }
