@@ -454,20 +454,63 @@ mod schema {
     }
 
     #[test]
-    fn a_newer_schema_is_refused_and_the_file_left_untouched() {
+    fn an_unknown_schema_version_is_refused_and_the_file_left_untouched() {
+        // The first version past this build, a much newer one, and one no
+        // build writes.
+        for version in [i64::from(SCHEMA_VERSION) + 1, 99, -1] {
+            let db = TempDb::new();
+            db.raw()
+                .pragma_update(None, "user_version", version)
+                .unwrap();
+
+            let err = Store::open(&db.path).unwrap_err();
+            assert!(
+                matches!(&err, StoreError::Invalid(message) if message.contains(&version.to_string())),
+                "version {version}: {err:?}"
+            );
+
+            let raw = db.raw();
+            assert_eq!(user_version(&raw), version);
+            assert!(names_of(&raw, "table").is_empty(), "no migration may run");
+            assert_eq!(journal_mode(&raw), "delete");
+        }
+    }
+
+    #[test]
+    fn a_failing_migration_step_leaves_the_file_at_the_previous_version() {
         let db = TempDb::new();
-        db.raw().pragma_update(None, "user_version", 99).unwrap();
+        {
+            let raw = db.raw();
+            raw.execute_batch(V1_SQL).unwrap();
+            raw.execute(
+                "INSERT INTO captures (front, back, source_lang, target_lang, captured_at) \
+                 VALUES ('Haus', 'house', 'de', 'en', '2026-10-31T12:00:00.000Z')",
+                [],
+            )
+            .unwrap();
+            // In the way of v2's CREATE TABLE, which runs after v2's ALTER
+            // TABLE statements have already added columns to `captures`.
+            raw.execute_batch("CREATE TABLE srs_state (card_id INTEGER)")
+                .unwrap();
+            raw.pragma_update(None, "user_version", 1).unwrap();
+        }
+        let v1_columns = column_names(&db.raw(), "captures");
 
         let err = Store::open(&db.path).unwrap_err();
-        assert!(
-            matches!(&err, StoreError::Invalid(message) if message.contains("99")),
-            "{err:?}"
-        );
+        assert!(matches!(err, StoreError::Sqlite(_)), "{err:?}");
 
         let raw = db.raw();
-        assert_eq!(user_version(&raw), 99);
-        assert!(names_of(&raw, "table").is_empty(), "no migration may run");
-        assert_eq!(journal_mode(&raw), "delete");
+        assert_eq!(user_version(&raw), 1);
+        assert_eq!(
+            column_names(&raw, "captures"),
+            v1_columns,
+            "the ALTER TABLEs of the failed step were rolled back"
+        );
+        // Nothing half-applied is left to trip the next attempt.
+        raw.execute_batch("DROP TABLE srs_state").unwrap();
+        let store = db.open();
+        assert_eq!(user_version(&raw), 3);
+        assert_eq!(fronts(&store), ["Haus"]);
     }
 
     #[test]
@@ -843,6 +886,34 @@ mod captures {
     }
 
     #[test]
+    fn a_card_dated_past_year_9999_is_refused_and_the_history_stays_readable() {
+        // What JavaScript's `toISOString()` gives for year 10000, and serde
+        // accepts it. Written as is, the row would not parse back, and every
+        // listing that reached it would fail.
+        let far_future: DateTime<Utc> =
+            serde_json::from_str("\"+010000-01-01T00:00:00.000Z\"").unwrap();
+        let store = Store::open_in_memory().unwrap();
+        let kept = insert(&store, &english("Haus", "2026-10-31T12:00:00Z"));
+        let card = english("Zukunft", "2026-10-31T12:00:00Z");
+        let card = Card {
+            captured_at: far_future,
+            ..card
+        };
+
+        assert!(matches!(
+            store.insert_capture(&card, CaptureOrigin::Capture, false),
+            Err(StoreError::Invalid(message)) if message.contains("0000 to 9999")
+        ));
+        assert!(matches!(
+            store.update_capture_card(kept, &card),
+            Err(StoreError::Invalid(_))
+        ));
+
+        assert_eq!(ids(&store.list_recent_captures(10).unwrap()), [kept]);
+        assert_eq!(fronts(&store), ["Haus"]);
+    }
+
+    #[test]
     fn timestamps_written_by_other_tools_are_read_leniently() {
         let db = TempDb::new();
         let store = db.open();
@@ -1209,6 +1280,106 @@ mod srs {
     }
 
     #[test]
+    fn a_bound_past_year_9999_selects_every_state() {
+        let store = Store::open_in_memory().unwrap();
+        let soon = insert(&store, &english("soon", "2026-10-31T00:00:00Z"));
+        let last = insert(&store, &english("last", "2026-10-31T00:00:00Z"));
+        let last_state = new_state(last, "9999-12-31T23:59:59.999Z");
+        let soon_state = new_state(soon, "2026-10-31T12:00:00.000Z");
+        store.upsert_srs_state(&last_state).unwrap();
+        store.upsert_srs_state(&soon_state).unwrap();
+        let due_ids = |before: DateTime<Utc>| -> Vec<i64> {
+            store
+                .list_srs_due_before(before)
+                .unwrap()
+                .iter()
+                .map(|state| state.card_id)
+                .collect()
+        };
+
+        // `MAX_UTC` as "no upper bound": its text, `+262142-...`, would sort
+        // below every stored instant and select nothing.
+        assert_eq!(due_ids(DateTime::<Utc>::MAX_UTC), [soon, last]);
+        assert_eq!(due_ids(at("9999-12-31T23:59:59.999Z")), [soon]);
+        assert!(due_ids(DateTime::<Utc>::MIN_UTC).is_empty());
+
+        // A state that would not read back is refused rather than stored.
+        let unreadable = SrsStateRow {
+            last_reviewed_at: Some(DateTime::<Utc>::MAX_UTC),
+            ..soon_state.clone()
+        };
+        assert!(matches!(
+            store.upsert_srs_state(&unreadable),
+            Err(StoreError::Invalid(_))
+        ));
+        let unreadable = SrsStateRow {
+            due_date: DateTime::<Utc>::MAX_UTC,
+            ..soon_state.clone()
+        };
+        assert!(matches!(
+            store.upsert_srs_state(&unreadable),
+            Err(StoreError::Invalid(_))
+        ));
+        let far_review = ReviewLogRow {
+            reviewed_at: DateTime::<Utc>::MAX_UTC,
+            ..review(soon, 3, "2026-10-31T12:00:00.000Z")
+        };
+        assert!(matches!(
+            store.insert_review_log(&far_review),
+            Err(StoreError::Invalid(_))
+        ));
+        assert_eq!(store.get_srs_state(soon).unwrap(), Some(soon_state));
+        assert!(store.review_log_for_card(soon).unwrap().is_empty());
+    }
+
+    #[test]
+    fn malformed_scheduling_values_are_errors_that_name_their_row() {
+        fn invalid_message<T: std::fmt::Debug>(result: StoreResult<T>) -> String {
+            match result {
+                Err(StoreError::Invalid(message)) => message,
+                other => panic!("expected StoreError::Invalid, got {other:?}"),
+            }
+        }
+
+        let db = TempDb::new();
+        let store = db.open();
+        let card = insert(&store, &english("Haus", "2026-10-31T12:00:00Z"));
+        store
+            .upsert_srs_state(&new_state(card, "2026-10-31T12:00:00.000Z"))
+            .unwrap();
+        let log = store
+            .insert_review_log(&review(card, 3, "2026-10-31T12:00:00.000Z"))
+            .unwrap();
+        let raw = db.raw();
+        raw.execute(
+            "UPDATE srs_state SET last_reviewed_at = 'soon' WHERE card_id = ?1",
+            [card],
+        )
+        .unwrap();
+        raw.execute(
+            "UPDATE review_log SET session_date = '31.10.2026' WHERE id = ?1",
+            [log],
+        )
+        .unwrap();
+
+        let message = invalid_message(store.get_srs_state(card));
+        assert!(
+            message.starts_with(&format!("srs_state row {card}: ")) && message.contains("soon"),
+            "{message}"
+        );
+        assert_eq!(
+            invalid_message(store.list_srs_due_before(at("2026-11-01T00:00:00Z"))),
+            message
+        );
+        let message = invalid_message(store.review_log_for_card(card));
+        assert!(
+            message.starts_with(&format!("review_log row {log}: "))
+                && message.contains("31.10.2026"),
+            "{message}"
+        );
+    }
+
+    #[test]
     fn review_log_rows_get_store_ids_and_come_back_oldest_first() {
         let store = Store::open_in_memory().unwrap();
         let card = insert(
@@ -1411,6 +1582,33 @@ mod progress {
             store.list_streak_freeze_dates().unwrap(),
             [day("2026-10-28"), day("2026-11-02")]
         );
+    }
+
+    #[test]
+    fn dates_past_year_9999_are_refused() {
+        // Stored as `+10000-01-01`, they would sort before every other date.
+        let store = Store::open_in_memory().unwrap();
+        let far = NaiveDate::from_ymd_opt(10_000, 1, 1).unwrap();
+        let refused = |result: StoreResult<()>| matches!(result, Err(StoreError::Invalid(_)));
+
+        assert!(refused(store.insert_streak_freeze(far)));
+        assert!(refused(
+            store
+                .insert_xp(far, 5, "exercise", at("2026-10-31T12:00:00Z"))
+                .map(drop)
+        ));
+        assert!(refused(store.upsert_daily_session(&DailySessionRow {
+            session_date: far,
+            ..session("2026-10-31", None)
+        })));
+        assert!(refused(store.upsert_daily_session(&DailySessionRow {
+            completed_at: Some(DateTime::<Utc>::MAX_UTC),
+            ..session("2026-10-31", None)
+        })));
+
+        assert!(store.list_streak_freeze_dates().unwrap().is_empty());
+        assert_eq!(store.xp_total().unwrap(), 0);
+        assert_eq!(store.get_daily_session(day("2026-10-31")).unwrap(), None);
     }
 
     #[test]
@@ -1653,5 +1851,35 @@ mod two_apps {
 
         assert_eq!((automator_seen, learn_seen), (0, 1));
         assert_eq!(fronts(&learn), ["from learn", "from automator"]);
+    }
+
+    #[test]
+    fn apps_seeding_at_the_same_time_write_the_curriculum_once() {
+        let db = TempDb::new();
+        drop(db.open());
+        let items = vec![curriculum_item("你好", 1), curriculum_item("学习", 2)];
+
+        // Both apps start seeding while a third connection holds the write
+        // lock. Each "already seeded?" check has to happen inside the
+        // seeding transaction: made before it, both checks would see an
+        // empty table, and both apps would rewrite it.
+        let holder = db.raw();
+        holder.execute_batch("BEGIN IMMEDIATE").unwrap();
+        let seeders: Vec<_> = (0..2)
+            .map(|_| {
+                let mut store = db.open();
+                let items = items.clone();
+                thread::spawn(move || store.ensure_curriculum_seeded(&items))
+            })
+            .collect();
+        thread::sleep(HOLD);
+        holder.execute_batch("COMMIT").unwrap();
+
+        let wrote: Vec<bool> = seeders
+            .into_iter()
+            .map(|seeder| seeder.join().unwrap().unwrap())
+            .collect();
+        assert_eq!(wrote.iter().filter(|wrote| **wrote).count(), 1, "{wrote:?}");
+        assert_eq!(db.open().curriculum_in_order().unwrap(), items);
     }
 }

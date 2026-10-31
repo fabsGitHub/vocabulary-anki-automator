@@ -173,7 +173,7 @@ impl<'a> CardColumns<'a> {
         Ok(Self {
             card,
             tags: codec::encode_tags(&card.tags)?,
-            captured_at: codec::format_timestamp(card.captured_at),
+            captured_at: codec::format_timestamp(card.captured_at)?,
             script_kind: card.script_metadata.kind(),
             pinyin,
             hsk_level,

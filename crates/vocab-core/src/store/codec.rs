@@ -4,16 +4,30 @@
 //! comparison agrees with value order. Reads are lenient, so rows written by
 //! hand, by another tool or by SQLite's own date functions still load.
 
-use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, SecondsFormat, Utc};
+use std::{fmt::Display, ops::RangeInclusive};
+
+use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, SecondsFormat, Utc};
 
 use super::{StoreError, StoreResult};
 use crate::time;
 
+/// The years the stored forms can hold. Only these have the fixed-width
+/// `YYYY` that the ordering relies on: chrono writes any other year with a
+/// sign and more digits (`+10000-01-01T...`), which sorts before every other
+/// row and does not parse back, so a single such row would break every
+/// listing that reaches it. Writing one is refused instead.
+const STORABLE_YEARS: RangeInclusive<i32> = 0..=9999;
+
+/// Compares above every stored instant: stored text starts with a digit, and
+/// `:` is the character after `9`.
+const ABOVE_EVERY_TIMESTAMP: &str = ":";
+
 /// The stored form of an instant: RFC 3339 in UTC with a `Z` and exactly
 /// three fractional digits. The fixed width is what makes `ORDER BY` and
-/// `<` on the text chronological.
-pub(super) fn format_timestamp(at: DateTime<Utc>) -> String {
-    at.to_rfc3339_opts(SecondsFormat::Millis, true)
+/// `<` on the text chronological. Fails for a year outside 0000–9999.
+pub(super) fn format_timestamp(at: DateTime<Utc>) -> StoreResult<String> {
+    require_storable_year(at.year(), at)?;
+    Ok(at.to_rfc3339_opts(SecondsFormat::Millis, true))
 }
 
 /// The stored form of an exclusive upper bound, for `column < ?`.
@@ -23,6 +37,10 @@ pub(super) fn format_timestamp(at: DateTime<Utc>) -> String {
 /// Formatting `before` itself would round it down and wrongly exclude a row
 /// stored at that millisecond, such as a card made due "now" and queried
 /// with the same `now`.
+///
+/// A bound past year 9999 (`DateTime::<Utc>::MAX_UTC` as "no bound") is above
+/// every storable instant. One before year 0 is below every one, which its
+/// text, starting with `-`, already is.
 pub(super) fn format_exclusive_bound(before: DateTime<Utc>) -> String {
     let below_milli = before.timestamp_subsec_nanos() % 1_000_000;
     let rounded_up = if below_milli == 0 {
@@ -32,7 +50,10 @@ pub(super) fn format_exclusive_bound(before: DateTime<Utc>) -> String {
             .checked_add_signed(Duration::nanoseconds(i64::from(1_000_000 - below_milli)))
             .unwrap_or(before)
     };
-    format_timestamp(rounded_up)
+    if rounded_up.year() > *STORABLE_YEARS.end() {
+        return ABOVE_EVERY_TIMESTAMP.to_owned();
+    }
+    rounded_up.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
 /// Parses a stored instant. Accepts any RFC 3339 form (with or without
@@ -55,9 +76,20 @@ pub(super) fn parse_optional_timestamp(text: Option<String>) -> StoreResult<Opti
     text.as_deref().map(parse_timestamp).transpose()
 }
 
-/// The stored form of a local calendar date, `YYYY-MM-DD`.
-pub(super) fn format_date(date: NaiveDate) -> String {
-    time::format_date(date)
+/// The stored form of a local calendar date, `YYYY-MM-DD`. Fails for a year
+/// outside 0000–9999.
+pub(super) fn format_date(date: NaiveDate) -> StoreResult<String> {
+    require_storable_year(date.year(), date)?;
+    Ok(time::format_date(date))
+}
+
+fn require_storable_year(year: i32, value: impl Display) -> StoreResult<()> {
+    if STORABLE_YEARS.contains(&year) {
+        return Ok(());
+    }
+    Err(StoreError::Invalid(format!(
+        "{value} is outside the years 0000 to 9999 that the database can store"
+    )))
 }
 
 pub(super) fn parse_date(text: &str) -> StoreResult<NaiveDate> {
@@ -96,7 +128,7 @@ mod tests {
             (utc(1999, 1, 2, 3, 4, 5, 600), "1999-01-02T03:04:05.600Z"),
         ];
         for (at, expected) in cases {
-            assert_eq!(format_timestamp(at), expected);
+            assert_eq!(format_timestamp(at).unwrap(), expected);
         }
     }
 
@@ -104,7 +136,7 @@ mod tests {
     fn stored_text_order_is_chronological_where_shorter_forms_are_not() {
         let whole = utc(2026, 10, 31, 12, 0, 0, 0);
         let later = utc(2026, 10, 31, 12, 0, 0, 500);
-        assert!(format_timestamp(whole) < format_timestamp(later));
+        assert!(format_timestamp(whole).unwrap() < format_timestamp(later).unwrap());
         // The trap the fixed width avoids: without fractional digits, "Z"
         // sorts after ".", putting 12:00:00 after 12:00:00.500.
         assert!(
@@ -127,6 +159,51 @@ mod tests {
         ];
         for (before, expected) in cases {
             assert_eq!(format_exclusive_bound(before), expected, "{before:?}");
+        }
+    }
+
+    #[test]
+    fn exclusive_bounds_outside_the_storable_years_compare_past_every_stored_instant() {
+        let first = format_timestamp(utc(0, 1, 1, 0, 0, 0, 0)).unwrap();
+        let last = format_timestamp(utc(9999, 12, 31, 23, 59, 59, 999)).unwrap();
+        for before in [
+            utc(10000, 1, 1, 0, 0, 0, 0),
+            utc(9999, 12, 31, 23, 59, 59, 999) + Duration::nanoseconds(1),
+            DateTime::<Utc>::MAX_UTC,
+        ] {
+            assert!(format_exclusive_bound(before) > last, "{before:?}");
+        }
+        for before in [utc(-1, 12, 31, 23, 59, 59, 999), DateTime::<Utc>::MIN_UTC] {
+            assert!(format_exclusive_bound(before) < first, "{before:?}");
+        }
+        // The last storable millisecond itself still gets an exact bound.
+        assert_eq!(
+            format_exclusive_bound(utc(9999, 12, 31, 23, 59, 59, 999)),
+            last
+        );
+    }
+
+    #[test]
+    fn years_without_a_four_digit_form_are_refused_on_write() {
+        // The edges of the range still round-trip.
+        for at in [utc(0, 1, 1, 0, 0, 0, 0), utc(9999, 12, 31, 23, 59, 59, 999)] {
+            assert_eq!(parse_timestamp(&format_timestamp(at).unwrap()).unwrap(), at);
+            let date = at.date_naive();
+            assert_eq!(parse_date(&format_date(date).unwrap()).unwrap(), date);
+        }
+        for at in [
+            utc(10000, 1, 1, 0, 0, 0, 0),
+            utc(-1, 12, 31, 23, 59, 59, 999),
+            DateTime::<Utc>::MAX_UTC,
+        ] {
+            assert!(
+                matches!(format_timestamp(at), Err(StoreError::Invalid(message)) if message.contains("0000 to 9999")),
+                "{at:?}"
+            );
+            assert!(
+                matches!(format_date(at.date_naive()), Err(StoreError::Invalid(_))),
+                "{at:?}"
+            );
         }
     }
 
@@ -175,7 +252,7 @@ mod tests {
     #[test]
     fn dates_round_trip_and_reject_other_formats() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 3).unwrap();
-        assert_eq!(format_date(date), "2026-02-03");
+        assert_eq!(format_date(date).unwrap(), "2026-02-03");
         assert_eq!(parse_date("2026-02-03").unwrap(), date);
         for text in ["03.02.2026", "2026-02-30", ""] {
             assert!(

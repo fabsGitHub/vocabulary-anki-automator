@@ -88,6 +88,11 @@ impl Store {
     /// Inserts or replaces the state of `row.card_id`. The card must exist
     /// in `captures` (foreign key), otherwise this fails.
     pub fn upsert_srs_state(&self, row: &SrsStateRow) -> StoreResult<()> {
+        let due_date = codec::format_timestamp(row.due_date)?;
+        let last_reviewed_at = row
+            .last_reviewed_at
+            .map(codec::format_timestamp)
+            .transpose()?;
         self.conn()
             .prepare_cached(UPSERT_SRS_STATE)?
             .execute(named_params! {
@@ -100,8 +105,8 @@ impl Store {
                 ":lapses": row.lapses,
                 ":fsrs_state": row.fsrs_state,
                 ":elapsed_days": row.elapsed_days,
-                ":due_date": codec::format_timestamp(row.due_date),
-                ":last_reviewed_at": row.last_reviewed_at.map(codec::format_timestamp),
+                ":due_date": due_date,
+                ":last_reviewed_at": last_reviewed_at,
                 ":last_rating": row.last_rating,
             })?;
         Ok(())
@@ -127,6 +132,8 @@ impl Store {
 
     /// Appends a review and returns its id; `row.id` is ignored.
     pub fn insert_review_log(&self, row: &ReviewLogRow) -> StoreResult<i64> {
+        let reviewed_at = codec::format_timestamp(row.reviewed_at)?;
+        let session_date = codec::format_date(row.session_date)?;
         Ok(self
             .conn()
             .prepare_cached(
@@ -137,8 +144,8 @@ impl Store {
             .insert(named_params! {
                 ":card_id": row.card_id,
                 ":rating": row.rating,
-                ":reviewed_at": codec::format_timestamp(row.reviewed_at),
-                ":session_date": codec::format_date(row.session_date),
+                ":reviewed_at": reviewed_at,
+                ":session_date": session_date,
                 ":state_before": row.state_before,
                 ":scheduled_days": row.scheduled_days,
                 ":elapsed_days": row.elapsed_days,

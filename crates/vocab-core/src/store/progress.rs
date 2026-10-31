@@ -32,13 +32,15 @@ impl Store {
              new_items_completed, completed_at FROM daily_sessions WHERE session_date = ?1",
         )?;
         let mut rows =
-            statement.query_and_then([codec::format_date(date)], daily_session_from_row)?;
+            statement.query_and_then([codec::format_date(date)?], daily_session_from_row)?;
         rows.next().transpose()
     }
 
     /// Inserts the session for `row.session_date` or replaces every field of
     /// the existing one.
     pub fn upsert_daily_session(&self, row: &DailySessionRow) -> StoreResult<()> {
+        let session_date = codec::format_date(row.session_date)?;
+        let completed_at = row.completed_at.map(codec::format_timestamp).transpose()?;
         self.conn()
             .prepare_cached(
                 "INSERT INTO daily_sessions (session_date, requested_new_count, \
@@ -53,12 +55,12 @@ impl Store {
                  completed_at = excluded.completed_at",
             )?
             .execute(named_params! {
-                ":session_date": codec::format_date(row.session_date),
+                ":session_date": session_date,
                 ":requested_new_count": row.requested_new_count,
                 ":reviews_due_count": row.reviews_due_count,
                 ":reviews_completed": row.reviews_completed,
                 ":new_items_completed": row.new_items_completed,
-                ":completed_at": row.completed_at.map(codec::format_timestamp),
+                ":completed_at": completed_at,
             })?;
         Ok(())
     }
@@ -87,10 +89,10 @@ impl Store {
                  VALUES (?1, ?2, ?3, ?4)",
             )?
             .insert((
-                codec::format_date(date),
+                codec::format_date(date)?,
                 amount,
                 reason,
-                codec::format_timestamp(at),
+                codec::format_timestamp(at)?,
             ))?)
     }
 
@@ -107,7 +109,7 @@ impl Store {
     pub fn xp_for_date(&self, date: NaiveDate) -> StoreResult<i64> {
         Ok(self.conn().query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM xp_ledger WHERE session_date = ?1",
-            [codec::format_date(date)],
+            [codec::format_date(date)?],
             |row| row.get(0),
         )?)
     }
@@ -117,7 +119,7 @@ impl Store {
         self.conn().execute(
             "INSERT INTO streak_freezes (freeze_date) VALUES (?1) \
              ON CONFLICT (freeze_date) DO NOTHING",
-            [codec::format_date(date)],
+            [codec::format_date(date)?],
         )?;
         Ok(())
     }

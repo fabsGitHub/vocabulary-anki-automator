@@ -21,7 +21,9 @@
 //! Instants are stored as RFC 3339 UTC text with exactly three fractional
 //! digits (`2026-10-31T12:00:00.000Z`) because SQL compares them as text, and
 //! only a fixed width makes text order chronological. Precision below a
-//! millisecond is truncated on write. Calendar dates are `YYYY-MM-DD`.
+//! millisecond is truncated on write. Calendar dates are `YYYY-MM-DD`. Years
+//! outside 0000–9999 have no fixed-width form, so the store refuses them
+//! with [`StoreError::Invalid`] instead of writing rows it cannot read back.
 
 mod captures;
 mod codec;
@@ -72,10 +74,11 @@ pub enum StoreError {
     /// Creating the database's directory failed.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-    /// The database holds something this build cannot interpret: a schema
+    /// The database holds something this build cannot interpret (a schema
     /// newer than [`SCHEMA_VERSION`], an unknown enum value, a malformed
-    /// timestamp.
-    #[error("invalid data in the database: {0}")]
+    /// timestamp), or a value cannot be stored in a form that reads back (a
+    /// year outside 0000–9999).
+    #[error("invalid data: {0}")]
     Invalid(String),
     /// The row an update referred to does not exist.
     #[error("not found: {0}")]
@@ -317,7 +320,7 @@ mod tests {
         let invalid = StoreError::Invalid("unknown origin \"x\"".into()).in_row("captures", 7);
         assert_eq!(
             invalid.to_string(),
-            "invalid data in the database: captures row 7: unknown origin \"x\""
+            "invalid data: captures row 7: unknown origin \"x\""
         );
         let not_found = StoreError::NotFound("capture 7".into()).in_row("captures", 7);
         assert!(matches!(not_found, StoreError::NotFound(message) if message == "capture 7"));
