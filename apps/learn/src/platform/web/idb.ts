@@ -26,10 +26,16 @@ import {
 export const DATABASE_NAME = 'vocab-learn'
 const DATABASE_VERSION = 1
 
-/** Opens (creating or upgrading) the web build's database. */
-export async function openIndexedDbStorage(name: string = DATABASE_NAME): Promise<Storage> {
-  if (typeof indexedDB === 'undefined') throw new Error('this browser has no IndexedDB')
-  const db = await openDatabase(indexedDB, name)
+/**
+ * Opens (creating or upgrading) the web build's database. `factory` is the
+ * browser's `indexedDB` unless a test passes another one.
+ */
+export async function openIndexedDbStorage(
+  name: string = DATABASE_NAME,
+  factory: IDBFactory | undefined = typeof indexedDB === 'undefined' ? undefined : indexedDB,
+): Promise<Storage> {
+  if (factory === undefined) throw new Error('this browser has no IndexedDB')
+  const db = await openDatabase(factory, name)
   return new BufferedStorage(new IndexedDbBackend(db, `${name}-transaction`))
 }
 
@@ -79,13 +85,21 @@ class IndexedDbBackend implements StorageBackend {
       const tx = this.db.transaction(tables, 'readwrite')
       tx.oncomplete = () => resolve()
       tx.onabort = () => reject(tx.error ?? new Error('the IndexedDB transaction was aborted'))
-      for (const [table, { cleared, rows }] of writes) {
-        const store = tx.objectStore(table)
-        if (cleared) store.clear()
-        for (const [key, row] of rows) {
-          if (row === undefined) store.delete(key)
-          else store.put(row, key)
+      try {
+        for (const [table, { cleared, rows }] of writes) {
+          const store = tx.objectStore(table)
+          if (cleared) store.clear()
+          for (const [key, row] of rows) {
+            if (row === undefined) store.delete(key)
+            else store.put(row, key)
+          }
         }
+      } catch (err) {
+        // A request the browser refuses to place (a key or a value it cannot
+        // store) throws without ending the transaction, which would then
+        // commit the requests placed before it: half of this commit.
+        reject(err)
+        tx.abort()
       }
     })
   }

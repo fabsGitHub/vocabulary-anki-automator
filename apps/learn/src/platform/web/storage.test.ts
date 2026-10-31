@@ -9,11 +9,68 @@ import { describe, expect, it } from 'vitest'
 
 import { StoreError } from './errors'
 import { newCard } from './model'
-import { MemoryStorage, type Transaction, compareKeys } from './storage'
+import {
+  BufferedStorage,
+  type Key,
+  MemoryStorage,
+  type StorageBackend,
+  type TableName,
+  type TableWrites,
+  type Transaction,
+  compareKeys,
+} from './storage'
 import { Store } from './store'
 import { parseInstantMillis } from './time'
 
 const NOON = parseInstantMillis('2026-10-31T12:00:00.000Z')
+
+/** A backend in memory that records every read it serves. */
+class CountingBackend implements StorageBackend {
+  readonly reads: string[] = []
+  private readonly tables = new Map<TableName, Map<Key, unknown>>()
+  private queue: Promise<unknown> = Promise.resolve()
+
+  async get(table: TableName, key: Key): Promise<unknown> {
+    this.reads.push(`get ${table}`)
+    return this.table(table).get(key)
+  }
+
+  async getAll(table: TableName): Promise<[Key, unknown][]> {
+    this.reads.push(`getAll ${table}`)
+    return [...this.table(table).entries()].sort(([a], [b]) => compareKeys(a, b))
+  }
+
+  async count(table: TableName): Promise<number> {
+    this.reads.push(`count ${table}`)
+    return this.table(table).size
+  }
+
+  async commit(writes: ReadonlyMap<TableName, TableWrites>): Promise<void> {
+    for (const [name, { cleared, rows }] of writes) {
+      const table = this.table(name)
+      if (cleared) table.clear()
+      for (const [key, row] of rows) {
+        if (row === undefined) table.delete(key)
+        else table.set(key, row)
+      }
+    }
+  }
+
+  exclusive<T>(body: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(body, body)
+    this.queue = run.catch(() => undefined)
+    return run
+  }
+
+  private table(name: TableName): Map<Key, unknown> {
+    let table = this.tables.get(name)
+    if (!table) {
+      table = new Map()
+      this.tables.set(name, table)
+    }
+    return table
+  }
+}
 
 describe('MemoryStorage transactions', () => {
   it('commit every write together, and none of them when the body throws', async () => {
@@ -119,6 +176,17 @@ describe('MemoryStorage transactions', () => {
     expect([...(stored?.bytes ?? [])]).toEqual([1, 2])
   })
 
+  it('keep bytes bytes, also when they were cloned in another realm', async () => {
+    const storage = new MemoryStorage()
+    // jsdom's structuredClone makes typed arrays of its own realm, which
+    // `instanceof Uint8Array` does not recognize.
+    const foreign = structuredClone(new Uint8Array([0xff, 0xfb]))
+    await storage.transaction(async (tx) => tx.put('captures', 1, { audio: foreign }))
+    const stored = await storage.transaction((tx) => tx.get<{ audio: Uint8Array }>('captures', 1))
+    expect(stored?.audio).toBeInstanceOf(Uint8Array)
+    expect([...(stored?.audio ?? [])]).toEqual([0xff, 0xfb])
+  })
+
   it('refuse a transaction that is used after it finished', async () => {
     const storage = new MemoryStorage()
     let leaked: Transaction | null = null
@@ -126,6 +194,30 @@ describe('MemoryStorage transactions', () => {
       leaked = tx
     })
     expect(() => leaked?.put('app_state', 'late', 'x')).toThrow('already finished')
+  })
+
+  it('read a whole table from the backend once per transaction', async () => {
+    const backend = new CountingBackend()
+    const storage = new BufferedStorage(backend)
+    await storage.transaction(async (tx) => {
+      tx.put('xp_ledger', 1, { amount: 5 })
+      tx.put('xp_ledger', 2, { amount: 10 })
+    })
+    backend.reads.length = 0
+    const seen = await storage.transaction(async (tx) => {
+      const [first] = await Promise.all([tx.getAll('xp_ledger'), tx.getAll('xp_ledger')])
+      tx.put('xp_ledger', 3, { amount: 15 })
+      return {
+        first: first.length,
+        second: (await tx.getAll('xp_ledger')).length,
+        one: await tx.get('xp_ledger', 1),
+        count: await tx.count('xp_ledger'),
+      }
+    })
+    expect(seen).toEqual({ first: 2, second: 3, one: { amount: 5 }, count: 3 })
+    expect(backend.reads).toEqual(['getAll xp_ledger'])
+    // The next transaction reads what this one committed.
+    expect(await storage.transaction((tx) => tx.getAll('xp_ledger'))).toHaveLength(3)
   })
 
   it('order keys as IndexedDB does', () => {
@@ -171,6 +263,34 @@ describe('Store over storage transactions', () => {
       new Store(tx).insertCapture(card, 'capture', false),
     )
     expect([first, second, third]).toEqual([1, 2, 3])
+  })
+
+  it('reseeds a curriculum whose rows went missing although its fingerprint is recorded', async () => {
+    const storage = new MemoryStorage()
+    const items = ['我', '你'].map((hanzi, order) => ({
+      hanzi,
+      traditional: null,
+      hsk_level: 1,
+      frequency: null,
+      curriculum_order: order,
+      pinyin: hanzi,
+      pos: null,
+      meaning_en: null,
+      meaning_de: null,
+      cloze_sentence: null,
+      example_sentence_source: null,
+      example_sentence_pinyin: null,
+      example_sentence_target: null,
+      vocab_audio_path: null,
+      sentence_audio_path: null,
+      image_path: null,
+    }))
+    const seed = () => storage.transaction((tx) => new Store(tx).ensureCurriculumSeeded(items))
+    expect(await seed()).toBe(true)
+    expect(await seed()).toBe(false)
+    await storage.transaction(async (tx) => tx.delete('hsk_curriculum', '你'))
+    expect(await seed()).toBe(true)
+    expect(await storage.transaction((tx) => new Store(tx).curriculumCount())).toBe(2)
   })
 
   it('enforces the foreign keys and refuses years it cannot store', async () => {

@@ -197,6 +197,25 @@ describe('the web adapter', () => {
     expect(kept).toBe('{ broken')
   })
 
+  it('normalizes stored settings on load, as the desktop app does', async () => {
+    const { storage, adapter: web } = adapter()
+    const stored = defaultSettings()
+    stored.anki.deck_name = ' Mine\n'
+    stored.anki.field_mapping.audio_field = ' '
+    await storage.transaction((tx) => new Store(tx).setState(SETTINGS_KEY, JSON.stringify(stored)))
+    const loaded = await web.getSettings()
+    expect(loaded.anki.deck_name).toBe('Mine')
+    expect(loaded.anki.field_mapping.audio_field).toBeNull()
+  })
+
+  it('has the default settings without a store, since the desktop command cannot fail', async () => {
+    const web = await createWebAdapter({ storage: Promise.reject(new Error('no IndexedDB')) })
+    expect(await web.getSettings()).toEqual(defaultSettings())
+    expect(await rejection(web.saveSettings(defaultSettings()))).toBe(
+      'The vocabulary database is unavailable (no IndexedDB).',
+    )
+  })
+
   it('refuses arguments the desktop command would not deserialize, in its words', async () => {
     const { adapter: web } = adapter()
     expect(await rejection(web.submitReviewRating(1, 7 as Rating))).toBe(
@@ -241,6 +260,38 @@ describe('the web adapter', () => {
     ).toBe(
       'invalid args `answer` for command `check_exercise`: unknown variant `tap`, expected one of `choice`, `order`',
     )
+    expect(await rejection(web.checkExercise(choice, { kind: 'choice', index: -1 }))).toBe(
+      'invalid args `answer` for command `check_exercise`: invalid value: integer `-1`, expected usize',
+    )
+    expect(
+      await rejection(
+        web.checkExercise(choice, { kind: 'order', tile_ids: ['0'] as unknown as number[] }),
+      ),
+    ).toBe(
+      'invalid args `answer` for command `check_exercise`: invalid type: string "0", expected u32',
+    )
+    const unsolvable = { ...choice, correct_index: undefined } as unknown as Exercise
+    expect(await rejection(web.checkExercise(unsolvable, { kind: 'choice', index: 0 }))).toBe(
+      'invalid args `exercise` for command `check_exercise`: missing field `correct_index`',
+    )
+    const order: Exercise = {
+      kind: 'sentence_builder',
+      card_id: 1,
+      sentence_card_id: 1,
+      prompt: 'I study.',
+      sentence: '我学习。',
+      sentence_lang: 'zh-CN',
+      tiles: [
+        { id: 0, text: '学习' },
+        { id: 1, text: '我' },
+      ],
+      solution: [1, 0],
+    }
+    expect(await web.checkExercise(order, { kind: 'order', tile_ids: [1, 0] })).toBe(true)
+    const tileless = { ...order, tiles: [{ id: 0.5, text: '学习' }] } as unknown as Exercise
+    expect(await rejection(web.checkExercise(tileless, { kind: 'order', tile_ids: [0] }))).toBe(
+      'invalid args `exercise` for command `check_exercise`: invalid type: floating point `0.5`, expected u32',
+    )
   })
 
   it('checks the arguments before it needs the store, as Tauri deserializes them first', async () => {
@@ -278,6 +329,23 @@ describe('the web adapter', () => {
     const count = await storage.transaction((tx) => new Store(tx).curriculumCount())
     expect(count).toBe(2)
     expect(await rejection(web.startNewItem('没有'))).toBe('"没有" is not in the HSK curriculum.')
+  })
+
+  it('retries a curriculum loader that throws instead of rejecting', async () => {
+    let loads = 0
+    const { adapter: web } = adapter({
+      curriculum: () => {
+        loads += 1
+        if (loads === 1) throw new Error('not ready')
+        return Promise.resolve([item('我', 0)])
+      },
+    })
+    await web.submitDailyQuota(1)
+    expect(await rejection(web.getDailyQueue())).toBe(
+      'The HSK curriculum is unavailable (not ready).',
+    )
+    expect(await web.getDailyQueue()).toEqual([{ kind: 'new', hanzi: '我', curriculum_order: 0 }])
+    expect(loads).toBe(2)
   })
 
   it('resolves without a store, and every command says why it cannot work', async () => {

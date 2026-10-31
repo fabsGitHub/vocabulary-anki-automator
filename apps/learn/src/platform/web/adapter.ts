@@ -12,7 +12,8 @@
  *   so a review, its XP and its session progress land on the same local
  *   date together or not at all.
  * - **Failures reject with the desktop build's sentence**, a plain string,
- *   as the Tauri adapter's do.
+ *   as the Tauri adapter's do. `getSettings` cannot fail on the desktop, so
+ *   here too it falls back to the defaults instead.
  * - **The curriculum is seeded lazily**: the first command that needs it
  *   (the queue, a new word) fetches the bundled asset and seeds the store
  *   once per fingerprint; a failure is reported by that command and retried
@@ -60,6 +61,7 @@ import { lessonsFromStore } from './lessons'
 import { SrsScheduler, ratingPreviewToJson, reviewRating } from './scheduler'
 import { dailyQueue, rate, reviewResultToJson, trackCompletion } from './session'
 import {
+  defaultSettings,
   loadSettings,
   normalizeSettings,
   parseSettings,
@@ -264,8 +266,17 @@ export class WebAdapter implements PlatformAdapter {
     })
   }
 
-  getSettings(): Promise<LearnSettings> {
-    return this.command(() => (store) => loadSettings(store))
+  /**
+   * Never rejects, as the desktop command cannot fail: settings that cannot
+   * be read (no database, a failed read) are the defaults, which the desktop
+   * app also falls back to when it cannot load them at startup.
+   */
+  async getSettings(): Promise<LearnSettings> {
+    try {
+      return await this.command(() => (store) => loadSettings(store))
+    } catch {
+      return defaultSettings()
+    }
   }
 
   /** Normalized, then refused with every problem or stored. */
@@ -327,15 +338,18 @@ export class WebAdapter implements PlatformAdapter {
   /** Seeds the curriculum once; a failure is reported now and retried next time. */
   private ensureCurriculum(storage: Storage): Promise<void> {
     if (this.seeding === null) {
-      this.seeding = (async () => {
-        try {
-          const items = await this.loadCurriculum()
-          await storage.transaction((tx) => new Store(tx).ensureCurriculumSeeded(items))
-        } catch (err) {
-          this.seeding = null
-          throw LearnError.curriculumUnavailable(errorMessage(err))
-        }
-      })()
+      // The loader runs only once `seeding` holds the attempt, so that a
+      // failure clears it even when the loader throws instead of rejecting.
+      this.seeding = Promise.resolve()
+        .then(() => this.loadCurriculum())
+        .then((items) => storage.transaction((tx) => new Store(tx).ensureCurriculumSeeded(items)))
+        .then(
+          () => undefined,
+          (err: unknown) => {
+            this.seeding = null
+            throw LearnError.curriculumUnavailable(errorMessage(err))
+          },
+        )
     }
     return this.seeding
   }
@@ -360,15 +374,18 @@ function i64(value: unknown, name: string, command: string): number {
 }
 
 function u32(value: unknown, name: string, command: string): number {
-  return argument(name, command, () => {
-    if (typeof value !== 'number' || !Number.isInteger(value)) {
-      throw new Error(`invalid type: ${describe(value)}, expected u32`)
-    }
-    if (value < 0 || value > U32_MAX) {
-      throw new Error(`invalid value: integer \`${value}\`, expected u32`)
-    }
-    return value
-  })
+  return argument(name, command, () => unsigned(value, 'u32'))
+}
+
+/** An integer serde accepts as the unsigned Rust type `type`. */
+function unsigned(value: unknown, type: 'u32' | 'usize'): number {
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    throw new Error(`invalid type: ${describe(value)}, expected ${type}`)
+  }
+  if (value < 0 || value > (type === 'u32' ? U32_MAX : Number.MAX_SAFE_INTEGER)) {
+    throw new Error(`invalid value: integer \`${value}\`, expected ${type}`)
+  }
+  return value
 }
 
 function bool(value: unknown, name: string, command: string): boolean {
@@ -392,28 +409,38 @@ function exerciseKindArg(value: unknown, command: string): ExerciseKind {
   return argument('kind', command, () => variant(value, EXERCISE_KINDS))
 }
 
-/** An exercise's shape, as far as checking an answer reads it. */
+/**
+ * An exercise's shape, as far as checking an answer reads it: the fields
+ * `check_answer` uses, with the types serde requires of them.
+ */
 function exerciseArg(value: unknown): Exercise {
   return argument('exercise', 'check_exercise', () => {
     const exercise = map(value)
     variant(exercise.kind, EXERCISE_KINDS)
-    const choice = exercise.kind === 'multiple_choice' || exercise.kind === 'listening_choice'
-    if (choice ? !Array.isArray(exercise.options) : !Array.isArray(exercise.tiles)) {
-      throw new Error(`missing field \`${choice ? 'options' : 'tiles'}\``)
+    if (exercise.kind === 'multiple_choice' || exercise.kind === 'listening_choice') {
+      sequence(required(exercise, 'options'))
+      unsigned(required(exercise, 'correct_index'), 'usize')
+    } else {
+      for (const tile of sequence(required(exercise, 'tiles'))) {
+        const fields = map(tile)
+        unsigned(required(fields, 'id'), 'u32')
+        if (typeof required(fields, 'text') !== 'string') {
+          throw new Error(`invalid type: ${describe(fields.text)}, expected a string`)
+        }
+      }
+      for (const id of sequence(required(exercise, 'solution'))) unsigned(id, 'u32')
     }
     return value as Exercise
   })
 }
 
+/** An answer, with the types serde requires of its index or tile ids. */
 function answerArg(value: unknown, command: string): ExerciseAnswer {
   return argument('answer', command, () => {
     const answer = map(value)
     variant(answer.kind, ['choice', 'order'])
-    if (
-      answer.kind === 'choice' ? typeof answer.index !== 'number' : !Array.isArray(answer.tile_ids)
-    ) {
-      throw new Error(`missing field \`${answer.kind === 'choice' ? 'index' : 'tile_ids'}\``)
-    }
+    if (answer.kind === 'choice') unsigned(required(answer, 'index'), 'usize')
+    else for (const id of sequence(required(answer, 'tile_ids'))) unsigned(id, 'u32')
     return value as ExerciseAnswer
   })
 }
@@ -423,6 +450,18 @@ function map(value: unknown): Record<string, unknown> {
     throw new Error(`invalid type: ${describe(value)}, expected a map`)
   }
   return value as Record<string, unknown>
+}
+
+function sequence(value: unknown): unknown[] {
+  if (!Array.isArray(value))
+    throw new Error(`invalid type: ${describe(value)}, expected a sequence`)
+  return value
+}
+
+/** A field serde cannot do without. */
+function required(fields: Record<string, unknown>, name: string): unknown {
+  if (fields[name] === undefined) throw new Error(`missing field \`${name}\``)
+  return fields[name]
 }
 
 function variant<T extends string>(value: unknown, variants: readonly T[]): T {

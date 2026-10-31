@@ -577,10 +577,20 @@ fn unseen(at: DateTime<Utc>) -> FsrsCard {
 fn bare_sequence(
     name: &str,
     params: Parameters,
+    next_step: impl FnMut(usize, &FsrsCard, DateTime<Utc>) -> Option<(DateTime<Utc>, Rating)>,
+) -> Value {
+    bare_sequence_from(name, params, unseen(reference_start()), next_step)
+}
+
+/// [`bare_sequence`] from the card `start`. Every recorded memory value
+/// must be finite: JSON cannot carry NaN, which serde would write as `null`.
+fn bare_sequence_from(
+    name: &str,
+    params: Parameters,
+    start: FsrsCard,
     mut next_step: impl FnMut(usize, &FsrsCard, DateTime<Utc>) -> Option<(DateTime<Utc>, Rating)>,
 ) -> Value {
     let fsrs = FSRS::new(params.clone());
-    let start = unseen(reference_start());
     let mut card = start.clone();
     let mut now = reference_start();
     let mut steps = Vec::new();
@@ -590,6 +600,11 @@ fn bare_sequence(
         let outcomes: Vec<Value> = Rating::iter()
             .map(|rating| {
                 let info = &record[rating];
+                assert!(
+                    info.card.stability.is_finite() && info.card.difficulty.is_finite(),
+                    "{name}: step {} has a memory value JSON cannot carry",
+                    steps.len()
+                );
                 json!({
                     "rating": *rating as u8,
                     "card": fsrs_card_json(&info.card),
@@ -642,6 +657,54 @@ fn random_forward(
             _ => now + Duration::days(1 + i64::from(rng.below(100))),
         };
         Some((at, rating))
+    }
+}
+
+/// `forward` Good reviews at the due date, then one review per entry of
+/// `back`, each that long before the previous review. Bare rs-fsrs has no
+/// guard against a clock set back, so its days since the last review turn
+/// negative: `num_days` truncates them towards zero (half a day back is 0,
+/// a day and a half is -1), retrievability exceeds 1 and recall stabilities
+/// shrink, which reorders the intervals that `min`/`max` then clamp.
+fn set_back(
+    forward: usize,
+    back: &'static [(Duration, Rating)],
+) -> impl FnMut(usize, &FsrsCard, DateTime<Utc>) -> Option<(DateTime<Utc>, Rating)> {
+    move |index, card, _| {
+        if index < forward {
+            let at = if index == 0 {
+                reference_start()
+            } else {
+                card.due
+            };
+            return Some((at, Rating::Good));
+        }
+        let (by, rating) = back.get(index - forward)?;
+        Some((card.last_review - *by, *rating))
+    }
+}
+
+/// Half a day and then a day and a half before the last review.
+const SET_BACK_BY_HOURS: [(Duration, Rating); 2] = [
+    (Duration::hours(12), Rating::Good),
+    (Duration::hours(36), Rating::Hard),
+];
+
+/// Seven hundred days before the last review of a well-learned card: its
+/// recall stabilities collapse below the forget stability, so Again's
+/// interval would exceed Hard's if `min` did not cap it.
+const SET_BACK_BY_700_DAYS: [(Duration, Rating); 1] = [(Duration::days(700), Rating::Again)];
+
+/// The first two reviews of a card, both Good.
+const NEW_THEN_GOOD: [Rating; 2] = [Rating::Good, Rating::Good];
+
+/// A card still `New` that carries days from an earlier life: the
+/// long-term scheduler logs them as zero, the basic one as they are.
+fn new_card_with_days() -> FsrsCard {
+    FsrsCard {
+        scheduled_days: 5,
+        elapsed_days: 3,
+        ..unseen(reference_start())
     }
 }
 
@@ -700,6 +763,28 @@ fn fsrs_reference() -> Value {
             long_term(with_weights()),
             random_forward(13, 12),
         ),
+        bare_sequence(
+            "clock_set_back_basic",
+            Parameters::default(),
+            set_back(4, &SET_BACK_BY_HOURS),
+        ),
+        bare_sequence(
+            "clock_set_back_long_term",
+            long_term(Parameters::default()),
+            set_back(5, &SET_BACK_BY_700_DAYS),
+        ),
+        bare_sequence_from(
+            "new_card_with_days_basic",
+            Parameters::default(),
+            new_card_with_days(),
+            at_due(&NEW_THEN_GOOD),
+        ),
+        bare_sequence_from(
+            "new_card_with_days_long_term",
+            long_term(Parameters::default()),
+            new_card_with_days(),
+            at_due(&NEW_THEN_GOOD),
+        ),
     ];
 
     // rs-fsrs `test_get_retrievability`, plus the Easy card recalled late,
@@ -712,11 +797,15 @@ fn fsrs_reference() -> Value {
         let card = &record[rating].card;
         let mut instants = vec![card.due];
         if *rating == Rating::Easy {
+            // Before the last review, `num_days` truncates towards zero:
+            // half a day back is 0 days, a day and a half is -1.
             instants.extend([
                 card.due - Duration::days(3),
                 card.due + Duration::days(1),
                 card.due + Duration::days(100),
                 card.last_review - Duration::days(2),
+                card.last_review - Duration::hours(12),
+                card.last_review - Duration::hours(36),
             ]);
         }
         for at in instants {
@@ -1651,6 +1740,34 @@ fn exercise_words() -> Vec<Word> {
             ),
             true,
         ),
+        // Every side padded with whitespace: prompts, options, the
+        // dictionary word and the sentence prompt are all trimmed.
+        word(
+            with_example(
+                chinese(" 国家 ", " Land ", "de", " guó jiā "),
+                " 我们国家很好。 ",
+                "  Unser Land ist gut.  ",
+            ),
+            true,
+        ),
+        // A decomposed accent is part of its word, not punctuation.
+        word(
+            with_example(
+                plain("cafe\u{301}", "Kaffee", "fr", "de"),
+                "Un cafe\u{301}, s'il vous plaît.",
+                "Einen Kaffee, bitte.",
+            ),
+            true,
+        ),
+        // A sentence of one tile is nothing to put in order.
+        word(
+            with_example(
+                chinese("谢谢", "danke", "de", "xiè xie"),
+                "谢谢！",
+                "Danke!",
+            ),
+            true,
+        ),
     ]
 }
 
@@ -1766,6 +1883,20 @@ fn answer_cases(samples: &[Exercise]) -> Value {
                 order_answers(exercise, &e.solution, e.tiles.len(), &mut add)
             }
         }
+    }
+    // A tampered exercise whose correct index points past its options: even
+    // the "correct" index is wrong.
+    if let Some(Exercise::MultipleChoice(sample)) = samples
+        .iter()
+        .find(|e| matches!(e, Exercise::MultipleChoice(_)))
+    {
+        let mut tampered = sample.clone();
+        tampered.options.truncate(tampered.correct_index);
+        let index = tampered.correct_index;
+        add(
+            &Exercise::MultipleChoice(tampered),
+            ExerciseAnswer::Choice { index },
+        );
     }
     // Equal texts are interchangeable: a sentence that repeats a tile.
     if let Some(Exercise::SentenceBuilder(sample)) = samples
@@ -2181,6 +2312,7 @@ fn scenarios() -> Value {
     }
     all.push(queue_learning_scenario());
     all.push(gamification_scenario());
+    all.push(freezes_at_completion_scenario());
     all.push(pool_and_lessons_scenario());
     all.push(seeding_scenario());
     Value::Array(all)
@@ -2261,6 +2393,10 @@ fn daily_scenario(hours: i32) -> Value {
     run.reopen_daily_prompt();
     run.submit_daily_quota(1);
     run.submit_daily_quota(0);
+    // A stored prompt date is read as leniently as chrono parses it: this
+    // one is today.
+    run.set_state(LAST_PROMPTED_KEY, " 2026-11- 2");
+    run.daily_prompt_state();
     run.finish()
 }
 
@@ -2355,6 +2491,14 @@ fn queue_learning_scenario() -> Value {
             _ => {}
         }
     }
+    // Introduced with language codes that need normalizing; 朋友 has no
+    // meaning at all, so its card keeps the (normalized) language asked for.
+    items.push(curriculum_item("老师", 40));
+    let mut no_meaning = curriculum_item("朋友", 41);
+    no_meaning.meaning_en = None;
+    no_meaning.meaning_de = None;
+    no_meaning.example_sentence_target = Some("A friend.".into());
+    items.push(no_meaning);
     run.replace_curriculum(&items);
     let captured = instant("2026-10-01T00:00:00Z");
     let mut learned = chinese("我", "ich", "de", "wǒ");
@@ -2396,6 +2540,8 @@ fn queue_learning_scenario() -> Value {
         ("好", "en"),
         ("学习", "en"),
         ("你好", "DE"),
+        ("老师", " DE "),
+        ("朋友", "FR "),
     ] {
         if let Some(id) = run.introduce_new_item(hanzi, target_lang) {
             run.get_capture(id);
@@ -2493,6 +2639,26 @@ fn gamification_scenario() -> Value {
     run.set_state(STREAK_FREEZES_KEY, "two");
     run.stats_summary();
     run.on_session_completed();
+    run.finish()
+}
+
+/// Four weeks of completions in Berlin: a missed day first noticed by the
+/// completion of the next one (today, already complete, is not the gap's
+/// end), and freezes earned at 14 and 21 days but not past the cap at 28.
+fn freezes_at_completion_scenario() -> Value {
+    let berlin = 3600;
+    let mut run = Runner::new(
+        "freezes spent at completion and capped",
+        local(offset(berlin), "2026-11-01 08:00:00.000"),
+        berlin,
+    );
+    for day in (1..=28).filter(|day| *day != 8) {
+        let text = format!("2026-11-{day:02}");
+        run.set_local(&format!("{text} 20:00:00.000"));
+        run.complete_day(&text);
+        run.on_session_completed();
+    }
+    run.stats_summary();
     run.finish()
 }
 

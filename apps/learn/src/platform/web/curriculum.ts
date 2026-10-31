@@ -35,12 +35,30 @@ export async function loadBundledCurriculum(
   return parseCurriculum(await response.json())
 }
 
-/** The curriculum JSON's rows, ordered by `curriculum_order`. */
+/** The fields serde requires of every row; the others default to `null`. */
+const REQUIRED_FIELDS = {
+  hanzi: 'string',
+  hsk_level: 'number',
+  curriculum_order: 'number',
+  pinyin: 'string',
+} as const
+
+/**
+ * The curriculum JSON's rows, ordered by `curriculum_order`. A row without
+ * a required field is refused, as the desktop apps' parser refuses it,
+ * rather than seeded as an empty word.
+ */
 export function parseCurriculum(value: unknown): CurriculumItem[] {
   if (!Array.isArray(value)) throw new Error('the curriculum is not a JSON array')
-  const items = value.map((item: unknown) => {
-    if (item === null || typeof item !== 'object')
-      throw new Error('a curriculum row is not an object')
+  const items = value.map((item: unknown, index) => {
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+      throw new Error(`curriculum row ${index} is not an object`)
+    }
+    for (const [field, type] of Object.entries(REQUIRED_FIELDS)) {
+      if (typeof (item as Record<string, unknown>)[field] !== type) {
+        throw new Error(`curriculum row ${index} has no ${type} \`${field}\``)
+      }
+    }
     return curriculumItemFromJson(item as Partial<CurriculumItem>)
   })
   return items.sort((a, b) => a.curriculum_order - b.curriculum_order)

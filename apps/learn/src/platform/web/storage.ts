@@ -166,9 +166,19 @@ export class MemoryStorage extends BufferedStorage {
   }
 }
 
-/** A {@link Transaction} that keeps its writes until the backend commits them. */
+/**
+ * A {@link Transaction} that keeps its writes until the backend commits them.
+ *
+ * It also keeps every table it read whole: nothing else commits while it
+ * runs (transactions are exclusive, across tabs wherever the browser has Web
+ * Locks), so the committed rows cannot change under it, and the core reads
+ * the same tables several times per command (a rating sums the XP ledger
+ * four times). Reading each once keeps a command's cost at one pass over
+ * each table it needs.
+ */
 class BufferedTransaction implements Transaction {
   private tables = new Map<TableName, { cleared: boolean; rows: Map<Key, unknown> }>()
+  private readonly committed = new Map<TableName, Promise<Map<Key, unknown>>>()
   private open = true
 
   constructor(private readonly backend: StorageBackend) {}
@@ -178,13 +188,15 @@ class BufferedTransaction implements Transaction {
     const writes = this.tables.get(table)
     if (writes?.rows.has(key)) return copy(writes.rows.get(key)) as T | undefined
     if (writes?.cleared) return undefined
-    return copy(await this.backend.get(table, key)) as T | undefined
+    const whole = this.committed.get(table)
+    const row = whole ? (await whole).get(key) : await this.backend.get(table, key)
+    return copy(row) as T | undefined
   }
 
   async getAll<T>(table: TableName): Promise<T[]> {
     this.check()
     const writes = this.tables.get(table)
-    const rows = new Map<Key, unknown>(writes?.cleared ? [] : await this.backend.getAll(table))
+    const rows = new Map<Key, unknown>(writes?.cleared ? [] : await this.committedRows(table))
     for (const [key, row] of writes?.rows ?? []) {
       if (row === undefined) rows.delete(key)
       else rows.set(key, row)
@@ -197,8 +209,9 @@ class BufferedTransaction implements Transaction {
   async count(table: TableName): Promise<number> {
     this.check()
     const writes = this.tables.get(table)
-    if (!writes) return this.backend.count(table)
-    return (await this.getAll(table)).length
+    if (writes) return (await this.getAll(table)).length
+    const whole = this.committed.get(table)
+    return whole ? (await whole).size : this.backend.count(table)
   }
 
   put<T>(table: TableName, key: Key, row: T): void {
@@ -249,6 +262,18 @@ class BufferedTransaction implements Transaction {
     )
   }
 
+  /** The committed rows of `table`, read from the backend once per transaction. */
+  private committedRows(table: TableName): Promise<Map<Key, unknown>> {
+    let rows = this.committed.get(table)
+    if (rows === undefined) {
+      rows = this.backend.getAll(table).then((entries) => new Map(entries))
+      this.committed.set(table, rows)
+      // A failed read is not kept: the caller sees it, and a later read retries.
+      rows.catch(() => this.committed.delete(table))
+    }
+    return rows
+  }
+
   private writesOf(table: TableName): { cleared: boolean; rows: Map<Key, unknown> } {
     let writes = this.tables.get(table)
     if (!writes) {
@@ -274,7 +299,10 @@ export function compareKeys(a: Key, b: Key): number {
 /** A deep copy of plain row data. */
 function copy(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value
-  if (value instanceof Uint8Array) return value.slice()
+  // Not `instanceof Uint8Array`: bytes cloned in another realm (an iframe, a
+  // test environment's structuredClone) fail that test and would come back
+  // as a plain object of numbered keys.
+  if (ArrayBuffer.isView(value)) return Uint8Array.from(value as Uint8Array)
   if (Array.isArray(value)) return value.map(copy)
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, copy(item)]))
 }
