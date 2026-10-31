@@ -131,6 +131,12 @@ fn is_combining_mark(c: char) -> bool {
 /// exact when `word` contains a hanzi, ignoring case otherwise. A blank word
 /// occurs nowhere.
 ///
+/// Outside hanzi, an occurrence that stands as a word of its own wins over
+/// an earlier one inside a longer word, so `cat` in "Concatenate the cat" is
+/// the last three letters; only when the word never stands alone (`run` in
+/// "running") is the first occurrence used. Hanzi have no word boundaries to
+/// go by, so there the first occurrence is always the one.
+///
 /// Case is compared one character at a time, so the range always covers as
 /// many characters of `text` as `word` has, and slicing `text` with it never
 /// splits a character (whole-string lowercasing can change lengths, e.g.
@@ -143,7 +149,7 @@ pub(crate) fn find_word(text: &str, word: &str) -> Option<Range<usize>> {
     if contains_cjk(word) {
         return text.find(word).map(|start| start..start + word.len());
     }
-    text.char_indices().find_map(|(start, _)| {
+    let mut occurrences = text.char_indices().filter_map(|(start, _)| {
         let mut end = start;
         let mut rest = text[start..].chars();
         for expected in word.chars() {
@@ -151,7 +157,24 @@ pub(crate) fn find_word(text: &str, word: &str) -> Option<Range<usize>> {
             end += found.len_utf8();
         }
         Some(start..end)
-    })
+    });
+    let first = occurrences.next()?;
+    if stands_alone(text, &first) {
+        return Some(first);
+    }
+    Some(
+        occurrences
+            .find(|range| stands_alone(text, range))
+            .unwrap_or(first),
+    )
+}
+
+/// Whether `range` of `text` is neither preceded nor followed by a word
+/// character.
+fn stands_alone(text: &str, range: &Range<usize>) -> bool {
+    let before = text[..range.start].chars().next_back();
+    let after = text[range.end..].chars().next();
+    !before.is_some_and(is_word_char) && !after.is_some_and(is_word_char)
 }
 
 fn same_letter(a: char, b: char) -> bool {
@@ -255,7 +278,29 @@ mod tests {
             let found = find_word(text, word).map(|range| &text[range]);
             assert_eq!(found, expected, "find_word({text:?}, {word:?})");
         }
-        // The first occurrence, even inside a longer word.
-        assert_eq!(find_word("concatenate the cat", "cat"), Some(3..6));
+    }
+
+    #[test]
+    fn find_word_prefers_an_occurrence_that_stands_alone() {
+        let cases: [(&str, &str, Option<std::ops::Range<usize>>); 7] = [
+            // The word itself, not the letters inside "concatenate".
+            ("concatenate the cat", "cat", Some(16..19)),
+            ("Concatenate the CAT!", "cat", Some(16..19)),
+            ("cat, concatenate", "cat", Some(0..3)),
+            // Never alone: the first occurrence inside a longer word.
+            ("He is running.", "run", Some(6..9)),
+            ("concatenate", "cat", Some(3..6)),
+            // Punctuation and the ends of the text are boundaries.
+            ("„Haus“ und Haustür", "haus", Some(3..7)),
+            // Hanzi have no boundaries: always the first occurrence.
+            ("学习学", "学", Some(0..3)),
+        ];
+        for (text, word, expected) in cases {
+            assert_eq!(
+                find_word(text, word),
+                expected,
+                "find_word({text:?}, {word:?})"
+            );
+        }
     }
 }

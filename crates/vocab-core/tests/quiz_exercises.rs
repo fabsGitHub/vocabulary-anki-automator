@@ -1188,3 +1188,355 @@ mod shapes {
         );
     }
 }
+
+/// The rules above, each pinned on a hand-made deck, rechecked on messy
+/// seeded decks: the same word captured twice, fronts that differ only in
+/// case, homophones and pinyin written with and without spaces, blank
+/// pinyin, translations into Chinese, sentences full of punctuation and
+/// unlearned hanzi, and captures that were never learned.
+mod randomized {
+    use super::*;
+    use vocab_core::{
+        language::{cjk_chars, contains_cjk},
+        quiz::PoolEntry,
+        rng::Mulberry32,
+    };
+
+    const HANZI: &[char] = &[
+        '我', '你', '他', '们', '学', '习', '生', '中', '文', '喜', '欢', '很', '好', '是', '朋',
+        '友', '老', '师', '今', '天', '气', '的', '吗', '这', '书',
+    ];
+    const LATIN: &[&str] = &[
+        "house",
+        "House",
+        "cat",
+        "Concatenate",
+        "the",
+        "The",
+        "run",
+        "running",
+        "über",
+        "Über",
+        "don't",
+        "tree",
+    ];
+    const PINYIN: &[&str] = &["shì", "Shì ", "xué xí", "xuéxí", "  ", "hǎo", "nǐ hǎo"];
+    const GLUE: &[&str] = &["，", "。", "！", " ", "", "", ""];
+
+    fn any<'a, T>(rng: &mut Mulberry32, items: &'a [T]) -> &'a T {
+        &items[rng.below(items.len() as u32) as usize]
+    }
+
+    fn hanzi(rng: &mut Mulberry32, max_len: u32) -> String {
+        (0..1 + rng.below(max_len))
+            .map(|_| *any(rng, HANZI))
+            .collect()
+    }
+
+    fn chinese_sentence(rng: &mut Mulberry32, words: &[String]) -> String {
+        let mut sentence = String::new();
+        for _ in 0..1 + rng.below(5) {
+            if !words.is_empty() && rng.below(2) == 0 {
+                sentence.push_str(any(rng, words));
+            } else {
+                sentence.push_str(&hanzi(rng, 2));
+            }
+            sentence.push_str(any(rng, GLUE));
+        }
+        sentence
+    }
+
+    fn latin_sentence(rng: &mut Mulberry32) -> String {
+        (0..1 + rng.below(5))
+            .map(|_| format!("{}{}", any(rng, LATIN), any(rng, &["", "", ",", "!"])))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    fn messy_deck(seed: u32) -> Deck {
+        let mut rng = Mulberry32::new(seed);
+        let deck = Deck::new();
+        let mut words = Vec::new();
+        for _ in 0..4 + rng.below(16) {
+            let mut card = match rng.below(5) {
+                0..=2 => {
+                    let front = hanzi(&mut rng, 3);
+                    let mut card = zh(&front, any(&mut rng, LATIN), any(&mut rng, PINYIN));
+                    words.push(front);
+                    if rng.below(2) == 0 {
+                        card.target_lang = "en".into();
+                    }
+                    card.example_source = chinese_sentence(&mut rng, &words);
+                    card.example_target = latin_sentence(&mut rng);
+                    card
+                }
+                3 => example(
+                    en(any(&mut rng, LATIN), any(&mut rng, LATIN)),
+                    &latin_sentence(&mut rng),
+                    &latin_sentence(&mut rng),
+                ),
+                _ => {
+                    let mut card = example(
+                        en(any(&mut rng, LATIN), &hanzi(&mut rng, 2)),
+                        &latin_sentence(&mut rng),
+                        &chinese_sentence(&mut rng, &words),
+                    );
+                    card.target_lang = "zh-CN".into();
+                    card
+                }
+            };
+            if rng.below(3) == 0 {
+                card.audio_front = Some(vec![0xff, 0xfb]);
+            }
+            if rng.below(5) == 0 {
+                deck.capture(card);
+            } else {
+                deck.learn(card);
+            }
+        }
+        deck
+    }
+
+    fn fold(text: &str) -> String {
+        text.split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase()
+    }
+
+    fn fold_pinyin(text: &str) -> String {
+        text.chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>()
+            .to_lowercase()
+    }
+
+    /// What `direction` shows of `entry` (`prompt`) or asks for, trimmed.
+    fn side(entry: &PoolEntry, direction: ChoiceDirection, prompt: bool) -> &str {
+        let text = match (direction, prompt) {
+            (ChoiceDirection::BackToFront, true) | (ChoiceDirection::FrontToBack, false) => {
+                entry.back.as_str()
+            }
+            (ChoiceDirection::FrontToPinyin, false) => entry.pinyin.as_deref().unwrap_or_default(),
+            _ => entry.front.as_str(),
+        };
+        text.trim()
+    }
+
+    /// Everything wrong with a choice: the correct option must be the
+    /// target's, texts must differ, and no distractor may be a second right
+    /// answer (the same answer, or a card that the prompt also describes).
+    fn choice_problems(
+        pool: &LearnedVocabularyPool,
+        target: &PoolEntry,
+        options: &[ChoiceOption],
+        correct_index: usize,
+        answer: impl Fn(&PoolEntry) -> &str,
+        prompt: impl Fn(&PoolEntry) -> &str,
+        key: impl Fn(&str) -> String,
+    ) -> Vec<String> {
+        let mut found = Vec::new();
+        let correct = &options[correct_index];
+        if !(2..=4).contains(&options.len())
+            || correct.card_id != target.card_id
+            || correct.text != answer(target)
+        {
+            found.push(format!("correct option {correct:?} of {options:?}"));
+        }
+        let keys: HashSet<String> = options.iter().map(|option| key(&option.text)).collect();
+        if keys.len() != options.len() {
+            found.push(format!("options read alike: {options:?}"));
+        }
+        for (index, option) in options.iter().enumerate() {
+            if index == correct_index {
+                continue;
+            }
+            let Some(entry) = pool.get(option.card_id) else {
+                found.push(format!("{option:?} is not in the pool"));
+                continue;
+            };
+            if entry.card_id == target.card_id || option.text != answer(entry) {
+                found.push(format!("{option:?} is not another card's answer"));
+            }
+            if fold(prompt(entry)) == fold(prompt(target)) {
+                found.push(format!("{option:?} is described by the prompt too"));
+            }
+        }
+        found
+    }
+
+    fn sentence_problems(
+        pool: &LearnedVocabularyPool,
+        target: &PoolEntry,
+        exercise: &Exercise,
+        (sentence_card_id, sentence, tiles, solution): (i64, &str, &[Tile], &[u32]),
+    ) -> Vec<String> {
+        let mut found = Vec::new();
+        let lender = pool.get(sentence_card_id).expect("the lender is learned");
+        let word = target.front.trim();
+        let uses_word = if contains_cjk(word) {
+            sentence.contains(word)
+        } else {
+            sentence.to_lowercase().contains(&word.to_lowercase())
+        };
+        if lender.example_source.trim() != sentence || !uses_word {
+            found.push(format!("sentence {sentence:?} for {word:?}"));
+        }
+        if tiles
+            .iter()
+            .enumerate()
+            .any(|(position, tile)| tile.id as usize != position)
+        {
+            found.push("tile ids are not positions".into());
+        }
+        let spelled = solution_texts(tiles, solution);
+        // The decks' sentences hold no combining marks, so letters and
+        // digits are all the word characters there are.
+        let expected: Vec<String> = if contains_cjk(sentence) {
+            vec![sentence.chars().filter(|c| c.is_alphanumeric()).collect()]
+        } else {
+            sentence
+                .split_whitespace()
+                .map(|token| token.trim_matches(|c: char| !c.is_alphanumeric()))
+                .filter(|word| !word.is_empty())
+                .map(str::to_owned)
+                .collect()
+        };
+        let joined = if contains_cjk(sentence) {
+            vec![spelled.concat()]
+        } else {
+            spelled.clone()
+        };
+        if joined != expected {
+            found.push(format!("solution {spelled:?} does not spell {sentence:?}"));
+        }
+        let solution_keys: HashSet<String> = spelled.iter().map(|text| fold(text)).collect();
+        for text in distractor_texts(tiles, solution) {
+            if solution_keys.contains(&fold(&text)) {
+                found.push(format!("distractor {text:?} is also a sentence tile"));
+            }
+        }
+        let answer = ExerciseAnswer::Order {
+            tile_ids: solution.to_vec(),
+        };
+        if !check_answer(exercise, &answer) {
+            found.push("the solution is not accepted".into());
+        }
+        found
+    }
+
+    fn shown(exercise: &Exercise) -> Vec<&str> {
+        match exercise {
+            Exercise::MultipleChoice(e) => [e.prompt.as_str()]
+                .into_iter()
+                .chain(texts(&e.options))
+                .collect(),
+            Exercise::ListeningChoice(e) => [e.audio.text.as_str()]
+                .into_iter()
+                .chain(texts(&e.options))
+                .collect(),
+            Exercise::SentenceBuilder(e) => [e.prompt.as_str(), e.sentence.as_str()]
+                .into_iter()
+                .chain(e.tiles.iter().map(|tile| tile.text.as_str()))
+                .collect(),
+            Exercise::ListeningSentence(e) => [e.audio.text.as_str(), e.sentence.as_str()]
+                .into_iter()
+                .chain(e.tiles.iter().map(|tile| tile.text.as_str()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn messy_decks_never_break_the_exercise_rules() {
+        let mut generated: HashMap<ExerciseKind, usize> = HashMap::new();
+        let mut problems = Vec::new();
+        for deck_seed in 0..40 {
+            let deck = messy_deck(deck_seed);
+            let pool = deck.pool();
+            let learned = pool.learned_hanzi_chars();
+            for target in pool.entries() {
+                for kind in ExerciseKind::ALL {
+                    for seed in 0..3 {
+                        let Ok(exercise) = generate_exercise(&pool, target.card_id, kind, seed)
+                        else {
+                            continue;
+                        };
+                        *generated.entry(kind).or_default() += 1;
+                        let mut found: Vec<String> = shown(&exercise)
+                            .into_iter()
+                            .flat_map(cjk_chars)
+                            .filter(|c| !learned.contains(c))
+                            .map(|c| format!("unlearned hanzi {c}"))
+                            .collect();
+                        found.extend(match &exercise {
+                            Exercise::MultipleChoice(e) => choice_problems(
+                                &pool,
+                                target,
+                                &e.options,
+                                e.correct_index,
+                                |entry| side(entry, e.direction, false),
+                                |entry| side(entry, e.direction, true),
+                                |text| match e.direction {
+                                    ChoiceDirection::FrontToPinyin => fold_pinyin(text),
+                                    _ => fold(text),
+                                },
+                            ),
+                            Exercise::ListeningChoice(e) => {
+                                let mut found = choice_problems(
+                                    &pool,
+                                    target,
+                                    &e.options,
+                                    e.correct_index,
+                                    |entry| entry.front.trim(),
+                                    |entry| entry.front.trim(),
+                                    fold,
+                                );
+                                let sound = target.pinyin.as_deref().map(fold_pinyin);
+                                for option in &e.options {
+                                    let entry = pool.get(option.card_id).expect("in the pool");
+                                    if entry.card_id != target.card_id
+                                        && sound.is_some()
+                                        && entry.pinyin.as_deref().map(fold_pinyin) == sound
+                                    {
+                                        found.push(format!("{option:?} sounds the same"));
+                                    }
+                                }
+                                found
+                            }
+                            Exercise::SentenceBuilder(e) => sentence_problems(
+                                &pool,
+                                target,
+                                &exercise,
+                                (e.sentence_card_id, &e.sentence, &e.tiles, &e.solution),
+                            ),
+                            Exercise::ListeningSentence(e) => sentence_problems(
+                                &pool,
+                                target,
+                                &exercise,
+                                (e.sentence_card_id, &e.sentence, &e.tiles, &e.solution),
+                            ),
+                        });
+                        problems.extend(found.into_iter().map(|problem| {
+                            format!(
+                                "deck {deck_seed}, card {}, {kind:?}, seed {seed}: {problem}",
+                                target.card_id
+                            )
+                        }));
+                    }
+                }
+            }
+        }
+        assert!(
+            problems.is_empty(),
+            "{} problems, the first ones:\n{}",
+            problems.len(),
+            problems[..problems.len().min(10)].join("\n")
+        );
+        for kind in ExerciseKind::ALL {
+            assert!(
+                generated.get(&kind).copied().unwrap_or(0) > 200,
+                "too few {kind:?}: {generated:?}"
+            );
+        }
+    }
+}

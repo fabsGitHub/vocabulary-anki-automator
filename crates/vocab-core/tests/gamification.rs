@@ -414,6 +414,32 @@ mod sessions {
     }
 
     #[test]
+    fn a_restarted_streak_earns_again_only_at_its_own_seventh_day() {
+        let store = Store::open_in_memory().unwrap();
+        let first = day("2026-11-01");
+        let session = |date: NaiveDate| {
+            complete(&store, date);
+            on_session_completed(&store, &tokyo_clock(&date.to_string(), 20, 0)).unwrap()
+        };
+        for offset in 0..7 {
+            session(first + Duration::days(offset));
+        }
+        assert_eq!(freezes(&store).as_deref(), Some("1"));
+        // Nov 8 and 9 are missed: one freeze cannot bridge two days, so the
+        // streak breaks and the freeze is kept.
+        let restart = day("2026-11-10");
+        let mut held = Vec::new();
+        for offset in 0..7 {
+            let summary = session(restart + Duration::days(offset));
+            assert_eq!((summary.current, summary.longest), (offset as u32 + 1, 7));
+            held.push(summary.freezes_available);
+        }
+        // The old week's record does not count as a new milestone.
+        assert_eq!(held, [1, 1, 1, 1, 1, 1, 2]);
+        assert!(store.list_streak_freeze_dates().unwrap().is_empty());
+    }
+
+    #[test]
     fn a_freeze_earned_after_a_week_saves_the_streak_from_one_missed_day() {
         let store = Store::open_in_memory().unwrap();
         let first = day("2026-11-01");
@@ -583,6 +609,138 @@ mod xp_and_stats {
                 "learned_count": 42,
                 "due_today": 7
             })
+        );
+    }
+}
+
+/// Seeded months of irregular studying, with the stats screen opened at
+/// random times before and after the day's session, in three time zones:
+/// the rules the tests above pin one at a time must hold on every day.
+mod simulation {
+    use std::collections::BTreeMap;
+
+    use vocab_core::rng::Mulberry32;
+
+    use super::*;
+
+    /// The current streak by its definition: covered days counted back from
+    /// today, or from yesterday while today is not covered.
+    fn walk_back(covered: &BTreeSet<NaiveDate>, today: NaiveDate) -> u32 {
+        let mut day = if covered.contains(&today) {
+            today
+        } else {
+            today.pred_opt().unwrap()
+        };
+        let mut count = 0;
+        while covered.contains(&day) {
+            count += 1;
+            day = day.pred_opt().unwrap();
+        }
+        count
+    }
+
+    #[test]
+    fn irregular_months_keep_every_streak_rule() {
+        let offsets = [
+            tokyo(),
+            FixedOffset::west_opt(8 * 3600).unwrap(),
+            FixedOffset::east_opt(0).unwrap(),
+        ];
+        let (mut earned_total, mut spent_total, mut longest, mut restarts) = (0, 0, 0, 0);
+        for run in 0..12u32 {
+            let mut rng = Mulberry32::new(run);
+            let offset = offsets[run as usize % offsets.len()];
+            // Absences come in runs of days, so streaks both survive on
+            // freezes and break for good.
+            let leave_rate = 1 + run % 3;
+            let mut away = false;
+            let store = Store::open_in_memory().unwrap();
+            let first = day("2026-01-01");
+            let mut streak_when_studied: BTreeMap<NaiveDate, u32> = BTreeMap::new();
+            let mut held_before = 0;
+            let mut frozen_before: BTreeSet<NaiveDate> = BTreeSet::new();
+            for offset_days in 0..100 {
+                let date = first + Duration::days(offset_days);
+                let local = date.and_hms_opt(6 + rng.below(17), 0, 0).unwrap();
+                let now = offset
+                    .from_local_datetime(&local)
+                    .unwrap()
+                    .with_timezone(&Utc);
+                let clock = FixedClock::new(now, offset);
+                away = if away {
+                    rng.below(2) == 0
+                } else {
+                    rng.below(10) < leave_rate
+                };
+                let studies = !away;
+                if rng.below(2) == 0 {
+                    stats_summary(&store, &clock).unwrap();
+                }
+                if studies {
+                    complete(&store, date);
+                    let summary = on_session_completed(&store, &clock).unwrap();
+                    assert_eq!(on_session_completed(&store, &clock).unwrap(), summary);
+                    streak_when_studied.insert(date, summary.current);
+                }
+                let stats = stats_summary(&store, &clock).unwrap();
+                let context = format!("run {run}, {date}");
+
+                let completed: BTreeSet<NaiveDate> = store
+                    .list_completed_session_dates()
+                    .unwrap()
+                    .into_iter()
+                    .collect();
+                let frozen: BTreeSet<NaiveDate> = store
+                    .list_streak_freeze_dates()
+                    .unwrap()
+                    .into_iter()
+                    .collect();
+                for newly in frozen.difference(&frozen_before) {
+                    assert!(*newly < date, "{context}: froze {newly}");
+                    assert!(!completed.contains(newly), "{context}: froze a studied day");
+                }
+                let covered: BTreeSet<NaiveDate> = completed.union(&frozen).copied().collect();
+                assert_eq!(stats.streak.current, walk_back(&covered, date), "{context}");
+                assert_eq!(stats.streak.completed_today, studies, "{context}");
+
+                // The inventory only changes by spending freezes on frozen
+                // days and by earning one, on a studied day whose streak is a
+                // multiple of seven, never beyond the cap.
+                let held = stats.streak.freezes_available;
+                assert!(held <= MAX_STREAK_FREEZES, "{context}");
+                let spent = (frozen.len() - frozen_before.len()) as i64;
+                let earned = i64::from(held) + spent - i64::from(held_before);
+                assert!(
+                    earned == 0 || earned == 1,
+                    "{context}: {held_before} -> {held}, spent {spent}"
+                );
+                if earned == 1 {
+                    let streak = streak_when_studied.get(&date);
+                    assert!(
+                        streak.is_some_and(|streak| streak % 7 == 0),
+                        "{context}: earned at streak {streak:?}"
+                    );
+                }
+                assert_eq!(
+                    store.xp_for_date(date).unwrap(),
+                    if studies { XP_SESSION_COMPLETE } else { 0 },
+                    "{context}"
+                );
+                earned_total += earned;
+                spent_total += spent;
+                longest = longest.max(stats.streak.longest);
+                if studies && stats.streak.current == 1 && stats.streak.longest >= 7 {
+                    restarts += 1;
+                }
+                held_before = held;
+                frozen_before = frozen;
+            }
+        }
+        // The runs went through every rule, not only the easy days.
+        assert!(
+            earned_total > 5 && spent_total > 5 && longest >= 14 && restarts > 5,
+            "earned {earned_total}, spent {spent_total}, longest streak {longest}, \
+             {restarts} restarts after a week"
         );
     }
 }

@@ -79,6 +79,7 @@ const fn other(
 
 const CAPTURE: CaptureOrigin = CaptureOrigin::Capture;
 const CURRICULUM: CaptureOrigin = CaptureOrigin::Curriculum;
+const ANKI_IMPORT: CaptureOrigin = CaptureOrigin::AnkiImport;
 
 /// The learner's vocabulary: these get `srs_state` rows. Several example
 /// sentences contain unlearned hanzi (的, 他, 气, 吗, 这, 书) and must never be
@@ -187,9 +188,12 @@ const LEARNED: [Word; 15] = [
     ),
 ];
 
-/// Captured but never introduced: no `srs_state` row. 学生, 你好 and 老友 are
-/// made of learned characters only, and so are the sentences of 你好 and 老友.
-const NOT_LEARNED: [Word; 5] = [
+/// Captured but never introduced: no `srs_state` row. 学生, 你好, 老友, 中学 and
+/// 好友 are made of learned characters only, and so are the sentences of 你好,
+/// 老友, 中学 and 好友. Every origin is represented, because none of them makes a
+/// card learned: 中学 is a curriculum row whose capture was never scheduled, and
+/// 好友 and `school` came in with an Anki import.
+const NOT_LEARNED: [Word; 8] = [
     zh(
         "学生",
         "Schüler",
@@ -230,6 +234,32 @@ const NOT_LEARNED: [Word; 5] = [
         CAPTURE,
         false,
     ),
+    zh(
+        "中学",
+        "Mittelschule",
+        "zhōng xué",
+        ("中学老师很好。", "Die Lehrer der Mittelschule sind gut."),
+        CURRICULUM,
+        true,
+    ),
+    zh(
+        "好友",
+        "guter Freund",
+        "hǎo yǒu",
+        ("好友今天很好。", "Dem guten Freund geht es heute gut."),
+        ANKI_IMPORT,
+        false,
+    ),
+    Word {
+        origin: ANKI_IMPORT,
+        ..other(
+            "school",
+            "Schule",
+            ("en", "de"),
+            ("The school is old.", "Die Schule ist alt."),
+            true,
+        )
+    },
 ];
 
 /// Unlearned curriculum words made of learned characters only.
@@ -885,6 +915,16 @@ fn curriculum_rows_and_unintroduced_captures_never_reach_the_pool() {
     let truth = &fixture.truth;
     let pool = fixture.pool();
 
+    // No origin makes a capture learned on its own, so unlearned captures of
+    // every origin must stay out (a query that trusted curriculum or Anki
+    // rows would otherwise pass unnoticed).
+    let origins: HashSet<CaptureOrigin> =
+        truth.not_learned.values().map(|word| word.origin).collect();
+    assert_eq!(
+        origins,
+        HashSet::from([CAPTURE, CURRICULUM, ANKI_IMPORT]),
+        "the fixture needs unlearned captures of every origin"
+    );
     let pool_ids: HashSet<i64> = pool.entries().iter().map(|entry| entry.card_id).collect();
     let learned_ids: HashSet<i64> = truth.learned.keys().copied().collect();
     assert_eq!(pool_ids, learned_ids);

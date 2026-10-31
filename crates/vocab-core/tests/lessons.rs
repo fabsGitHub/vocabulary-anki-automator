@@ -128,7 +128,7 @@ fn only_clipboard_captures_with_a_usable_sentence_pair_qualify() {
 
 #[test]
 fn the_cloze_blanks_the_first_occurrence_ignoring_case_outside_hanzi() {
-    let cases: [(&str, &str, Option<&str>); 7] = [
+    let cases: [(&str, &str, Option<&str>); 9] = [
         (
             "Serendipity",
             "Pure serendipity, serendipity!",
@@ -143,7 +143,11 @@ fn the_cloze_blanks_the_first_occurrence_ignoring_case_outside_hanzi() {
             Some("我喜欢____，学习中文。"),
         ),
         ("学习", "我喜欢學習中文。", None),
-        ("cat", "Concatenate the cat.", Some("Con____enate the cat.")),
+        // The word where it stands alone, not the letters inside another one.
+        ("cat", "Concatenate the cat.", Some("Concatenate the ____.")),
+        ("Cat", "Concatenate. Cat!", Some("Concatenate. ____!")),
+        // A word that only occurs inflected is still blanked where it occurs.
+        ("run", "He is running.", Some("He is ____ning.")),
     ];
     for (word, sentence, cloze) in cases {
         let found = only_card(&[capture(

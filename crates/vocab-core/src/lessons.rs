@@ -10,7 +10,9 @@
 //!   cloze has something to blank: the word's first occurrence becomes
 //!   [`CLOZE_BLANK`]. Hanzi are matched exactly, other scripts ignoring case
 //!   (`Serendipity` in "pure serendipity"), since a sentence often starts
-//!   with the word.
+//!   with the word. Outside hanzi, an occurrence that stands as a word of its
+//!   own comes first: "Concatenate the cat" blanks `cat`, not the inside of
+//!   "Concatenate".
 //! - **Lessons never mix language pairs.** Cards are grouped by
 //!   `(source_lang, target_lang)` in capture order and cut into lessons of
 //!   `cards_per_lesson`. A lesson's id names its first card
@@ -42,7 +44,8 @@ pub struct LessonCard {
     /// Its translation (`example_target`).
     pub sentence_target: String,
     /// `sentence_source` with the word's first occurrence replaced by
-    /// [`CLOZE_BLANK`].
+    /// [`CLOZE_BLANK`] (outside hanzi, the first one that stands as a word of
+    /// its own, if any does).
     pub cloze: String,
     /// The pinyin of a Chinese card.
     pub pinyin: Option<String>,
