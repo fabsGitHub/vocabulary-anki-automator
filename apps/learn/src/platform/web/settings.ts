@@ -9,8 +9,9 @@
  * their defaults, as serde's `#[serde(default)]` gives them. Saving
  * normalizes the input and refuses whatever {@link validateSettings}
  * rejects, with the desktop build's sentences. The web build cannot export
- * to Anki, but it keeps the Anki settings all the same, so a learner who
- * moves to the desktop app finds them as they left them.
+ * to Anki, but it keeps and validates the Anki settings all the same, so the
+ * settings tab behaves as on the desktop. (They stay in this browser's
+ * IndexedDB: the desktop apps' SQLite file never sees them.)
  */
 
 import type { CardField, FieldMapping, LearnSettings } from '../types'
