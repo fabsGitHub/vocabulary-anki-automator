@@ -11,7 +11,8 @@
  * never loses a half-done review. The menu reopens the prompt to change
  * today's goal, after which the review rebuilds its queue. While the prompt
  * is open, everything behind it is inert: out of reach of the keyboard,
- * the pointer and assistive technology.
+ * the pointer and assistive technology. The `banner` slot above the header
+ * is inert with it; the live demo puts its bar there (src/demo).
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -117,6 +118,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', onWindowFocus))
 <template>
   <div class="view learn-shell">
     <div class="learn-body" :inert="open || undefined" data-test="app-body">
+      <slot name="banner" />
       <header class="mac-header">
         <div class="header-titles">
           <h1>{{ t('app.title') }}</h1>

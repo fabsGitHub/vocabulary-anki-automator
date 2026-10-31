@@ -26,3 +26,4 @@ dist-ssr
 # Cargo workspace build output (Milestone B moved it to the repo root)
 /target
 dist-web
+dist-demo

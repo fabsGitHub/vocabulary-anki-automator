@@ -76,6 +76,12 @@ golden test vectors. It has no text-to-speech and no Anki access, and its data
 stays in that browser. iOS and Android builds are not set up yet
 (see [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), Milestone I).
 
+The **live demo** is that web build with ten days of made-up practice already
+done, a few captured words among them, and a bar to move its clock a day ahead
+or start it over: a way to show Learn to people who do not have it. It builds
+to a folder of static files that any web host can serve, and that a web page
+can embed ([docs/live-demo.md](docs/live-demo.md)).
+
 ### Where the data lives
 
 - Cards, reviews, XP and Learn's settings: `VocabularyAutomator/vocab.sqlite3` in
@@ -104,16 +110,18 @@ npm ci                        # frontend dependencies (Vite, Vue, Vitest, ESLint
 npm run tauri dev          # Automator (frontend on http://localhost:1420)
 npm run learn:tauri dev    # Learn, desktop app (frontend on http://localhost:1430)
 npm run learn:dev:web      # Learn, web build in your browser at http://localhost:1430
+npm run learn:dev:demo     # Learn, the live demo in your browser at http://localhost:1430
 ```
 
 With [just](https://github.com/casey/just): `just dev`, `just learn-dev`,
-`just learn-web`. (`npm run learn:dev` alone serves the desktop frontend that
+`just learn-web`, `just learn-demo`. (`npm run learn:dev` alone serves the desktop frontend that
 `tauri dev` loads; opened in a plain browser, its calls to the Tauri backend fail.)
 
 ### Build
 
 ```bash
 npm run learn:build:web                # Learn web build -> apps/learn/dist-web (static files, host anywhere)
+npm run learn:build:demo               # Learn live demo -> apps/learn/dist-demo (static files, host anywhere)
 npm run learn:tauri build              # Learn desktop bundles -> target/release/bundle
 npm run tauri build -- --no-sign      # Automator bundles for local testing, unsigned -> target/release/bundle
 ```
@@ -169,5 +177,6 @@ and how to regenerate it are in
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)                     | Roadmap and milestone status, including what is still open and why  |
 | [docs/test-harness-strategy.md](docs/test-harness-strategy.md)       | How tests avoid real Anki and the network                           |
 | [docs/signing-key-custody.md](docs/signing-key-custody.md)           | Release secrets and the updater signing key                         |
+| [docs/live-demo.md](docs/live-demo.md)                               | The public live demo: how it works, hosting it, embedding it        |
 | [crates/vocab-core/data/README.md](crates/vocab-core/data/README.md) | HSK data provenance, licenses and regeneration                      |
 | [CLAUDE.md](CLAUDE.md)                                               | Working rules for coding agents in this repository                  |

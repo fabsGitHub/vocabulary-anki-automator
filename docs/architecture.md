@@ -983,6 +983,13 @@ invokes the commands above, which need none, so no core or plugin command
 served by Tauri, so its CSP is up to whoever hosts it (it needs the same
 policy plus `connect-src 'self'` for its curriculum JSON).
 
+`--mode demo` builds the web build as the public live demo
+([live-demo.md](live-demo.md)), entered through `apps/learn/src/demo/main.ts`, so
+no other build contains it: the same app and web adapter on an IndexedDB database of
+its own (`vocab-learn-demo`, memory where the browser refuses IndexedDB), started
+with a ten-day history played through the adapter's own commands, plus a bar that
+moves the demo's clock by whole days and starts the demo over.
+
 ## 11. Serialized shapes (TypeScript)
 
 The shapes below (the Automator's, in `src/api/types.ts`) and Learn's in
