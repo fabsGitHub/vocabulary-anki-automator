@@ -26,7 +26,7 @@ use vocab_core::{providers::TranslationProvider, CurriculumItem, ProviderError};
 
 use crate::{
     error::Result,
-    output::{read_overrides, write_overrides},
+    output::{read_overrides, write_overrides, Overrides},
 };
 
 /// Limits for one run.
@@ -95,6 +95,15 @@ fn has_german(item: &CurriculumItem) -> bool {
         .is_some_and(|text| !text.trim().is_empty())
 }
 
+/// A blank override counts as missing, as it does in `build`: otherwise an
+/// entry blanked by hand (or a blank answer) would never be retried and
+/// never reach the curriculum either.
+fn has_saved_german(overrides: &Overrides, hanzi: &str) -> bool {
+    overrides
+        .get(hanzi)
+        .is_some_and(|text| !text.trim().is_empty())
+}
+
 /// Translates the first sense of every item without German (in the
 /// curriculum or in the overrides file at `overrides_path`) from English to
 /// German, in `curriculum_order`, writing the overrides file after every
@@ -114,7 +123,7 @@ pub async fn backfill_de(
     let mut untranslatable = 0;
     let mut pending: Vec<(&CurriculumItem, &str)> = Vec::new();
     for item in items {
-        if has_german(item) || overrides.contains_key(&item.hanzi) {
+        if has_german(item) || has_saved_german(&overrides, &item.hanzi) {
             already_done += 1;
             continue;
         }
@@ -136,6 +145,12 @@ pub async fn backfill_de(
             tokio::time::sleep(options.delay).await;
         }
         match provider.translate(sense, "en", "de").await {
+            Ok(german) if german.trim().is_empty() => skipped.push((
+                item.hanzi.clone(),
+                ProviderError::NotFound {
+                    provider: provider.name().to_string(),
+                },
+            )),
             Ok(german) => {
                 let german = german.trim().to_string();
                 overrides.insert(item.hanzi.clone(), german.clone());

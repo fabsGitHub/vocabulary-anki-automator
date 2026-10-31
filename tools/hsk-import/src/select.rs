@@ -10,7 +10,13 @@
 //! 1. the form whose reading equals the official reading of the word at its
 //!    lowest official level (lowest ID on a tie), compared by
 //!    [`reading_key`]; among several matches, one with the official
-//!    capitalization, then one not dominated by penalty meanings;
+//!    capitalization, then one not dominated by penalty meanings, then one
+//!    with the official traditional form, then the one with the smallest
+//!    share of penalty meanings, then the one with the official list's first
+//!    traditional form. Same-reading forms are common: CC-CEDICT has one
+//!    entry per traditional headword, so 后 `hòu` is both 后 ("empress") and
+//!    後 ("behind"), 当 `dāng` both 噹 ("ding dong") and 當 ("to be"), and
+//!    upstream lists them by code point, not by importance;
 //!
 //!    1b. else the form whose reading differs from that official reading only
 //!    in neutral tones ([`neutral_tone_distance`]), fewest differences first,
@@ -112,8 +118,8 @@ pub fn is_penalty_meaning(meaning: &str) -> bool {
             .any(|prefix| meaning.starts_with(prefix))
 }
 
-/// No meanings at all, or more than half of them penalty meanings.
-pub fn is_dominated(form: &Form) -> bool {
+/// `(penalty meanings, non-blank meanings)` of a form.
+fn penalty_count(form: &Form) -> (usize, usize) {
     let meanings: Vec<&String> = form
         .meanings
         .iter()
@@ -123,7 +129,22 @@ pub fn is_dominated(form: &Form) -> bool {
         .iter()
         .filter(|meaning| is_penalty_meaning(meaning))
         .count();
-    meanings.is_empty() || penalties * 2 > meanings.len()
+    (penalties, meanings.len())
+}
+
+/// No meanings at all, or more than half of them penalty meanings.
+pub fn is_dominated(form: &Form) -> bool {
+    let (penalties, meanings) = penalty_count(form);
+    meanings == 0 || penalties * 2 > meanings
+}
+
+/// The share of penalty meanings in parts per million, so shares compare as
+/// integers (a form without meanings counts as all penalties).
+fn penalty_share(form: &Form) -> usize {
+    match penalty_count(form) {
+        (_, 0) => 1_000_000,
+        (penalties, meanings) => penalties * 1_000_000 / meanings,
+    }
 }
 
 /// Picks `hanzi`'s form by the rules in the module docs. Forms without a
@@ -146,20 +167,21 @@ pub fn select_form(
     let chosen = |index, rule| Some(Selection { index, rule });
 
     if let Some(official) = official {
+        let traditional = official.traditional.as_slice();
         for alternative in official.alternatives() {
-            if let Some(index) = best_match(forms, &usable, alternative, false) {
+            if let Some(index) = best_match(forms, &usable, alternative, traditional, false) {
                 return chosen(index, Rule::OfficialReading);
             }
         }
         for alternative in official.alternatives() {
-            if let Some(index) = best_match(forms, &usable, alternative, true) {
+            if let Some(index) = best_match(forms, &usable, alternative, traditional, true) {
                 return chosen(index, Rule::OfficialReadingNeutralTone);
             }
         }
     }
     let default_reading = generate_pinyin(hanzi);
     if !default_reading.is_empty() {
-        if let Some(index) = best_match(forms, &usable, &default_reading, false) {
+        if let Some(index) = best_match(forms, &usable, &default_reading, &[], false) {
             return chosen(index, Rule::DefaultReading);
         }
     }
@@ -171,12 +193,22 @@ pub fn select_form(
 
 /// Among the forms reading `reading` (by [`reading_key`]; with
 /// `neutral_tones`, up to neutral tones and fewest differences first), the
-/// first with the same capitalization and not dominated, relaxing those two
-/// preferences in that order.
+/// first that has the same capitalization, is not dominated, has one of the
+/// `traditional` forms (no preference when that is empty), has the smallest
+/// share of penalty meanings and has the earliest of the `traditional` forms
+/// (the official list puts the main one first: 冲 is `衝|沖`, "to rush"
+/// before "to rinse"), relaxing those preferences from the last to the
+/// first.
+///
+/// Domination outranks the traditional form because the official form is
+/// sometimes the one CC-CEDICT files as a bare cross-reference: 恶心 is
+/// officially 噁心, whose only meaning is "variant of 恶心", while the
+/// meanings are under 惡心.
 fn best_match(
     forms: &[Form],
     usable: &[usize],
     reading: &str,
+    traditional: &[String],
     neutral_tones: bool,
 ) -> Option<usize> {
     let key = reading_key(reading);
@@ -199,7 +231,20 @@ fn best_match(
                 .chars()
                 .map(char::is_uppercase)
                 .collect();
-            Some((distance, form_cased != cased, is_dominated(&forms[i]), i))
+            let traditional_rank = forms[i]
+                .traditional
+                .as_deref()
+                .and_then(|form| traditional.iter().position(|t| t == form.trim()));
+            let other_traditional = !traditional.is_empty() && traditional_rank.is_none();
+            Some((
+                distance,
+                form_cased != cased,
+                is_dominated(&forms[i]),
+                other_traditional,
+                penalty_share(&forms[i]),
+                traditional_rank.unwrap_or(usize::MAX),
+                i,
+            ))
         })
         .min()
         .map(|(.., i)| i)
@@ -225,6 +270,21 @@ mod tests {
             "ID,Simplified,Pinyin,Level,Variants\nL1-0001,{hanzi},{pinyin},1,\n"
         ))
         .unwrap()
+    }
+
+    fn official_with_traditional(hanzi: &str, traditional: &str, pinyin: &str) -> OfficialIndex {
+        OfficialIndex::parse(&format!(
+            "ID,Simplified,Traditional,Pinyin,Level,Variants\n\
+             L1-0001,{hanzi},{traditional},{pinyin},1,\n"
+        ))
+        .unwrap()
+    }
+
+    fn traditional_form(traditional: &str, pinyin: &str, meanings: &[&str]) -> Form {
+        Form {
+            traditional: Some(traditional.into()),
+            ..form(pinyin, meanings)
+        }
     }
 
     /// 吧 as upstream has it: loanword first, the HSK particle second.
@@ -335,6 +395,74 @@ mod tests {
                 .index,
             1
         );
+    }
+
+    #[test]
+    fn same_reading_forms_are_told_apart_by_the_official_traditional_form() {
+        let choose = |hanzi: &str, traditional: &str, pinyin: &str, forms: &[Form]| {
+            let index = official_with_traditional(hanzi, traditional, pinyin);
+            select_form(hanzi, forms, index.first_reading(hanzi)).unwrap()
+        };
+        // Upstream's order for 后: the HSK 1 word "after, behind" comes last.
+        let hou = [
+            traditional_form("后", "Hòu", &["surname Hou"]),
+            traditional_form("后", "hòu", &["empress", "queen", "(archaic) monarch"]),
+            traditional_form("後", "hòu", &["back", "behind", "rear"]),
+        ];
+        assert_eq!(
+            choose("后", "後", "hòu", &hou),
+            Selection {
+                index: 2,
+                rule: Rule::OfficialReading
+            }
+        );
+        // The official form wins even with a penalty meaning of its own, as
+        // long as it is not dominated.
+        let hou_with_surname = [
+            traditional_form("后", "hòu", &["empress", "queen"]),
+            traditional_form("後", "hòu", &["back", "behind", "surname Hou"]),
+        ];
+        assert_eq!(choose("后", "後", "hòu", &hou_with_surname).index, 1);
+        // A half-onomatopoeia form is not dominated, but it is not 當 either.
+        let dang = [
+            traditional_form("噹", "dāng", &["(onom.) dong", "ding dong (bell)"]),
+            traditional_form("當", "dāng", &["to be", "to act as"]),
+            traditional_form("當", "dàng", &["at or in the very same...", "suitable"]),
+        ];
+        assert_eq!(choose("当", "當", "dāng", &dang).index, 1);
+        // The official form is only a cross-reference here: an undominated
+        // form still beats it.
+        let exin = [
+            traditional_form("噁心", "ě xīn", &["variant of 恶心"]),
+            traditional_form("惡心", "ě xīn", &["nausea", "to feel sick"]),
+            traditional_form("惡心", "è xīn", &["bad habit", "vice"]),
+        ];
+        assert_eq!(
+            choose("恶心", "噁心", "ěxīn", &exin),
+            Selection {
+                index: 1,
+                rule: Rule::OfficialReading
+            }
+        );
+        // Two official forms (台|臺) match two forms: the one with fewer
+        // penalty meanings wins.
+        let tai = [
+            traditional_form("台", "Tái", &["Taiwan (abbr.)", "surname Tai"]),
+            traditional_form(
+                "台",
+                "tái",
+                &["(classical) you (in letters)", "variant of 台"],
+            ),
+            traditional_form("檯", "tái", &["desk; table; counter"]),
+            traditional_form("臺", "tái", &["platform", "stage", "terrace"]),
+        ];
+        assert_eq!(choose("台", "台|臺", "tái", &tai).index, 3);
+        // Both official, equally clean: the list's first form is the main one.
+        let chong = [
+            traditional_form("沖", "chōng", &["(of water) to dash against", "to rinse"]),
+            traditional_form("衝", "chōng", &["to rush", "to charge"]),
+        ];
+        assert_eq!(choose("冲", "衝|沖", "chōng", &chong).index, 1);
     }
 
     #[test]

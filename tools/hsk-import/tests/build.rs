@@ -333,6 +333,138 @@ fn a_spot_check_mismatch_fails_the_build_before_anything_is_written() {
     assert!(!out.exists());
 }
 
+/// The other repairs that keep the pinyin one syllable per token: a lone
+/// erhua `r` joined, a misplaced tone mark moved (which also makes the
+/// reading match the official one), a heteronym in a partly solid reading.
+#[test]
+fn erhua_misplaced_tone_marks_and_heteronyms_are_repaired() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = sources(
+        dir.path(),
+        &[(
+            7,
+            vec![
+                entry(
+                    "一点儿",
+                    Some(1),
+                    &[],
+                    vec![form("一點兒", "yī diǎn r", &["a bit"])],
+                ),
+                entry(
+                    "奥运会",
+                    Some(2),
+                    &[],
+                    vec![form("奧運會", "Aò yùn huì", &["Olympic Games"])],
+                ),
+                entry(
+                    "着眼于",
+                    Some(3),
+                    &[],
+                    vec![form("著眼於", "zhuóyǎn yú", &["to focus on"])],
+                ),
+                entry(
+                    "女儿",
+                    Some(4),
+                    &[],
+                    vec![form("女兒", "nǚ ér", &["daughter"])],
+                ),
+            ],
+        )],
+        &["L7-0013,奥运会,奧運會,Àoyùnhuì,N,7-9,13,Àoyùnhuì,奥运会,,x"],
+    );
+
+    let (items, report) = build(&source, None);
+
+    let readings: Vec<(&str, &str)> = items
+        .iter()
+        .map(|i| (i.hanzi.as_str(), i.pinyin.as_str()))
+        .collect();
+    assert_eq!(
+        readings,
+        [
+            ("一点儿", "yī diǎnr"),
+            ("奥运会", "Ào yùn huì"),
+            ("着眼于", "zhuó yǎn yú"),
+            ("女儿", "nǚ ér"),
+        ]
+    );
+    assert_eq!(
+        report.erhua_joined,
+        [("一点儿".to_string(), "yī diǎnr".to_string())]
+    );
+    assert_eq!(
+        report.cleaned,
+        [("Aò yùn huì".to_string(), "Ào yùn huì".to_string())]
+    );
+    assert_eq!(
+        report.respaced,
+        [("着眼于".to_string(), "zhuó yǎn yú".to_string())]
+    );
+    assert!(
+        report.reading_disagreements.is_empty(),
+        "{:?}",
+        report.reading_disagreements
+    );
+    assert!(report.solid.is_empty(), "{:?}", report.solid);
+}
+
+/// Upstream lists forms that share a reading by traditional code point, so
+/// 后's "empress" comes before 後 "behind" and 当's 噹 "ding dong" before 當
+/// "to be"; the official list's traditional form picks the HSK word.
+#[test]
+fn same_reading_forms_are_chosen_by_the_official_traditional_form() {
+    let dir = tempfile::tempdir().unwrap();
+    let hou = entry(
+        "后",
+        Some(115),
+        &["f"],
+        vec![
+            form("后", "Hòu", &["surname Hou"]),
+            form("后", "hòu", &["empress", "queen"]),
+            form("後", "hòu", &["back", "behind", "rear"]),
+        ],
+    );
+    let dang = entry(
+        "当",
+        Some(155),
+        &["p", "v"],
+        vec![
+            form("噹", "dāng", &["(onom.) dong", "ding dong (bell)"]),
+            form("當", "dāng", &["to be", "to act as"]),
+            form("當", "dàng", &["suitable", "adequate"]),
+        ],
+    );
+    let source = sources(
+        dir.path(),
+        &[(1, vec![hou]), (2, vec![dang])],
+        &[
+            "L1-0147,后,後,hòu,N,1,1,hòu,后,,後|后[hou4]",
+            "L2-0107,当,當,dāng,V/Prep,2,1,dāng,当,,當|当[dang1]",
+        ],
+    );
+
+    let (items, report) = build(&source, None);
+
+    let chosen: Vec<(&str, Option<&str>, Option<&str>)> = items
+        .iter()
+        .map(|i| {
+            (
+                i.hanzi.as_str(),
+                i.traditional.as_deref(),
+                i.meaning_en.as_deref(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        chosen,
+        [
+            ("后", Some("後"), Some("back; behind; rear")),
+            ("当", Some("當"), Some("to be; to act as")),
+        ]
+    );
+    assert_eq!(report.rules.get(&Rule::OfficialReading), Some(&2));
+}
+
 #[test]
 fn readings_are_cleaned_and_respaced_and_entries_without_one_are_skipped() {
     let dir = tempfile::tempdir().unwrap();

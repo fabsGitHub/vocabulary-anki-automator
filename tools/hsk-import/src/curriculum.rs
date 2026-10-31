@@ -27,7 +27,10 @@ use crate::{
     error::{Error, Result},
     official::OfficialIndex,
     output::Overrides,
-    reading::{clean_pinyin, neutral_tone_distance, reading_key, respace_syllables},
+    reading::{
+        clean_pinyin, join_erhua, missing_syllables, neutral_tone_distance, reading_key,
+        respace_syllables,
+    },
     select::{select_form, Rule},
     sources::official_file,
     vocabulary::{level_file, load_level, Entry, LEVELS},
@@ -122,7 +125,10 @@ pub struct BuildReport {
     pub cleaned: Vec<(String, String)>,
     /// Readings split into syllables by `reading::respace_syllables`.
     pub respaced: Vec<(String, String)>,
-    /// Multi-character words whose reading is still one solid token.
+    /// Readings whose lone erhua `r` was joined by `reading::join_erhua`.
+    pub erhua_joined: Vec<(String, String)>,
+    /// Multi-character words whose reading still has fewer syllables than
+    /// characters (`reading::missing_syllables`): solid or partly solid.
     pub solid: Vec<(String, String)>,
     pub without_meaning_en: Vec<String>,
     pub meaning_de_merged: usize,
@@ -207,7 +213,13 @@ pub fn build_curriculum(
                 report.respaced.push((hanzi.to_string(), spaced.clone()));
                 pinyin = spaced;
             }
-            if hanzi.chars().count() > 1 && pinyin.split_whitespace().count() == 1 {
+            if let Some(joined) = join_erhua(&pinyin, hanzi) {
+                report
+                    .erhua_joined
+                    .push((hanzi.to_string(), joined.clone()));
+                pinyin = joined;
+            }
+            if missing_syllables(&pinyin, hanzi) > 0 {
                 report.solid.push((hanzi.to_string(), pinyin.clone()));
             }
             if !matches!(selection.rule, Rule::SingleForm | Rule::OfficialReading) {
@@ -419,7 +431,13 @@ impl fmt::Display for BuildReport {
         )?;
         writeln!(
             f,
-            "  multi-character words with solid pinyin: {}{}",
+            "  erhua r joined: {}{}",
+            self.erhua_joined.len(),
+            examples(self.erhua_joined.iter().map(|(h, p)| format!("{h} {p}")))
+        )?;
+        writeln!(
+            f,
+            "  words with fewer syllables than characters: {}{}",
             self.solid.len(),
             examples(self.solid.iter().map(|(h, p)| format!("{h} {p}")))
         )?;

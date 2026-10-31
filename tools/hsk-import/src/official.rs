@@ -28,6 +28,11 @@ pub struct OfficialReading {
     /// As written in the list: solid, possibly with `'`, `-` or `a/b`
     /// alternatives.
     pub pinyin: String,
+    /// The traditional form(s) of this reading (`台|臺` lists two); empty when
+    /// the list has none. CC-CEDICT, and so drkameleon, keeps one form per
+    /// traditional headword, so this is what tells same-reading forms apart:
+    /// 后 `hòu` is 後 ("behind"), not 后 ("empress").
+    pub traditional: Vec<String>,
     /// `(level, number in the ID, row)`: what "lowest level, then lowest ID"
     /// sorts by.
     rank: (u8, u32, usize),
@@ -57,6 +62,17 @@ struct Variant {
     simplified: String,
     #[serde(rename = "Pinyin")]
     pinyin: String,
+    #[serde(rename = "Traditional", default)]
+    traditional: Option<String>,
+}
+
+/// `台|臺` -> `["台", "臺"]`.
+fn traditional_forms(text: &str) -> Vec<String> {
+    text.split('|')
+        .map(str::trim)
+        .filter(|form| !form.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 impl OfficialIndex {
@@ -88,6 +104,7 @@ impl OfficialIndex {
             column("Level")?,
         );
         let variants_col = column("Variants").ok();
+        let traditional_col = column("Traditional").ok();
 
         let mut index = Self::default();
         for (row, record) in records.enumerate() {
@@ -109,7 +126,9 @@ impl OfficialIndex {
                 .next()
                 .and_then(|n| n.parse().ok())
                 .unwrap_or(u32::MAX);
-            let parts: Vec<(String, String)> = match variants_col
+            // A composite row's own Traditional column is composite notation
+            // too (`爸爸|爸`), so its parts take theirs from the variants only.
+            let parts: Vec<(String, String, Vec<String>)> = match variants_col
                 .and_then(|col| record.get(col))
                 .map(|s| s.trim())
             {
@@ -120,14 +139,25 @@ impl OfficialIndex {
                         ))
                     })?
                     .into_iter()
-                    .map(|variant| (variant.simplified, variant.pinyin))
+                    .map(|variant| {
+                        let traditional = variant
+                            .traditional
+                            .as_deref()
+                            .map(traditional_forms)
+                            .unwrap_or_default();
+                        (variant.simplified, variant.pinyin, traditional)
+                    })
                     .collect(),
                 _ => vec![(
                     field(hanzi_col)?.to_string(),
                     field(pinyin_col)?.to_string(),
+                    match traditional_col {
+                        Some(col) => traditional_forms(field(col)?),
+                        None => Vec::new(),
+                    },
                 )],
             };
-            for (hanzi, pinyin) in parts {
+            for (hanzi, pinyin, traditional) in parts {
                 let hanzi = hanzi.trim();
                 if hanzi.is_empty() {
                     continue;
@@ -140,6 +170,7 @@ impl OfficialIndex {
                         id: id.to_string(),
                         level,
                         pinyin: pinyin.trim().to_string(),
+                        traditional,
                         rank: (level, number, row),
                     });
             }
@@ -303,6 +334,32 @@ mod tests {
         assert_eq!(who.alternatives().collect::<Vec<_>>(), ["shéi", "shuí"]);
         assert_eq!(index.first_reading("阿姨").unwrap().level, 7);
         assert!(index.first_reading("没有").is_none());
+    }
+
+    #[test]
+    fn readings_carry_their_traditional_forms() {
+        let csv = format!(
+            "{HEADER}\n\
+             L1-0213,里,裡|裏,lǐ,N,1,1,lǐ,里,,x\n\
+             L1-0147,后,後,hòu,N,1,1,hòu,后,,x\n\
+             L1-0224,妈妈|妈,媽媽|媽,māma|mā,N,1,1,māma|mā,妈妈｜妈,\"[{{\"\"Simplified\"\": \"\"妈妈\"\", \"\"Pinyin\"\": \"\"māma\"\", \"\"Traditional\"\": \"\"媽媽\"\"}}, {{\"\"Simplified\"\": \"\"妈\"\", \"\"Pinyin\"\": \"\"mā\"\"}}]\",x\n"
+        );
+        let index = OfficialIndex::parse(&csv).unwrap();
+        assert_eq!(index.first_reading("里").unwrap().traditional, ["裡", "裏"]);
+        assert_eq!(index.first_reading("后").unwrap().traditional, ["後"]);
+        assert_eq!(index.first_reading("妈妈").unwrap().traditional, ["媽媽"]);
+        assert!(
+            index.first_reading("妈").unwrap().traditional.is_empty(),
+            "a variant without its own form does not inherit the composite column"
+        );
+
+        let without_column = OfficialIndex::parse("ID,Simplified,Pinyin,Level\nL1-0147,后,hòu,1\n");
+        assert!(without_column
+            .unwrap()
+            .first_reading("后")
+            .unwrap()
+            .traditional
+            .is_empty());
     }
 
     #[test]

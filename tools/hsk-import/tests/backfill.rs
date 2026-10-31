@@ -334,6 +334,46 @@ async fn network_failures_stop_the_run_and_keep_the_progress() {
     );
 }
 
+/// `build` ignores blank overrides, so a blank one must not count as done:
+/// it would never be retried and never reach the curriculum.
+#[tokio::test]
+async fn blank_overrides_and_blank_answers_are_retried_later() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("de.json");
+    write_overrides(&path, &overrides_of(&[("了", "  ")])).unwrap();
+    let provider = Scripted::new(&path, |n, text| {
+        if n == 0 {
+            Ok(" ".into())
+        } else {
+            german(n, text)
+        }
+    });
+
+    let report = backfill_de(&provider, &curriculum(), &path, &no_delay())
+        .await
+        .unwrap();
+
+    assert_eq!(
+        provider.texts(),
+        [
+            "of",
+            "(completed action marker)",
+            "I",
+            "(modal particle indicating suggestion; or surmise)"
+        ]
+    );
+    assert_eq!(report.already_done, 0);
+    let skipped: Vec<&str> = report.skipped.iter().map(|(h, _)| h.as_str()).collect();
+    assert_eq!(skipped, ["的"]);
+    assert_eq!(report.remaining, 1);
+    let saved = read_overrides(&path).unwrap().unwrap();
+    assert_eq!(saved.get("的"), None, "a blank answer is not saved");
+    assert_eq!(
+        saved.get("了").map(String::as_str),
+        Some("DE[(completed action marker)]")
+    );
+}
+
 #[tokio::test]
 async fn items_with_german_or_without_english_are_not_requested() {
     let dir = tempfile::tempdir().unwrap();

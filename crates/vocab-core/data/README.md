@@ -35,8 +35,10 @@ pinned commits and covered by the manifest, are the two `LICENSE-*` files.
 of the ten pinned URLs downloaded with curl: the tool's own HTTP client could
 not run TLS in the sandbox it was developed in (see `meaning_de` below). Each
 file was also checked against the git blob hash GitHub's API reports for the
-pinned commit, and all ten matched. Any later `fetch`, mirrored or downloaded,
-must reproduce these hashes exactly.
+pinned commit, and all ten matched. A second, independent download of the
+ten URLs reproduced every hash, and `build` from it reproduces
+`hsk_curriculum.json` byte for byte. Any later `fetch`, mirrored or
+downloaded, must reproduce these hashes exactly.
 
 ## How an upstream entry becomes an item
 
@@ -66,7 +68,16 @@ The build picks, in order:
 1. the form whose reading equals the official reading of the word at its
    lowest official level (lowest ID on a tie), ignoring spaces, `'`, `-` and
    case (Unicode NFC); among several, the one with the official
-   capitalization, then one not dominated by penalty meanings;
+   capitalization, then one not dominated by penalty meanings, then one with
+   the official list's traditional form, then the one with the smallest
+   share of penalty meanings, then the official list's first traditional
+   form (冲 is `衝|沖`). Several forms share a reading because CC-CEDICT
+   has one entry per traditional headword, and upstream lists them by code
+   point: without the traditional form, 后 was "empress" (后) instead of
+   "behind" (後), 当 "ding dong" (噹) instead of "to be" (當), 系 "to
+   connect" (係) instead of "department" (系) and 台 "(classical) you"
+   instead of "platform" (臺); 46 items changed when these preferences were
+   added, most of them from a variant's or another word's meanings;
    **1b.** else the form that differs from that official reading only in
    neutral tones (CC-CEDICT `hǎo chu`, official `hǎochù`), fewest differences
    first. This step is not in the plan: without it, 好处 came out as `hǎo chǔ`
@@ -83,27 +94,37 @@ The build picks, in order:
 This build: 10,119 single-form entries; of the 850 multi-form entries, rule 1
 decided 844 and rule 1b 6 (那里, 起来, 好处, 关系, 恶心, 分量); rules 2–4 decided
 none. Every word has an official row and no level differs from the official
-list. The build refuses to write the file unless these spot checks hold: 吧
-ba, 了 le, 的 de, 还 hái, 长 cháng, 行 xíng, 都 dōu, 好 hǎo, 要 yào, 看 kàn, 会 huì,
-中 zhōng, 少 shǎo, 大 dà, 没 méi, 地 de.
+list. All but 10 items have the official traditional form: for 7 (恶心,
+复习, 扎实, 家伙, 局限, 动荡, 哗然) upstream files the official form only as a
+cross-reference ("variant of 复习"), so the form with the meanings wins, and
+3 (尽可能, 特制, 效仿) are single-form entries. The build refuses to write
+the file unless these spot checks hold: 吧 ba, 了 le, 的 de, 还 hái, 长 cháng,
+行 xíng, 都 dōu, 好 hǎo, 要 yào, 看 kàn, 会 huì, 中 zhōng, 少 shǎo, 大 dà, 没 méi,
+地 de.
 
 ### Pinyin repairs
 
 The pinyin is stored the way cards use it: tone marks, one space between
-syllables. Some upstream readings needed repair (40 items, all listed by
+syllables, an erhua `r` part of its syllable as in the official list
+(`yīdiǎnr`). Some upstream readings needed repair (89 items, all listed by
 `build`):
 
 - CC-CEDICT notation leaking into tone-marked text: `lu:è` → `lüè` (策略,
   战略, ...), a neutral-tone `5` (`yǒukòngr5` → `yǒukòngr`), bopomofo's `˙`
-  (`guī ˙nu:` → `guī nü`);
+  (`guī ˙nu:` → `guī nü`), a tone mark on the wrong vowel (奥运会 `Aò` →
+  `Ào`);
 - readings written solid or partly solid (`diàndòngchē`, `zhè shíhòu`): split
   into one syllable per character by matching each character's reading,
-  with an erhua `r` kept on the syllable before it (`xiào huar`).
+  with an erhua `r` kept on the syllable before it (`xiào huar`); one
+  character whose default reading is another one gets the letters the
+  others leave (着眼于 `zhuóyǎn yú` → `zhuó yǎn yú`);
+- erhua written with CC-CEDICT's lone `r` (47 items, `yī diǎn r` → `yī diǎnr`,
+  哪儿 `nǎ r` → `nǎr`), so every erhua word is spelled the same way.
 
 ### Where the reading differs from the official list
 
-The pinyin is the chosen form's, as the plan specifies, so 160 items do not
-match the official list letter for letter. 149 differ only in neutral tones,
+The pinyin is the chosen form's, as the plan specifies, so 159 items do not
+match the official list letter for letter. 148 differ only in neutral tones,
 where CC-CEDICT and the official list follow different conventions (`xué sheng`
 / `xuéshēng`, `běi biān` / `běibian`). The other 11 are single-form entries
 where upstream knows only another standard reading: 血 / 出血 / 献血 `xuè` (HSK
@@ -118,16 +139,29 @@ where upstream knows only another standard reading: 血 / 出血 / 献血 `xuè`
   (`apkg-enrich`, below) and to leave the remaining ~9,600 words without one
   for now. Until then, captures use the pipeline's zh-CN fallback sentence.
 - **No audio or images.** Captures fall back to live TTS.
-- **`meaning_de` is machine-translated and currently empty.** Neither
-  upstream has German, so `backfill-de` translates the first sense of
-  `meaning_en` (the text before the first top-level `;`) with MyMemory, English
-  to German, into `hsk_meaning_de.json`, in curriculum order, saving after
-  every item and stopping cleanly when the free quota is used up. Expect
-  machine-translation quality, especially for grammatical particles. The
-  first sample run (`--limit 120`) could not reach MyMemory: inside the
-  sandbox it ran in, macOS's TLS stack (Security framework) failed with
-  `OSStatus -26276`. The file is therefore still `{}`; run the steps below
-  on a normal machine to add the sample.
+- **Some upstream cross-references are cut short.** drkameleon's conversion
+  dropped characters from a few CC-CEDICT references, and the build copies
+  meanings verbatim: 交警 "traffic police (abbr. for 察)" (交通警察), 下功夫
+  "see 夫", 无可厚非 "see 非", 立方 "abbr. for 米" (立方米), 佛 "(abbr. for
+  陀)" (佛陀). Single-form entries whose only meaning is a reference (干吗
+  "see 干嘛", 效仿 "see 仿效") have nothing better to choose from either.
+- **`meaning_de` is empty: MyMemory's German is not good enough to ship
+  unreviewed.** Neither upstream has German, so `backfill-de` translates the
+  first sense of `meaning_en` (the text before the first top-level `;`) with
+  MyMemory, English to German, into `hsk_meaning_de.json`, in curriculum
+  order, saving after every item and stopping cleanly when the free quota is
+  used up. The first sample run could not reach MyMemory (macOS's TLS stack
+  fails inside the sandbox it ran in, `OSStatus -26276`). A second
+  `--limit 120` run on 2026-10-31 did reach it, and about a third of the
+  answers were wrong or garbage, because MyMemory answers single words from
+  crowd-sourced translation memory: 在 "to exist" → `C . # .`, 他 "he" →
+  `ts~brief f?`, 会 and 能 "can" → `Dose` (a tin can), 看, 见 and 看到 "to
+  see" → `Megalithen zu sehen`, 手 "hand" → `werden.`, 都 "all" → `română`,
+  你们 "you (plural)" left in English. Learn puts `meaning_de` on the back of
+  a German learner's curriculum cards (`introduce_new_item`), so that sample
+  was not committed and the file is still `{}`. Treat `backfill-de` output
+  as a draft: correct it by hand (or replace it with a curated source)
+  before `build` merges it.
 
 ## Regenerating
 
@@ -137,7 +171,8 @@ where upstream knows only another standard reading: 血 / 出血 / 献血 `xuè`
 cargo run -p hsk-import -- fetch --out target/hsk-sources
 
 # 2. Optional, repeatable: more German meanings (MyMemory's anonymous quota is
-#    small; --email ADDR raises it).
+#    small; --email ADDR raises it). A draft: correct the new entries by hand
+#    before step 3 (see "Known gaps").
 cargo run -p hsk-import -- backfill-de --limit 120 \
   --curriculum crates/vocab-core/data/hsk_curriculum.json \
   --overrides crates/vocab-core/data/hsk_meaning_de.json

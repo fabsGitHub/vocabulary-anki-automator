@@ -100,6 +100,51 @@ fn levels_go_from_one_to_seven_and_frequency_orders_each_level() {
     }
 }
 
+/// Tone-marked vowels by base vowel.
+const TONED_VOWELS: &[(char, &str)] = &[
+    ('a', "āáǎà"),
+    ('e', "ēéěè"),
+    ('i', "īíǐì"),
+    ('o', "ōóǒò"),
+    ('u', "ūúǔù"),
+    ('ü', "ǖǘǚǜ"),
+    ('ê', "ếề"),
+];
+
+/// `(base vowel, has a tone mark)` for a vowel letter, `None` otherwise.
+fn vowel(c: char) -> Option<(char, bool)> {
+    let lower = c.to_lowercase().next()?;
+    TONED_VOWELS.iter().find_map(|&(base, toned)| {
+        if lower == base {
+            Some((base, false))
+        } else {
+            toned.contains(lower).then_some((base, true))
+        }
+    })
+}
+
+/// Where a syllable's tone mark belongs: on `a` or `e`, on the `o` of `ou`,
+/// else on the last vowel. `None` when the syllable is right (or toneless).
+fn misplaced_tone_mark(syllable: &str) -> Option<String> {
+    let vowels: Vec<(usize, char, bool)> = syllable
+        .chars()
+        .enumerate()
+        .filter_map(|(i, c)| vowel(c).map(|(base, toned)| (i, base, toned)))
+        .collect();
+    let marked = vowels.iter().find(|v| v.2)?.0;
+    let ou = vowels
+        .windows(2)
+        .find(|pair| pair[0].1 == 'o' && pair[1].1 == 'u' && pair[1].0 == pair[0].0 + 1);
+    let expected = vowels
+        .iter()
+        .find(|v| v.1 == 'a')
+        .or_else(|| vowels.iter().find(|v| v.1 == 'e' || v.1 == 'ê'))
+        .or(ou.map(|pair| &pair[0]))
+        .or(vowels.last())?
+        .0;
+    (expected != marked).then(|| syllable.to_string())
+}
+
 #[test]
 fn every_item_has_clean_spaced_pinyin_and_an_english_meaning() {
     for item in curriculum() {
@@ -115,13 +160,30 @@ fn every_item_has_clean_spaced_pinyin_and_an_english_meaning() {
             "{}: pinyin {pinyin:?} has leftover notation (digits, `u:`, separators)",
             item.hanzi
         );
-        if item.hanzi.chars().count() > 1 {
-            assert!(
-                pinyin.contains(' '),
-                "{}: pinyin {pinyin:?} is not split into syllables",
-                item.hanzi
-            );
-        }
+        // One syllable per character, except that an erhua 儿 is part of the
+        // syllable before it (`yī diǎnr`), never an `r` of its own.
+        let characters: Vec<char> = item.hanzi.chars().collect();
+        let erhua = characters.iter().skip(1).filter(|&&c| c == '儿').count();
+        let syllables: Vec<&str> = pinyin.split(' ').collect();
+        assert!(
+            (characters.len() - erhua..=characters.len()).contains(&syllables.len()),
+            "{}: pinyin {pinyin:?} is not one syllable per character",
+            item.hanzi
+        );
+        assert!(
+            !syllables.iter().any(|s| s.eq_ignore_ascii_case("r")),
+            "{}: pinyin {pinyin:?} spells erhua as a syllable of its own",
+            item.hanzi
+        );
+        let misplaced: Vec<String> = syllables
+            .iter()
+            .filter_map(|s| misplaced_tone_mark(s))
+            .collect();
+        assert!(
+            misplaced.is_empty(),
+            "{}: tone mark on the wrong vowel in {misplaced:?}",
+            item.hanzi
+        );
         let meaning = item.meaning_en.as_deref().unwrap_or_default();
         assert!(!meaning.trim().is_empty(), "{}: no meaning_en", item.hanzi);
         if let Some(german) = &item.meaning_de {
@@ -166,6 +228,51 @@ fn spot_check_words_have_their_hsk_reading_and_its_meanings() {
         ),
         ("xué xí", 1, Some("學習"))
     );
+    // Repaired readings: erhua joined, a misplaced tone mark moved, a
+    // heteronym inside a partly solid reading split.
+    for (hanzi, pinyin) in [
+        ("一点儿", "yī diǎnr"),
+        ("哪儿", "nǎr"),
+        ("女儿", "nǚ ér"),
+        ("奥运会", "Ào yùn huì"),
+        ("着眼于", "zhuó yǎn yú"),
+    ] {
+        assert_eq!(find(&items, hanzi).pinyin, pinyin, "{hanzi}");
+    }
+}
+
+/// Upstream has one form per traditional headword and lists forms that share
+/// a reading by code point, so the first is often a variant or another
+/// word: 后 "empress" before 後 "behind", 当 噹 "ding dong" before 當 "to be".
+/// The official list's traditional form decides.
+#[test]
+fn same_reading_words_have_the_official_form_and_its_meanings() {
+    let items = curriculum();
+    for (hanzi, traditional, meaning) in [
+        ("后", "後", "behind"),
+        ("当", "當", "to be"),
+        ("岁", "歲", "classifier for years"),
+        ("系", "系", "department"),
+        ("台", "臺", "platform"),
+        ("药", "藥", "medicine"),
+        ("云", "雲", "cloud"),
+        ("钟", "鐘", "clock"),
+        ("于", "於", "(of time or place) in"),
+        ("冲", "衝", "to rush"),
+        ("恶心", "惡心", "nausea"),
+    ] {
+        let item = find(&items, hanzi);
+        let meaning_en = item.meaning_en.as_deref().unwrap_or_default();
+        assert_eq!(item.traditional.as_deref(), Some(traditional), "{hanzi}");
+        assert!(
+            meaning_en.contains(meaning),
+            "{hanzi}: {meaning_en:?} lacks {meaning:?}"
+        );
+        assert!(
+            !meaning_en.starts_with("variant of") && !meaning_en.starts_with("(onom.)"),
+            "{hanzi}: {meaning_en:?}"
+        );
+    }
 }
 
 #[test]
