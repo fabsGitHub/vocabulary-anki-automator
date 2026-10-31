@@ -329,7 +329,7 @@ describe('Anki import', () => {
 })
 
 describe('without AnkiConnect', () => {
-  it('keeps the settings but hides export and import', async () => {
+  it('keeps the meaning language but hides the Anki settings, export and import', async () => {
     const platform = fakePlatform({ kind: 'web', tts: false, anki: false })
     await mountAnki(platform)
     expect(find('[data-test="anki-unavailable"]').text()).toBe(
@@ -337,6 +337,16 @@ describe('without AnkiConnect', () => {
     )
     expect(find('[data-test="export"]').exists()).toBe(false)
     expect(find('[data-test="import"]').exists()).toBe(false)
-    expect(find('[data-test="meaning-lang"]').exists()).toBe(true)
+    for (const field of ['deck', 'model', 'mapping', 'reverse', 'connect-url']) {
+      expect(find(`[data-test="${field}"]`).exists(), field).toBe(false)
+    }
+
+    await find('[data-test="meaning-lang"]').setValue('en')
+    await click('[data-test="save"]')
+    expect(platform.saveSettings).toHaveBeenCalledWith(
+      fx.settings((value) => {
+        value.meaning_lang = 'en'
+      }),
+    )
   })
 })

@@ -11,7 +11,9 @@
  * form saves the normalized value the backend stores. Export takes its
  * target from the *saved* settings (§ 10), so it waits until the form is
  * saved; import reads the deck typed next to its button. Both need
- * AnkiConnect, which only the desktop app has (`capabilities.anki`). While a
+ * AnkiConnect, which only the desktop app has (`capabilities.anki`); without
+ * it the form shows only the meaning language, since the Anki settings
+ * would do nothing (the web build keeps them in its own IndexedDB). While a
  * transfer runs, both buttons are `aria-disabled` rather than disabled: a
  * transfer takes a while, and a disabled button would drop the keyboard
  * focus to the top of the page.
@@ -187,63 +189,67 @@ onMounted(() => void load())
           <p id="settings-meaning-hint" class="input-hint">{{ t('settings.meaningHint') }}</p>
         </div>
 
-        <h3 class="pane-subtitle">{{ t('settings.ankiTitle') }}</h3>
-        <div class="grid-row">
+        <template v-if="ankiAvailable">
+          <h3 class="pane-subtitle">{{ t('settings.ankiTitle') }}</h3>
+          <div class="grid-row">
+            <div class="field-group">
+              <label for="settings-deck">{{ t('settings.deck') }}</label>
+              <input
+                id="settings-deck"
+                v-model="draft.anki.deck_name"
+                type="text"
+                data-test="deck"
+                :class="{ 'has-error': deckMissing }"
+                :aria-invalid="deckMissing"
+                :aria-describedby="deckMissing ? 'settings-deck-error' : undefined"
+              />
+              <p v-if="deckMissing" id="settings-deck-error" class="field-error">
+                {{ t('settings.required') }}
+              </p>
+            </div>
+            <div class="field-group">
+              <label for="settings-model">{{ t('settings.model') }}</label>
+              <input
+                id="settings-model"
+                v-model="draft.anki.model_name"
+                type="text"
+                data-test="model"
+                :class="{ 'has-error': modelMissing }"
+                :aria-invalid="modelMissing"
+                :aria-describedby="modelMissing ? 'settings-model-error' : undefined"
+              />
+              <p v-if="modelMissing" id="settings-model-error" class="field-error">
+                {{ t('settings.required') }}
+              </p>
+            </div>
+          </div>
+          <FieldMappingEditor v-model="draft.anki.field_mapping" />
+          <label class="checkbox-row">
+            <input v-model="draft.anki.create_reverse" type="checkbox" data-test="reverse" />
+            {{ t('settings.reverse') }}
+          </label>
           <div class="field-group">
-            <label for="settings-deck">{{ t('settings.deck') }}</label>
+            <label for="settings-url">{{ t('settings.connectUrl') }}</label>
             <input
-              id="settings-deck"
-              v-model="draft.anki.deck_name"
+              id="settings-url"
+              v-model="draft.anki.connect_url"
               type="text"
-              data-test="deck"
-              :class="{ 'has-error': deckMissing }"
-              :aria-invalid="deckMissing"
-              :aria-describedby="deckMissing ? 'settings-deck-error' : undefined"
+              inputmode="url"
+              spellcheck="false"
+              autocomplete="off"
+              data-test="connect-url"
+              :class="{ 'has-error': urlInvalid }"
+              :aria-invalid="urlInvalid"
+              :aria-describedby="urlInvalid ? 'settings-url-error' : 'settings-url-hint'"
             />
-            <p v-if="deckMissing" id="settings-deck-error" class="field-error">
-              {{ t('settings.required') }}
+            <p v-if="urlInvalid" id="settings-url-error" class="field-error">
+              {{ t('settings.connectUrlInvalid') }}
+            </p>
+            <p v-else id="settings-url-hint" class="input-hint">
+              {{ t('settings.connectUrlHint') }}
             </p>
           </div>
-          <div class="field-group">
-            <label for="settings-model">{{ t('settings.model') }}</label>
-            <input
-              id="settings-model"
-              v-model="draft.anki.model_name"
-              type="text"
-              data-test="model"
-              :class="{ 'has-error': modelMissing }"
-              :aria-invalid="modelMissing"
-              :aria-describedby="modelMissing ? 'settings-model-error' : undefined"
-            />
-            <p v-if="modelMissing" id="settings-model-error" class="field-error">
-              {{ t('settings.required') }}
-            </p>
-          </div>
-        </div>
-        <FieldMappingEditor v-model="draft.anki.field_mapping" />
-        <label class="checkbox-row">
-          <input v-model="draft.anki.create_reverse" type="checkbox" data-test="reverse" />
-          {{ t('settings.reverse') }}
-        </label>
-        <div class="field-group">
-          <label for="settings-url">{{ t('settings.connectUrl') }}</label>
-          <input
-            id="settings-url"
-            v-model="draft.anki.connect_url"
-            type="text"
-            inputmode="url"
-            spellcheck="false"
-            autocomplete="off"
-            data-test="connect-url"
-            :class="{ 'has-error': urlInvalid }"
-            :aria-invalid="urlInvalid"
-            :aria-describedby="urlInvalid ? 'settings-url-error' : 'settings-url-hint'"
-          />
-          <p v-if="urlInvalid" id="settings-url-error" class="field-error">
-            {{ t('settings.connectUrlInvalid') }}
-          </p>
-          <p v-else id="settings-url-hint" class="input-hint">{{ t('settings.connectUrlHint') }}</p>
-        </div>
+        </template>
 
         <div class="footer-action-bar">
           <div v-if="saveError" class="interactive-toast error" role="alert" data-test="save-error">
