@@ -1970,7 +1970,7 @@
               "new_items_completed": 0,
               "requested_new_count": 0,
               "reviews_completed": 0,
-              "reviews_due_count": 2,
+              "reviews_due_count": 1,
               "session_date": "2026-11-01"
             }
           }
@@ -2035,21 +2035,21 @@
                 "stability": 7.196697549279733
               },
               "session": {
-                "completed_at": null,
+                "completed_at": "2026-11-01T07:01:00Z",
                 "new_items_completed": 0,
                 "requested_new_count": 0,
                 "reviews_completed": 1,
-                "reviews_due_count": 2,
+                "reviews_due_count": 1,
                 "session_date": "2026-11-01"
               },
-              "session_completed": false,
+              "session_completed": true,
               "streak": {
-                "completed_today": false,
-                "current": 1,
+                "completed_today": true,
+                "current": 2,
                 "freezes_available": 0,
-                "longest": 1
+                "longest": 2
               },
-              "xp_awarded": 10
+              "xp_awarded": 60
             }
           }
         },
@@ -2077,21 +2077,21 @@
                 "stability": 2.8366865541672794
               },
               "session": {
-                "completed_at": "2026-11-01T07:02:00Z",
+                "completed_at": "2026-11-01T07:01:00Z",
                 "new_items_completed": 0,
                 "requested_new_count": 0,
                 "reviews_completed": 2,
-                "reviews_due_count": 2,
+                "reviews_due_count": 1,
                 "session_date": "2026-11-01"
               },
-              "session_completed": true,
+              "session_completed": false,
               "streak": {
                 "completed_today": true,
                 "current": 2,
                 "freezes_available": 0,
                 "longest": 2
               },
-              "xp_awarded": 60
+              "xp_awarded": 10
             }
           }
         },
@@ -2129,11 +2129,11 @@
             "ok": {
               "needs_prompt": true,
               "session": {
-                "completed_at": "2026-11-01T07:02:00Z",
+                "completed_at": "2026-11-01T07:01:00Z",
                 "new_items_completed": 0,
                 "requested_new_count": 0,
                 "reviews_completed": 2,
-                "reviews_due_count": 2,
+                "reviews_due_count": 1,
                 "session_date": "2026-11-01"
               },
               "today": "2026-11-01"
@@ -2145,11 +2145,11 @@
           "command": "submitDailyQuota",
           "result": {
             "ok": {
-              "completed_at": "2026-11-01T07:02:00Z",
+              "completed_at": "2026-11-01T07:01:00Z",
               "new_items_completed": 0,
               "requested_new_count": 1,
               "reviews_completed": 2,
-              "reviews_due_count": 2,
+              "reviews_due_count": 1,
               "session_date": "2026-11-01"
             }
           }
@@ -2227,7 +2227,7 @@
               "new_items_completed": 0,
               "requested_new_count": 0,
               "reviews_completed": 0,
-              "reviews_due_count": 1,
+              "reviews_due_count": 0,
               "session_date": "2026-11-03"
             }
           }
@@ -2246,6 +2246,57 @@
           }
         },
         {
+          "args": [7, 3],
+          "command": "submitReviewRating",
+          "result": {
+            "ok": {
+              "next": {
+                "algorithm": "fsrs",
+                "card_id": 7,
+                "difficulty": 5.314577829570867,
+                "due_date": "2026-11-03T22:40:00Z",
+                "elapsed_days": 0,
+                "fsrs_state": "learning",
+                "interval_days": 0,
+                "lapses": 0,
+                "last_rating": 3,
+                "last_reviewed_at": "2026-11-03T22:30:00Z",
+                "repetitions": 1,
+                "stability": 3.1262
+              },
+              "session": {
+                "completed_at": "2026-11-03T22:30:00Z",
+                "new_items_completed": 1,
+                "requested_new_count": 0,
+                "reviews_completed": 0,
+                "reviews_due_count": 0,
+                "session_date": "2026-11-03"
+              },
+              "session_completed": true,
+              "streak": {
+                "completed_today": true,
+                "current": 1,
+                "freezes_available": 0,
+                "longest": 2
+              },
+              "xp_awarded": 65
+            }
+          }
+        },
+        {
+          "args": [],
+          "command": "getDailyQueue",
+          "result": {
+            "ok": [
+              {
+                "card_id": 7,
+                "due_date": "2026-11-03T22:40:00Z",
+                "kind": "review"
+              }
+            ]
+          }
+        },
+        {
           "now": "2026-11-03T23:10:00Z",
           "op": "set_clock"
         },
@@ -2256,7 +2307,7 @@
             "ok": [
               {
                 "card_id": 7,
-                "due_date": "2026-10-31T06:43:20Z",
+                "due_date": "2026-11-03T22:40:00Z",
                 "kind": "review"
               },
               {
@@ -2288,7 +2339,7 @@
             "ok": [
               {
                 "card_id": 7,
-                "due_date": "2026-10-31T06:43:20Z",
+                "due_date": "2026-11-03T22:40:00Z",
                 "kind": "review"
               },
               {
@@ -2299,6 +2350,11 @@
               {
                 "curriculum_order": 3,
                 "hanzi": "是",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 5,
+                "hanzi": "中文",
                 "kind": "new"
               }
             ]
@@ -2318,7 +2374,7 @@
             "ok": [
               {
                 "card_id": 7,
-                "due_date": "2026-10-31T06:43:20Z",
+                "due_date": "2026-11-03T22:40:00Z",
                 "kind": "review"
               },
               {
@@ -2330,6 +2386,11 @@
                 "card_id": 1,
                 "due_date": "2026-11-04T07:02:00Z",
                 "kind": "review"
+              },
+              {
+                "curriculum_order": 3,
+                "hanzi": "是",
+                "kind": "new"
               }
             ]
           }
@@ -2393,7 +2454,7 @@
               "session_completed": false,
               "streak": {
                 "completed_today": false,
-                "current": 0,
+                "current": 1,
                 "freezes_available": 0,
                 "longest": 2
               },
@@ -2408,7 +2469,7 @@
             "ok": [
               {
                 "card_id": 7,
-                "due_date": "2026-10-31T06:43:20Z",
+                "due_date": "2026-11-03T22:40:00Z",
                 "kind": "review"
               },
               {
@@ -2420,6 +2481,11 @@
                 "card_id": 1,
                 "due_date": "2026-11-04T07:02:00Z",
                 "kind": "review"
+              },
+              {
+                "curriculum_order": 3,
+                "hanzi": "是",
+                "kind": "new"
               }
             ]
           }
@@ -2433,12 +2499,12 @@
               "learned_count": 5,
               "streak": {
                 "completed_today": false,
-                "current": 0,
+                "current": 1,
                 "freezes_available": 0,
                 "longest": 2
               },
               "xp_today": 15,
-              "xp_total": 245
+              "xp_total": 310
             }
           }
         }
@@ -43167,16 +43233,16 @@
           "row": {
             "algorithm": "fsrs",
             "card_id": 1,
-            "difficulty": null,
+            "difficulty": 5.0,
             "due_date": "2026-10-31T05:00:00Z",
-            "elapsed_days": 0,
-            "fsrs_state": "new",
-            "interval_days": 0,
+            "elapsed_days": 4,
+            "fsrs_state": "review",
+            "interval_days": 4,
             "lapses": 0,
-            "last_rating": null,
-            "last_reviewed_at": null,
-            "repetitions": 0,
-            "stability": null
+            "last_rating": 3,
+            "last_reviewed_at": "2026-10-27T05:00:00Z",
+            "repetitions": 2,
+            "stability": 4.0
           }
         },
         {
@@ -43209,16 +43275,16 @@
           "row": {
             "algorithm": "fsrs",
             "card_id": 2,
-            "difficulty": null,
+            "difficulty": 5.0,
             "due_date": "2026-10-31T21:00:00Z",
-            "elapsed_days": 0,
-            "fsrs_state": "new",
-            "interval_days": 0,
+            "elapsed_days": 4,
+            "fsrs_state": "review",
+            "interval_days": 4,
             "lapses": 0,
-            "last_rating": null,
-            "last_reviewed_at": null,
-            "repetitions": 0,
-            "stability": null
+            "last_rating": 3,
+            "last_reviewed_at": "2026-10-27T21:00:00Z",
+            "repetitions": 2,
+            "stability": 4.0
           }
         },
         {
@@ -43251,8 +43317,50 @@
           "row": {
             "algorithm": "fsrs",
             "card_id": 3,
-            "difficulty": null,
+            "difficulty": 5.0,
             "due_date": "2026-11-01T05:00:00Z",
+            "elapsed_days": 4,
+            "fsrs_state": "review",
+            "interval_days": 4,
+            "lapses": 0,
+            "last_rating": 3,
+            "last_reviewed_at": "2026-10-28T05:00:00Z",
+            "repetitions": 2,
+            "stability": 4.0
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "Bedeutung",
+            "captured_at": "2026-09-30T23:00:00Z",
+            "example_source": "",
+            "example_target": "",
+            "front": "word 3",
+            "notes": "",
+            "script_metadata": {
+              "kind": "none"
+            },
+            "source_lang": "en",
+            "tags": [],
+            "target_lang": "de"
+          },
+          "op": "insert_capture",
+          "origin": "capture",
+          "result": {
+            "ok": 4
+          }
+        },
+        {
+          "op": "upsert_srs_state",
+          "result": {
+            "ok": null
+          },
+          "row": {
+            "algorithm": "fsrs",
+            "card_id": 4,
+            "difficulty": null,
+            "due_date": "2026-10-30T20:00:00Z",
             "elapsed_days": 0,
             "fsrs_state": "new",
             "interval_days": 0,
@@ -43533,27 +43641,27 @@
             "ok": {
               "log": {
                 "card_id": 1,
-                "elapsed_days": 0,
+                "elapsed_days": 4,
                 "id": 1,
                 "rating": 4,
                 "reviewed_at": "2026-10-31T23:05:00Z",
-                "scheduled_days": 15,
+                "scheduled_days": 37,
                 "session_date": "2026-11-01",
-                "state_before": "new"
+                "state_before": "review"
               },
               "next": {
                 "algorithm": "fsrs",
                 "card_id": 1,
-                "difficulty": 3.28285649513529,
-                "due_date": "2026-11-15T23:05:00Z",
-                "elapsed_days": 0,
+                "difficulty": 3.9196421819861658,
+                "due_date": "2026-12-07T23:05:00Z",
+                "elapsed_days": 4,
                 "fsrs_state": "review",
-                "interval_days": 15,
+                "interval_days": 37,
                 "lapses": 0,
                 "last_rating": 4,
                 "last_reviewed_at": "2026-10-31T23:05:00Z",
-                "repetitions": 1,
-                "stability": 15.4722
+                "repetitions": 3,
+                "stability": 36.8471756449245
               }
             }
           }
@@ -43749,16 +43857,16 @@
           "row": {
             "algorithm": "fsrs",
             "card_id": 1,
-            "difficulty": null,
+            "difficulty": 5.0,
             "due_date": "2026-10-31T11:00:00Z",
-            "elapsed_days": 0,
-            "fsrs_state": "new",
-            "interval_days": 0,
+            "elapsed_days": 4,
+            "fsrs_state": "review",
+            "interval_days": 4,
             "lapses": 0,
-            "last_rating": null,
-            "last_reviewed_at": null,
-            "repetitions": 0,
-            "stability": null
+            "last_rating": 3,
+            "last_reviewed_at": "2026-10-27T11:00:00Z",
+            "repetitions": 2,
+            "stability": 4.0
           }
         },
         {
@@ -43791,16 +43899,16 @@
           "row": {
             "algorithm": "fsrs",
             "card_id": 2,
-            "difficulty": null,
+            "difficulty": 5.0,
             "due_date": "2026-11-01T03:00:00Z",
-            "elapsed_days": 0,
-            "fsrs_state": "new",
-            "interval_days": 0,
+            "elapsed_days": 4,
+            "fsrs_state": "review",
+            "interval_days": 4,
             "lapses": 0,
-            "last_rating": null,
-            "last_reviewed_at": null,
-            "repetitions": 0,
-            "stability": null
+            "last_rating": 3,
+            "last_reviewed_at": "2026-10-28T03:00:00Z",
+            "repetitions": 2,
+            "stability": 4.0
           }
         },
         {
@@ -43833,8 +43941,50 @@
           "row": {
             "algorithm": "fsrs",
             "card_id": 3,
-            "difficulty": null,
+            "difficulty": 5.0,
             "due_date": "2026-11-01T11:00:00Z",
+            "elapsed_days": 4,
+            "fsrs_state": "review",
+            "interval_days": 4,
+            "lapses": 0,
+            "last_rating": 3,
+            "last_reviewed_at": "2026-10-28T11:00:00Z",
+            "repetitions": 2,
+            "stability": 4.0
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "Bedeutung",
+            "captured_at": "2026-10-01T05:00:00Z",
+            "example_source": "",
+            "example_target": "",
+            "front": "word 3",
+            "notes": "",
+            "script_metadata": {
+              "kind": "none"
+            },
+            "source_lang": "en",
+            "tags": [],
+            "target_lang": "de"
+          },
+          "op": "insert_capture",
+          "origin": "capture",
+          "result": {
+            "ok": 4
+          }
+        },
+        {
+          "op": "upsert_srs_state",
+          "result": {
+            "ok": null
+          },
+          "row": {
+            "algorithm": "fsrs",
+            "card_id": 4,
+            "difficulty": null,
+            "due_date": "2026-10-31T02:00:00Z",
             "elapsed_days": 0,
             "fsrs_state": "new",
             "interval_days": 0,
@@ -44115,27 +44265,27 @@
             "ok": {
               "log": {
                 "card_id": 1,
-                "elapsed_days": 0,
+                "elapsed_days": 4,
                 "id": 1,
                 "rating": 4,
                 "reviewed_at": "2026-11-01T05:05:00Z",
-                "scheduled_days": 15,
+                "scheduled_days": 37,
                 "session_date": "2026-11-01",
-                "state_before": "new"
+                "state_before": "review"
               },
               "next": {
                 "algorithm": "fsrs",
                 "card_id": 1,
-                "difficulty": 3.28285649513529,
-                "due_date": "2026-11-16T05:05:00Z",
-                "elapsed_days": 0,
+                "difficulty": 3.9196421819861658,
+                "due_date": "2026-12-08T05:05:00Z",
+                "elapsed_days": 4,
                 "fsrs_state": "review",
-                "interval_days": 15,
+                "interval_days": 37,
                 "lapses": 0,
                 "last_rating": 4,
                 "last_reviewed_at": "2026-11-01T05:05:00Z",
-                "repetitions": 1,
-                "stability": 15.4722
+                "repetitions": 3,
+                "stability": 36.8471756449245
               }
             }
           }

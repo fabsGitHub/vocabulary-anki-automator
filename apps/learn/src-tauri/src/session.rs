@@ -263,23 +263,44 @@ mod tests {
         assert!(daily_queue(&store, &clock).unwrap().is_empty());
     }
 
+    /// A card captured on an earlier day: never rated (`new`), or reviewed
+    /// before and due again now.
+    fn earlier_card(store: &Store, front: &str, reviewed_before: bool) -> i64 {
+        let card = Card::new(front, "meaning", "de", "en", now());
+        let id = store
+            .insert_capture(&card, CaptureOrigin::Capture, false)
+            .unwrap();
+        let mut state = SrsScheduler::default().initial_state(id, now());
+        if reviewed_before {
+            state = SrsStateRow {
+                stability: Some(3.0),
+                difficulty: Some(5.0),
+                interval_days: 3,
+                repetitions: 2,
+                fsrs_state: "review".into(),
+                elapsed_days: 3,
+                last_reviewed_at: Some(now() - chrono::Duration::days(3)),
+                last_rating: Some(3),
+                ..state
+            };
+        }
+        store.upsert_srs_state(&state).unwrap();
+        id
+    }
+
     #[test]
     fn the_rating_that_completes_the_session_earns_the_bonus_once() {
         let store = store();
         let clock = FixedClock::utc(now());
         let scheduler = SrsScheduler::default();
-        let card = Card::new("Haus", "house", "de", "en", now());
-        let reviewed = store
-            .insert_capture(&card, CaptureOrigin::Capture, false)
-            .unwrap();
-        store
-            .upsert_srs_state(&scheduler.initial_state(reviewed, now()))
-            .unwrap();
-        // The first rating turns the card from new into learning; the session
-        // needs one review on top (reviews_due_count is 1).
-        submit_daily_quota(&store, 0, &clock).unwrap();
+        // A word introduced earlier and never rated, whose first rating is
+        // today's new word, and a card reviewed before, today's review.
+        let waiting = earlier_card(&store, "Baum", false);
+        let reviewed = earlier_card(&store, "Haus", true);
+        let session = submit_daily_quota(&store, 1, &clock).unwrap();
+        assert_eq!(session.reviews_due_count, 1);
 
-        let first = rate(&store, &scheduler, reviewed, ReviewRating::Again, &clock).unwrap();
+        let first = rate(&store, &scheduler, waiting, ReviewRating::Again, &clock).unwrap();
         assert_eq!(first.xp_awarded, XP_NEW_ITEM);
         assert!(!first.session_completed);
         let session = first.session.unwrap();
@@ -298,6 +319,27 @@ mod tests {
         assert_eq!(third.xp_awarded, XP_REVIEW, "the bonus is paid once a day");
         assert!(!third.session_completed);
         assert_eq!(third.streak, second.streak);
+    }
+
+    /// § 7.1: a word introduced on an earlier day and never rated is due,
+    /// and its first rating is a new item, not a review. On a reviews-only
+    /// day where it is all there is to do, that rating completes the day.
+    #[test]
+    fn a_word_left_unrated_completes_a_reviews_only_day_when_rated() {
+        let store = store();
+        let clock = FixedClock::utc(now());
+        let scheduler = SrsScheduler::default();
+        let waiting = earlier_card(&store, "Baum", false);
+        dismiss_daily_prompt(&store, &clock).unwrap();
+
+        let result = rate(&store, &scheduler, waiting, ReviewRating::Easy, &clock).unwrap();
+        assert!(result.session_completed);
+        assert_eq!(result.xp_awarded, XP_NEW_ITEM + XP_SESSION_COMPLETE);
+        assert!(result.streak.completed_today);
+        assert!(
+            daily_queue(&store, &clock).unwrap().is_empty(),
+            "nothing else is due"
+        );
     }
 
     #[test]

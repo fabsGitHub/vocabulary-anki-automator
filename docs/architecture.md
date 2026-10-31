@@ -482,8 +482,10 @@ pub fn record_session_progress(store: &Store, kind: SessionProgress, clock: &dyn
   a word twice (double click, retry) therefore can never count twice.
 - Daily prompt: `needs_prompt` is true when `last_prompted_date != today` (or
   unset). Submitting writes/updates today's `daily_sessions` row
-  (`reviews_due_count` = queue reviews at that moment) and sets
-  `last_prompted_date = today`. **Dismiss without answering = quota 0
+  (`reviews_due_count` = queue reviews at that moment whose `fsrs_state` is not
+  `new`: a due card that was never rated — a word introduced on an earlier day
+  and left unrated — waits for its first review, which counts as a new item, so
+  it is no review target) and sets `last_prompted_date = today`. **Dismiss without answering = quota 0
   (reviews only) for today**; `reopen_daily_prompt` clears the flag so the
   menu action can show the prompt again, and a later submit updates
   `requested_new_count` while keeping the progress counters.

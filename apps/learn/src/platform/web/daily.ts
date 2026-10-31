@@ -7,7 +7,8 @@
  *   further prompt that day, until the menu action reopens it; a later
  *   answer replaces the quota and keeps the progress made.
  * - The day's targets are fixed when the session is set up:
- *   `reviews_due_count` is the queue's reviews at that moment.
+ *   `reviews_due_count` is the queue's reviews at that moment, without the
+ *   cards never rated, whose first rating counts as a new item.
  * - A session completes when both targets are met and at least one review
  *   or new word was done, whichever write gets there first. A day with
  *   nothing done never completes, and `completed_at` is never cleared.
@@ -22,6 +23,9 @@ import { type Clock, type LocalNow, parseDate, readLocalNow } from './time'
 
 /** `LAST_PROMPTED_KEY`: the local date the prompt was last answered or dismissed. */
 export const LAST_PROMPTED_KEY = 'last_prompted_date'
+
+/** `fsrs_state` of a card that has never been rated. */
+const NEVER_REVIEWED = 'new'
 
 const U32_MAX = 4_294_967_295
 
@@ -133,13 +137,19 @@ async function markPrompted(store: Store, today: ipc.IsoDate): Promise<void> {
   await store.setState(LAST_PROMPTED_KEY, today)
 }
 
-/** `open_session`: a fresh session for today, with the reviews due now as its target. */
+/**
+ * `open_session`: a fresh session for today, with the reviews due now as its
+ * target. A due card that was never rated is not one of them: its first
+ * rating counts as a new item.
+ */
 async function openSession(
   store: Store,
   now: LocalNow,
   requestedNewCount: number,
 ): Promise<DailySessionRow> {
-  const reviewsDue = (await dueToday(store, now)).length
+  const reviewsDue = (await dueToday(store, now)).filter(
+    (state) => state.fsrs_state !== NEVER_REVIEWED,
+  ).length
   return {
     session_date: now.today,
     requested_new_count: requestedNewCount,

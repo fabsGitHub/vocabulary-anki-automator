@@ -16,7 +16,9 @@
 //! - **The day's targets are fixed when the session is set up.**
 //!   `reviews_due_count` is the number of reviews in the queue at that moment;
 //!   changing the quota later does not recount it, because the reviews done
-//!   since would otherwise be counted against a smaller remainder.
+//!   since would otherwise be counted against a smaller remainder. A due card
+//!   that was never rated (introduced on an earlier day, not rated since) is
+//!   not a review: its first rating counts as a new item.
 //! - **A session is complete as soon as both targets are met and at least
 //!   one review or new word was done**, whichever write gets there first:
 //!   usually a progress update, but also lowering the quota to no more than is
@@ -41,6 +43,9 @@ use crate::{
 /// `app_state` key holding the local date (`YYYY-MM-DD`) on which the daily
 /// prompt was last answered or dismissed.
 pub const LAST_PROMPTED_KEY: &str = "last_prompted_date";
+
+/// `fsrs_state` of a card that has never been rated.
+const NEVER_REVIEWED: &str = "new";
 
 /// Whether the daily prompt is due: it has not been answered or dismissed on
 /// the local date `today` (or ever).
@@ -170,12 +175,18 @@ fn mark_prompted(store: &Store, today: NaiveDate) -> StoreResult<()> {
 }
 
 /// A fresh session for today, with the reviews currently due as its target.
+/// A due card that was never rated (a word introduced on an earlier day and
+/// left on screen) is not one of them: its first rating counts as a new item
+/// (§ 7.1), so as a review target it could never be met.
 fn open_session(
     store: &Store,
     now: &LocalNow,
     requested_new_count: u32,
 ) -> StoreResult<DailySessionRow> {
-    let reviews_due = due_today(store, now)?.len();
+    let reviews_due = due_today(store, now)?
+        .iter()
+        .filter(|state| state.fsrs_state != NEVER_REVIEWED)
+        .count();
     Ok(DailySessionRow {
         session_date: now.today,
         requested_new_count,

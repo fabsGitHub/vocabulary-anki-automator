@@ -2077,9 +2077,10 @@ impl Runner {
         );
     }
 
-    /// A learned card whose first review is due at `due`.
-    fn learn_due(&mut self, card_id: i64, due: DateTime<Utc>) {
-        let row = self.scheduler.initial_state(card_id, due);
+    /// A word introduced at `at` and never rated since: due, waiting for the
+    /// first review, which counts as a new item.
+    fn introduced_at(&mut self, card_id: i64, at: DateTime<Utc>) {
+        let row = self.scheduler.initial_state(card_id, at);
         self.upsert_srs_state(&row);
     }
 
@@ -2327,12 +2328,15 @@ fn daily_scenario(hours: i32) -> Value {
         local(offset(hours * 3600), "2026-10-31 07:00:00.000"),
         hours * 3600,
     );
-    // Two cards due on Oct 31 (one this evening) and one on Nov 1.
+    // Two reviews due on Oct 31 (one this evening) and one on Nov 1, and a
+    // word introduced on Oct 30 and never rated: due, but its first rating
+    // is a new item, so it is no review target.
     let mut ids = Vec::new();
     for (index, due) in [
         "2026-10-31 06:00:00.000",
         "2026-10-31 22:00:00.000",
         "2026-11-01 06:00:00.000",
+        "2026-10-30 21:00:00.000",
     ]
     .iter()
     .enumerate()
@@ -2346,7 +2350,11 @@ fn daily_scenario(hours: i32) -> Value {
         );
         let id = run.insert_capture(&card, CaptureOrigin::Capture);
         let due = run.local(due);
-        run.learn_due(id, due);
+        if index < 3 {
+            run.upsert_srs_state(&due_state(id, due));
+        } else {
+            run.introduced_at(id, due);
+        }
         ids.push(id);
     }
     run.daily_prompt_state();
@@ -3269,7 +3277,10 @@ fn adapter_scenarios() -> Value {
     learn.submit_review_rating(first, 3);
     learn.get_stats();
     learn.get_daily_prompt_state();
-    learn.start_new_item(" 学习 ");
+    // Introduced, then left unrated: it waits for its first rating for days.
+    let waiting = learn
+        .start_new_item(" 学习 ")
+        .expect("学习 is in the curriculum");
     learn.start_new_item("没有");
     learn.start_new_item("  ");
     learn.get_card(9_999);
@@ -3333,11 +3344,15 @@ fn adapter_scenarios() -> Value {
     learn.get_daily_queue();
     learn.get_stats();
 
-    // Day 4: day 3 was missed and no freeze is held.
+    // Day 4: day 3 was missed and no freeze is held. Reviews only, and the
+    // word left unrated since day 1 is the only thing due: its first rating
+    // is a new item, and it completes the day.
     learn.run.set_local("2026-11-03 23:30:00.000");
     learn.get_stats();
     learn.get_daily_prompt_state();
     learn.submit_daily_quota(0);
+    learn.get_daily_queue();
+    learn.submit_review_rating(waiting, 3);
     learn.get_daily_queue();
     learn.run.set_local("2026-11-04 00:10:00.000");
     learn.get_daily_queue();
