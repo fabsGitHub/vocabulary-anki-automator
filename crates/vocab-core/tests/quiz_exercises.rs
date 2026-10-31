@@ -770,6 +770,17 @@ mod sentence_builder {
     #[test]
     fn distractor_tiles_are_learned_fronts_of_the_language_that_do_not_occur() {
         let (deck, ids) = deck();
+        // A German word shares the English sentence's script but not its
+        // language, and a pattern is a learned Chinese front but no word of
+        // a sentence: neither may become a distractor tile.
+        deck.learn(Card::new(
+            "Haus",
+            "house",
+            "de",
+            "en",
+            at("2026-10-01T08:00:00.000Z"),
+        ));
+        deck.learn(zh("一…就…", "sobald", "yī … jiù …"));
         let pool = deck.pool();
         let chinese_fronts: HashSet<&str> =
             ["学习", "中文", "喜欢", "很", "生活", "我们", "朋友"].into();
