@@ -1,20 +1,25 @@
 # Cargo workspace for vocabulary-anki-automator (Milestone B, decision 10).
 #
 # Members:
-#   src-tauri          — `Automator`, the desktop clipboard-capture app (Tauri 2)
-#   crates/vocab-core  — shared, platform-agnostic core: Card model, providers,
-#                        capture pipeline, SQLite store, FSRS scheduling, quiz engine
-#   crates/anki-bridge — AnkiConnect client + the Card -> Anki note mapper (decision 4:
-#                        the only place Anki field names exist)
-#   tools/hsk-import   — one-time HSK 3.0 curriculum ETL (not shipped with the apps)
-#
-# `apps/learn/src-tauri` (Milestone I) joins as a member when the Learn app lands.
+#   src-tauri            — `Automator`, the desktop clipboard-capture app (Tauri 2)
+#   apps/learn/src-tauri — `Learn`, FSRS review sessions and quizzes (Tauri 2, Milestone I)
+#   crates/vocab-core    — shared, platform-agnostic core: Card model, providers,
+#                          capture pipeline, SQLite store, FSRS scheduling, quiz engine
+#   crates/anki-bridge   — AnkiConnect client + the Card -> Anki note mapper (decision 4:
+#                          the only place Anki field names exist)
+#   tools/hsk-import     — one-time HSK 3.0 curriculum ETL (not shipped with the apps)
 #
 # See docs/architecture.md for the module map and cross-crate contracts.
 
 [workspace]
 resolver = "2"
-members = ["src-tauri", "crates/vocab-core", "crates/anki-bridge", "tools/hsk-import"]
+members = [
+    "src-tauri",
+    "apps/learn/src-tauri",
+    "crates/vocab-core",
+    "crates/anki-bridge",
+    "tools/hsk-import",
+]
 
 [workspace.package]
 edition = "2021"

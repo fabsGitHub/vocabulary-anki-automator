@@ -5479,6 +5479,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vocab-learn"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "vocab-core",
+]
+
+[[package]]
 name = "vswhom"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

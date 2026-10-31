@@ -5,6 +5,7 @@ src-tauri/target
 src-tauri/gen
 crates/**/target
 apps/**/dist
+apps/**/dist-web
 apps/**/src-tauri/gen
 crates/vocab-core/data
 .claude/worktrees

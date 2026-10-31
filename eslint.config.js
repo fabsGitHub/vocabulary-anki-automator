@@ -28,14 +28,30 @@ export default [
     },
     rules: {
       'vue/multi-word-component-names': 'off',
+      // The core rules don't understand TypeScript (type-only declarations,
+      // ambient globals); vue-tsc's strict mode already catches undefined
+      // names, and the TS-aware variant handles unused ones.
+      'no-undef': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
+      ],
     },
   },
   {
-    // Root-level *.config.ts / *.config.js files (vite.config.ts,
-    // vitest.config.ts) run under Node, not the browser — they reference
-    // `process` (e.g. `process.env`) which the base config above doesn't
-    // know about.
-    files: ['*.config.ts', '*.config.js'],
+    // Ambient declaration files only declare; nothing in them is "used".
+    files: ['**/*.d.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+  {
+    // *.config.ts / *.config.js files (vite.config.ts, vitest.config.ts,
+    // apps/learn/vite.config.ts) run under Node, not the browser — they
+    // reference `process` (e.g. `process.env`) which the base config above
+    // doesn't know about.
+    files: ['**/*.config.ts', '**/*.config.js'],
     languageOptions: {
       globals: {
         process: 'readonly',
@@ -52,6 +68,7 @@ export default [
       'src-tauri/gen/**',
       'crates/**/target/**',
       'apps/**/dist/**',
+      'apps/**/dist-web/**',
       'apps/**/src-tauri/gen/**',
       '.claude/**',
     ],

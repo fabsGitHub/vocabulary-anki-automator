@@ -1,0 +1,21 @@
+[package]
+name = "vocab-learn"
+description = "Learn: FSRS review sessions and gamified quizzes over the shared vocabulary store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "vocab_learn_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dependencies]
+tauri.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+vocab-core.workspace = true

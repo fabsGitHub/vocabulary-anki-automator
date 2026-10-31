@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Vocabulary Learn",
+  "version": "0.1.0",
+  "identifier": "com.ankiautomator.learn",
+  "build": {
+    "beforeDevCommand": { "script": "npm run learn:dev", "cwd": "../../.." },
+    "devUrl": "http://localhost:1430",
+    "beforeBuildCommand": { "script": "npm run learn:build", "cwd": "../../.." },
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{ "title": "Vocabulary Learn", "width": 960, "height": 720 }],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
