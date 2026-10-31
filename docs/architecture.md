@@ -64,8 +64,10 @@ scripts/                   bootstrap, run-all-checks, git hooks
   (`just lint` runs them all). New code must pass all of them.
 - **Sandboxed dev environments:** if `~/.cargo` is not writable, set `CARGO_HOME` to an
   absolute path such as `/tmp/claude-501/cargo-home` (seed it by copying
-  `~/.cargo/registry`; `$TMPDIR` resolves differently inside and outside the sandbox),
-  and pass `--cache "$TMPDIR/npm-cache"` to npm. The wiremock tests start servers on
+  `~/.cargo/registry`; `$TMPDIR` resolves differently inside and outside the sandbox).
+  `rust-toolchain.toml` pins the Rust version; if a read-only `~/.rustup` lacks it, set
+  `RUSTUP_HOME` to a writable one that has it (e.g. `/tmp/claude-501/rustup-home`).
+  Pass `--cache "$TMPDIR/npm-cache"` to npm. The wiremock tests start servers on
   127.0.0.1, so they need local port binding (`sandbox.network.allowLocalBinding: true`)
   or a run outside the sandbox; they never touch anything but loopback.
 - **Proxies:** clients that talk to AnkiConnect never use an HTTP proxy (it is always

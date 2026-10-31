@@ -93,7 +93,8 @@ can embed ([docs/live-demo.md](docs/live-demo.md)).
 
 ## Getting started
 
-Requirements: Rust (stable), Node.js 22 with npm, and the
+Requirements: Rust through [rustup](https://rustup.rs), which installs the version
+`rust-toolchain.toml` pins on the first cargo command in the repo, Node.js 22 with npm, and the
 [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your
 platform (on Linux the packages `.github/workflows/ci.yml` installs). The Anki
 features need [Anki](https://apps.ankiweb.net/) with the AnkiConnect add-on,

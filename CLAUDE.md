@@ -32,7 +32,9 @@ npm run learn:tauri dev   # Learn (desktop); npm run learn:dev:web for the brows
 
 In a sandbox where `~/.cargo` is read-only, prefix cargo with an absolute `CARGO_HOME`
 seeded from `~/.cargo/registry` (e.g. `/tmp/claude-501/cargo-home`; not `$TMPDIR`, which
-differs inside and outside the sandbox); give npm `--cache "$TMPDIR/npm-cache"`. HTTP-mock
+differs inside and outside the sandbox). `rust-toolchain.toml` pins the Rust version; if a
+read-only `~/.rustup` lacks it, set `RUSTUP_HOME` to a writable one that has it (e.g.
+`/tmp/claude-501/rustup-home`). Give npm `--cache "$TMPDIR/npm-cache"`. HTTP-mock
 tests (wiremock) need local port binding (docs/architecture.md § 2).
 
 ## Rules that are easy to break
