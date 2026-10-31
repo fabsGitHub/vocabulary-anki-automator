@@ -1,27 +1,32 @@
 #!/bin/bash
-# Pre-commit hook for vocabulary-anki-automator (Milestone A).
+# Pre-commit hook for vocabulary-anki-automator.
 #
-# This file is the tracked source of truth; it is not itself picked up by
-# git (git only reads .git/hooks/pre-commit, which is never committed).
-# `scripts/bootstrap-macos.sh` installs it by copying this file into
-# .git/hooks/pre-commit and marking it executable. Re-run the bootstrap
-# script any time this file changes.
+# This file is the tracked source of truth; git only reads
+# .git/hooks/pre-commit, which is never committed. `scripts/bootstrap-macos.sh`
+# installs it by copying this file there and marking it executable. Re-run the
+# bootstrap script any time this file changes.
 #
-# Milestone A scope only: cargo fmt --check, cargo clippy -D warnings,
-# vue-tsc --noEmit. Milestone G wires the fast test tiers (test:unit /
-# test:integration) into this same hook — not done here to avoid scope creep.
+# Static checks (Milestone A) plus the fast test tiers (Milestone G): unit +
+# integration via scripts/run-all-checks.sh. The E2E tier stays out of here
+# (pre-push/nightly) because it builds and launches the app.
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-echo "[pre-commit] cargo fmt --check"
-(cd src-tauri && cargo fmt --check)
+echo "[pre-commit] cargo fmt --all --check"
+cargo fmt --all --check
 
-echo "[pre-commit] cargo clippy -- -D warnings"
-(cd src-tauri && cargo clippy --all-targets -- -D warnings)
+echo "[pre-commit] cargo clippy --workspace --all-targets -- -D warnings"
+cargo clippy --workspace --all-targets -- -D warnings
 
 echo "[pre-commit] vue-tsc --noEmit"
 npx vue-tsc --noEmit
+
+echo "[pre-commit] ESLint + Prettier"
+npm run lint
+
+echo "[pre-commit] unit + integration tests"
+./scripts/run-all-checks.sh
 
 echo "[pre-commit] all checks passed"

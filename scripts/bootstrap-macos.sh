@@ -36,12 +36,19 @@ else
   cargo install cargo-watch || fail "cargo install cargo-watch failed"
 fi
 
-# --- tauri-driver: E2E automation of the compiled app -----------------------
-if command -v tauri-driver >/dev/null 2>&1; then
-  log "tauri-driver already installed ($(tauri-driver --version 2>&1 || true))"
+# --- tauri-driver / safaridriver: intentionally NOT installed ---------------
+# Milestone A1 originally listed `cargo install tauri-driver` and
+# `safaridriver --enable` here. tauri-driver only drives WebKitWebDriver (Linux)
+# and Microsoft Edge Driver (Windows); there is no WKWebView driver on macOS,
+# so neither tool can automate this app on a Mac. The E2E tier (Milestone G)
+# therefore belongs on a Linux/Windows CI runner, not in this bootstrap.
+
+# --- just: task runner for the repo's justfile ------------------------------
+if command -v just >/dev/null 2>&1; then
+  log "just already installed ($(just --version))"
 else
-  log "installing tauri-driver"
-  cargo install tauri-driver || fail "cargo install tauri-driver failed"
+  log "installing just"
+  brew install just || fail "brew install just failed"
 fi
 
 # --- gh: PR/issue CLI workflow -----------------------------------------------
@@ -61,22 +68,9 @@ else
   brew install watchman || fail "brew install watchman failed"
 fi
 
-# --- safaridriver: enable the built-in WebDriver backend used by tauri-driver
-if safaridriver --enable >/dev/null 2>&1; then
-  log "safaridriver enabled"
-else
-  # safaridriver --enable exits non-zero if already enabled on some macOS
-  # versions; only treat this as fatal if it's not already enabled.
-  if safaridriver --enable 2>&1 | grep -qi "already enabled"; then
-    log "safaridriver already enabled"
-  else
-    fail "safaridriver --enable failed (may require: sudo safaridriver --enable)"
-  fi
-fi
-
 # --- frontend test runner: vitest / @vue/test-utils / jsdom -----------------
-log "syncing npm devDependencies (vitest, @vue/test-utils, jsdom, eslint, prettier)"
-(cd "$REPO_ROOT" && npm install) || fail "npm install failed"
+log "installing npm dependencies from package-lock.json"
+(cd "$REPO_ROOT" && npm ci) || fail "npm ci failed"
 
 # --- RTK: token-efficiency wrapper for cargo/npm build output (A3) ----------
 if command -v rtk >/dev/null 2>&1; then

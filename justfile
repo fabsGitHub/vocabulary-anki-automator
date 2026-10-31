@@ -1,6 +1,7 @@
 # justfile — cross-tree (Rust + Vue) dev tooling for vocabulary-anki-automator
-# Install `just` via `brew install just` (or see https://github.com/casey/just).
-# Run `just --list` to see all recipes.
+# Install `just` via `brew install just` (scripts/bootstrap-macos.sh does it).
+# Run `just --list` to see all recipes. Rust commands run from the repo root
+# and cover every Cargo workspace member.
 
 set shell := ["bash", "-uc"]
 
@@ -8,39 +9,42 @@ set shell := ["bash", "-uc"]
 default:
     @just --list
 
-# Run the Tauri app in dev mode (frontend + backend, hot-reloaded).
+# Run Automator in dev mode (frontend + backend, hot-reloaded).
 dev:
     npm run tauri dev
 
-# Fast unit tests: Rust crate/unit tests + Vitest component tests. No network,
-# no real Anki/AnkiConnect — safe to run on every commit (see Milestone A4's
-# hard rule in docs/test-harness-strategy.md).
+# Fast unit tests: Rust lib/bin tests + Vitest. No network, no real
+# Anki/AnkiConnect (Milestone A4 hard rule, docs/test-harness-strategy.md).
 test-unit:
-    cd src-tauri && cargo test --lib
+    cargo test --workspace --lib --bins
     npm run test:unit
 
-# Integration tests: mock-AnkiConnect + tauri::test::mock_builder style tests
-# (Milestone G). Still never touches a real Anki install.
+# Integration tests: mock AnkiConnect / HTTP providers via wiremock, SQLite in
+# temp dirs, tauri::test mock runtime. Still never touches a real Anki install.
 test-integration:
-    cd src-tauri && cargo test --test '*' 2>/dev/null || echo "no integration tests yet (Milestone G)"
+    cargo test --workspace --test '*'
 
-# End-to-end tests: tauri-driver + WebdriverIO against the compiled app
-# (Milestone G). Heavier/slower — run at pre-push/nightly, not per-commit.
+# End-to-end tests (tauri-driver + WebdriverIO) are not wired up yet: they need
+# a Linux/Windows runner and dependencies that have not been approved.
 test-e2e:
     npm run test:e2e
 
-# Watch loop: rebuild/re-test on file changes across both the Rust and Vue
-# trees. Uses cargo-watch for the Rust side; `npm run tauri dev` already
-# hot-reloads the Vue side on its own via Vite.
+# Watch loop: re-check and re-test the Rust workspace on change. Vite already
+# hot-reloads the Vue side inside `just dev`.
 watch:
-    cd src-tauri && cargo watch -x "check" -x "test --lib"
+    cargo watch -x "check --workspace --all-targets" -x "test --workspace --lib"
 
-# Lint everything: rustfmt check, clippy (deny warnings), ESLint, vue-tsc.
+# Lint everything: rustfmt, clippy (deny warnings), vue-tsc, ESLint, Prettier.
 lint:
-    cd src-tauri && cargo fmt --check
-    cd src-tauri && cargo clippy --all-targets -- -D warnings
+    cargo fmt --all --check
+    cargo clippy --workspace --all-targets -- -D warnings
+    npx vue-tsc --noEmit
     npm run lint
 
-# Chains the fast test tiers; used by both `watch` (optionally) and CI.
+# Chains the fast test tiers; the same script CI and the pre-commit hook run.
 check-all:
     ./scripts/run-all-checks.sh
+
+# HSK 3.0 curriculum ETL (Milestone J2b), e.g. `just hsk-import build --help`.
+hsk-import *ARGS:
+    cargo run -p hsk-import -- {{ARGS}}

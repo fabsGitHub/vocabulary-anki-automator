@@ -1,0 +1,134 @@
+# Milestone N5: build, sign and publish Automator for macOS, Windows and Linux
+# when an operator pushes a `v*` tag. The tag push is the deliberate, human
+# release gate (Tier 2/3); nothing in this workflow runs on a plain merge.
+#
+# Secrets (repo Settings -> Secrets and variables -> Actions), see
+# docs/signing-key-custody.md. They are referenced by name only and never
+# echoed. The workflow refuses to run while tauri.conf.json still carries the
+# updater-key placeholder, so a release can never ship an unverifiable update.
+#
+# Learn (apps/learn) is not released here: its mobile/web distribution is a
+# later milestone (decision 11).
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Refuse to release without a real updater public key
+        run: |
+          if grep -q 'KEYS_PLACEHOLDER_REPLACE_AFTER_GENERATION' src-tauri/tauri.conf.json; then
+            echo "::error::plugins.updater.pubkey is still the placeholder. Run 'tauri signer generate' (docs/signing-key-custody.md) and commit the public key first."
+            exit 1
+          fi
+
+      - name: Tag must match the app version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(jq -r .version src-tauri/tauri.conf.json)"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag v$tag does not match src-tauri/tauri.conf.json version $version"
+            exit 1
+          fi
+
+  build:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # .app + notarized .dmg (N1), one per architecture.
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+          # .msi + NSIS .exe (N2).
+          - platform: windows-latest
+            args: ''
+          # .deb + .rpm + AppImage (N3). 22.04 keeps the AppImage's glibc
+          # baseline old enough to run on most current distributions.
+          - platform: ubuntu-22.04
+            args: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Tauri system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # N2: a plain .pfx is imported into the runner's user store; the bundler
+      # then signs with signtool via the certificate's thumbprint. An
+      # HSM-backed certificate (e.g. Azure Trusted Signing) replaces these two
+      # steps with bundle.windows.signCommand instead.
+      - name: Import Windows code-signing certificate
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath $path -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $path
+          "WINDOWS_CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Point the Windows bundler at the imported certificate
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          jq --arg t "$WINDOWS_CERT_THUMBPRINT" '.bundle.windows.certificateThumbprint = $t' \
+            src-tauri/tauri.conf.json > "$RUNNER_TEMP/tauri.conf.json"
+          mv "$RUNNER_TEMP/tauri.conf.json" src-tauri/tauri.conf.json
+
+      # Builds, signs (updater .sig files via TAURI_SIGNING_PRIVATE_KEY,
+      # macOS codesign + notarytool via APPLE_*), uploads every bundle and
+      # merges latest.json (N4's static updater manifest) into the release.
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Vocabulary Automator ${{ github.ref_name }}
+          releaseBody: See the commit history for changes in this release.
+          releaseDraft: false
+          prerelease: false
+          uploadUpdaterJson: true
+          args: ${{ matrix.args }}
