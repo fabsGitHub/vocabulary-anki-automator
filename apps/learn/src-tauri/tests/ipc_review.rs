@@ -44,7 +44,18 @@ fn queue(harness: &Harness) -> Value {
     harness.call("get_daily_queue", json!({}))
 }
 
-/// The hanzi of the queue's new items, in order.
+/// The card ids of the queue's unstarted captures and imports, in order.
+fn new_captures(queue: &Value) -> Vec<i64> {
+    queue
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| item["kind"] == "new_capture")
+        .map(|item| item["card_id"].as_i64().unwrap())
+        .collect()
+}
+
+/// The hanzi of the queue's new curriculum words, in order.
 fn new_words(queue: &Value) -> Vec<String> {
     queue
         .as_array()
@@ -358,6 +369,61 @@ fn a_captured_word_that_was_never_scheduled_is_offered_and_adopted() {
     assert_eq!(harness.open_store().list_captures(None).unwrap().len(), 2);
 }
 
+/// § 7.1: captures and Anki imports that are no curriculum words come before
+/// the curriculum, oldest first, from the same quota. Starting one schedules
+/// that card as it was captured, and its first rating is a new item.
+#[test]
+fn captures_and_imports_nobody_started_are_offered_first() {
+    let harness = Harness::with(Options {
+        before_start: Some(Box::new(|store| {
+            let older = Card::new(
+                "house",
+                "Haus",
+                "en",
+                "de",
+                start_time() - Duration::days(2),
+            );
+            capture(store, &older);
+            let import = Card::new("Baum", "tree", "de", "en", start_time() - Duration::days(1));
+            store
+                .insert_capture(&import, CaptureOrigin::AnkiImport, true)
+                .unwrap();
+        })),
+        ..Options::default()
+    });
+    harness.call("submit_daily_quota", json!({ "newCount": 3 }));
+    let items = queue(&harness);
+    assert_eq!(new_captures(&items), [1, 2]);
+    assert_eq!(new_words(&items), ["我"]);
+
+    for _ in 0..2 {
+        assert_eq!(harness.call("start_new_capture", json!({ "cardId": 1 })), 1);
+    }
+    let items = queue(&harness);
+    assert_eq!(new_captures(&items), [2]);
+    assert_eq!(new_words(&items), ["我"]);
+    let result = rate(&harness, 1, 3);
+    assert_eq!(result["xp_awarded"], 15, "its first review counts as new");
+    assert_eq!(result["session"]["new_items_completed"], 1);
+    let house = stored(&harness, 1);
+    assert_eq!(house.origin, CaptureOrigin::Capture);
+    assert_eq!(house.card.back, "Haus", "the capture stays as it was");
+    assert_eq!(harness.open_store().list_captures(None).unwrap().len(), 2);
+
+    let learned: Vec<i64> = harness
+        .call("list_learned_cards", json!({}))
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["card_id"].as_i64().unwrap())
+        .collect();
+    assert_eq!(
+        learned,
+        [1],
+        "the import is not learned until it is started"
+    );
+}
+
 #[test]
 fn mistakes_are_refused_with_a_readable_message() {
     let harness = Harness::new();
@@ -370,10 +436,13 @@ fn mistakes_are_refused_with_a_readable_message() {
         harness.call_err("start_new_item", json!({ "hanzi": "龙" })),
         "\"龙\" is not in the HSK curriculum."
     );
-    assert_eq!(
-        harness.call_err("get_card", json!({ "cardId": 999 })),
-        "There is no card 999."
-    );
+    for command in ["get_card", "start_new_capture"] {
+        assert_eq!(
+            harness.call_err(command, json!({ "cardId": 999 })),
+            "There is no card 999."
+        );
+    }
+    assert_eq!(harness.open_store().count_srs_states().unwrap(), 0);
     for command in ["submit_review_rating", "preview_ratings"] {
         assert_eq!(
             harness.call_err(command, json!({ "cardId": unscheduled, "rating": 3 })),

@@ -16,6 +16,9 @@
     "learn:dev:web": "vite --config apps/learn/vite.config.ts --mode web",
     "learn:build": "vue-tsc --noEmit -p apps/learn && vite build --config apps/learn/vite.config.ts",
     "learn:build:web": "vue-tsc --noEmit -p apps/learn && vite build --config apps/learn/vite.config.ts --mode web",
+    "learn:dev:demo": "vite --config apps/learn/vite.config.ts --mode demo",
+    "learn:build:demo": "vue-tsc --noEmit -p apps/learn && vite build --config apps/learn/vite.config.ts --mode demo",
+    "learn:preview:demo": "vite preview --config apps/learn/vite.config.ts --mode demo",
     "learn:tauri": "cd apps/learn && tauri"
   },
   "dependencies": {

@@ -68,6 +68,7 @@ const RETURNS: &[(&str, &str)] = &[
     ("reopen_daily_prompt", "null"),
     ("get_daily_queue", "QueueItem[]"),
     ("start_new_item", "number"),
+    ("start_new_capture", "number"),
     ("get_card", "StoredCapture"),
     ("preview_ratings", "RatingPreview[]"),
     ("submit_review_rating", "ReviewResult"),
@@ -359,6 +360,7 @@ fn shapes() -> Map<String, Value> {
                     hanzi: "学习".into(),
                     curriculum_order: 4,
                 }),
+                json_of(QueueItem::NewCapture { card_id: 9 }),
             ],
         ),
         ("Rating", ReviewRating::ALL.iter().map(json_of).collect()),
@@ -620,7 +622,13 @@ fn run_every_command() -> BTreeMap<&'static str, (Value, Result<Value, Value>)> 
     call("submit_daily_quota", json!({ "newCount": 2 }));
     call("dismiss_daily_prompt", json!({}));
     call("reopen_daily_prompt", json!({}));
-    call("get_daily_queue", json!({}));
+    let queue = call("get_daily_queue", json!({}));
+    let capture_id = queue
+        .as_array()
+        .and_then(|items| items.iter().find(|item| item["kind"] == "new_capture"))
+        .map(|item| item["card_id"].clone())
+        .expect("the unstarted lesson capture is offered first");
+    call("start_new_capture", json!({ "cardId": capture_id }));
     let card_id = call("start_new_item", json!({ "hanzi": "我" }));
     call("get_card", json!({ "cardId": card_id }));
     call("preview_ratings", json!({ "cardId": card_id }));

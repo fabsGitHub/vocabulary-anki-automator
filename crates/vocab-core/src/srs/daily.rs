@@ -1,6 +1,6 @@
 //! The daily onboarding prompt and the day's session (Milestone L2).
 //!
-//! Learn asks "how many new characters do you want to learn today?" once per
+//! Learn asks "how many new words do you want to learn today?" once per
 //! local calendar day, before its main view renders. Whether today has been
 //! asked lives in the shared database (`app_state` [`LAST_PROMPTED_KEY`]), so
 //! the answer survives restarts; the answer itself is today's

@@ -6,10 +6,12 @@
 //!   is pure, taking the instant and the session date as arguments, so the G+
 //!   tests can replay rs-fsrs's own reference cases through it.
 //! - [`build_daily_queue`] (L3) lists every review due today before any new
-//!   curriculum word, and [`introduce_new_item`] and [`submit_review`] are the
-//!   two writes a review session makes with the queue's items.
+//!   item: the captures and imports nobody has started, then curriculum
+//!   words. [`introduce_capture`], [`introduce_new_item`] and
+//!   [`submit_review`] are the writes a review session makes with the queue's
+//!   items.
 //! - [`daily_prompt_state`] and its siblings (L2) decide when Learn asks "how
-//!   many new characters today?" and keep the answer in `daily_sessions`.
+//!   many new words today?" and keep the answer in `daily_sessions`.
 //!
 //! Everything that needs "now" or "today" takes a [`Clock`] and reads it once
 //! per call, so an instant and the local date it falls on always agree, even
@@ -28,7 +30,8 @@ pub use daily::{
     should_prompt, submit_daily_quota, DailyPromptState, SessionProgress, LAST_PROMPTED_KEY,
 };
 pub use queue::{
-    build_daily_queue, build_daily_queue_from, introduce_new_item, submit_review, QueueItem,
+    build_daily_queue, build_daily_queue_from, introduce_capture, introduce_new_item,
+    submit_review, QueueItem,
 };
 pub use scheduler::{
     fsrs_card_from_state, state_from_fsrs_card, InvalidRating, RatingPreview, ReviewOutcome,

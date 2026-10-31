@@ -516,6 +516,7 @@ fn shapes() -> Map<String, Value> {
                     hanzi: "学习".into(),
                     curriculum_order: 4,
                 }),
+                json_of(QueueItem::NewCapture { card_id: 9 }),
             ],
         ),
         (

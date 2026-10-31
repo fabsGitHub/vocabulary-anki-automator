@@ -45,6 +45,14 @@
       "args": [
         "cardId"
       ],
+      "command": "start_new_capture",
+      "method": "startNewCapture",
+      "returns": "number"
+    },
+    {
+      "args": [
+        "cardId"
+      ],
       "command": "get_card",
       "method": "getCard",
       "returns": "StoredCapture"
@@ -592,6 +600,10 @@
         "curriculum_order": 4,
         "hanzi": "学习",
         "kind": "new"
+      },
+      {
+        "card_id": 9,
+        "kind": "new_capture"
       }
     ],
     "Rating": [

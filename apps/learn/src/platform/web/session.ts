@@ -15,8 +15,9 @@
  *   {@link trackCompletion} compares today's session before and after and
  *   calls `onSessionCompleted` exactly when `completed_at` first appears.
  * - **The queue offers what is left of today's quota**: the requested new
- *   words, minus those done, minus the cards still waiting for their first
- *   review. Without today's session the queue holds reviews only.
+ *   items, minus those done, minus the cards still waiting for their first
+ *   review. The core fills it with unstarted captures and imports first, then
+ *   curriculum words. Without today's session the queue holds reviews only.
  */
 
 import type * as ipc from '../types'
@@ -55,12 +56,13 @@ export async function dailyQueue(store: Store, clock: Clock): Promise<QueueItem[
   const [, endOfToday] = localDayBounds(today, clock.localOffset())
   const due = await store.listSrsDueBefore(endOfToday)
   const newQuota = remainingNewQuota(await store.getDailySession(today), due)
+  const unscheduled = await store.listUnscheduledCaptures()
   const curriculum = await store.curriculumInOrder()
   const learnedHanzi = await store.learnedChineseFronts()
-  return buildDailyQueueFrom(due, curriculum, learnedHanzi, newQuota)
+  return buildDailyQueueFrom(due, unscheduled, curriculum, learnedHanzi, newQuota)
 }
 
-/** How many new curriculum words today's queue still offers, given the states due today. */
+/** How many new items today's queue still offers, given the states due today. */
 export function remainingNewQuota(
   session: DailySessionRow | null,
   due: readonly SrsStateRow[],

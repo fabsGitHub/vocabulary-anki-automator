@@ -41,7 +41,7 @@ import type { LearnSettings, Rating } from '../platform/types'
 const props = defineProps<{
   /** Bumped by the main window when today's goal changed: rebuild the queue. */
   round: number
-  /** Today's quota of new characters, once known; an empty queue on a reviews-only day (0) offers to change it. */
+  /** Today's quota of new words, once known; an empty queue on a reviews-only day (0) offers to change it. */
   newGoal: number | null
 }>()
 

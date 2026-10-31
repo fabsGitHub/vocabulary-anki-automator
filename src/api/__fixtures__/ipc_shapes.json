@@ -681,6 +681,10 @@
         "curriculum_order": 4,
         "hanzi": "学习",
         "kind": "new"
+      },
+      {
+        "card_id": 9,
+        "kind": "new_capture"
       }
     ],
     "ScriptMetadata": [

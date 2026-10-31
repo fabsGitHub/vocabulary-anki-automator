@@ -1,0 +1,54 @@
+/* The live demo's bar (src/demo/DemoBar.vue), on Learn's design tokens
+   (../styles.css). Only the demo build loads this file. */
+
+.demo-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+}
+
+.demo-bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.demo-bar-text {
+  flex: 1 1 240px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.demo-bar-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.demo-about summary {
+  width: fit-content;
+  color: var(--primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.demo-about p {
+  max-width: 72ch;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.demo-about a {
+  color: var(--primary);
+}
+
+.startup-notice {
+  padding: 20px;
+}

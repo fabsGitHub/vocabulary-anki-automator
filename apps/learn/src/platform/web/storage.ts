@@ -115,8 +115,11 @@ export class BufferedStorage implements Storage {
   }
 }
 
-/** Committed rows in memory: the backend of {@link MemoryStorage}. */
-class MemoryBackend implements StorageBackend {
+/**
+ * Committed rows in memory: the backend of {@link MemoryStorage}, and of the
+ * live demo's history, whose rows it hands on whole (src/demo/history.ts).
+ */
+export class MemoryBackend implements StorageBackend {
   private readonly tables = new Map<TableName, Map<Key, unknown>>()
   private queue: Promise<unknown> = Promise.resolve()
 

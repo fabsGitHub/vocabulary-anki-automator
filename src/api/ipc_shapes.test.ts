@@ -130,6 +130,7 @@ const setupStatus = object({
 const queueItem = union(
   object({ kind: literal('review'), card_id: integer, due_date: instant }),
   object({ kind: literal('new'), hanzi: string, curriculum_order: integer }),
+  object({ kind: literal('new_capture'), card_id: integer }),
 )
 const cardField = literal(
   'front',

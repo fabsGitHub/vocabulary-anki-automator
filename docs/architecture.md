@@ -339,6 +339,7 @@ pub struct ReviewLogRow { pub id: i64, pub card_id: i64, pub rating: u8, pub rev
     pub session_date: NaiveDate, pub state_before: String, pub scheduled_days: i64, pub elapsed_days: i64 }
 pub struct DailySessionRow { pub session_date: NaiveDate, pub requested_new_count: u32, pub reviews_due_count: u32,
     pub reviews_completed: u32, pub new_items_completed: u32, pub completed_at: Option<DateTime<Utc>> }
+pub struct UnscheduledCapture { pub card_id: i64, pub front: String, pub captured_at: DateTime<Utc> }
 ```
 
 Methods on `Store` (all `&self` unless noted):
@@ -355,6 +356,7 @@ fn delete_capture(&self, id: i64) -> StoreResult<bool>;                         
 fn find_capture_by_front(&self, front: &str, script_kind: &str) -> StoreResult<Option<StoredCapture>>;
 fn chinese_capture_fronts(&self) -> StoreResult<HashSet<String>>;               // fronts with script_kind = 'chinese'
 fn learned_chinese_fronts(&self) -> StoreResult<HashSet<String>>;               // ... that also have an srs_state row
+fn list_unscheduled_captures(&self) -> StoreResult<Vec<UnscheduledCapture>>;    // no srs_state row, any origin; captured_at ASC, id ASC
 fn update_capture_card(&self, id: i64, card: &Card) -> StoreResult<()>;
 // curriculum
 fn curriculum_count(&self) -> StoreResult<i64>;
@@ -456,10 +458,12 @@ pub struct ReviewOutcome { pub next: SrsStateRow, pub log: ReviewLogRow }
 pub struct RatingPreview { pub rating: ReviewRating, pub due_date: DateTime<Utc>, pub interval_days: i64 }
 
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum QueueItem { Review { card_id: i64, due_date: DateTime<Utc> }, New { hanzi: String, curriculum_order: i64 } }
-pub fn build_daily_queue_from(due: &[SrsStateRow], curriculum: &[CurriculumItem], learned_hanzi: &HashSet<String>, new_quota: u32) -> Vec<QueueItem>;
+pub enum QueueItem { Review { card_id: i64, due_date: DateTime<Utc> }, New { hanzi: String, curriculum_order: i64 }, NewCapture { card_id: i64 } }
+pub fn build_daily_queue_from(due: &[SrsStateRow], unscheduled: &[UnscheduledCapture], curriculum: &[CurriculumItem],
+    learned_hanzi: &HashSet<String>, new_quota: u32) -> Vec<QueueItem>;
 pub fn build_daily_queue(store: &Store, new_quota: u32, clock: &dyn Clock) -> StoreResult<Vec<QueueItem>>;
 pub fn introduce_new_item(store: &Store, scheduler: &SrsScheduler, hanzi: &str, target_lang: &str, clock: &dyn Clock) -> StoreResult<i64>;
+pub fn introduce_capture(store: &Store, scheduler: &SrsScheduler, card_id: i64, clock: &dyn Clock) -> StoreResult<i64>;
 pub fn submit_review(store: &Store, scheduler: &SrsScheduler, card_id: i64, rating: ReviewRating, clock: &dyn Clock) -> StoreResult<ReviewOutcome>;
 
 // daily onboarding prompt (L2)
@@ -475,14 +479,27 @@ pub fn record_session_progress(store: &Store, kind: SessionProgress, clock: &dyn
 ```
 
 - Queue: priority 1 = every `srs_state` with `due_date` before the end of the
-  local day, ordered by `due_date` then `card_id`; priority 2 = if
-  `new_quota > 0`, the first `new_quota` curriculum rows in `curriculum_order`
-  whose hanzi is not in `learned_chinese_fronts()` (a Chinese capture **with an
-  `srs_state` row**). `new_quota == 0` is the zero-length case of the same code
-  path, not a separate branch. A word captured in Automator but never scheduled
-  is therefore still offered when its turn comes (otherwise it would be neither
-  new nor due, and never reach a review), and `introduce_new_item` adopts the
-  existing capture instead of inserting a duplicate.
+  local day, ordered by `due_date` then `card_id`; priority 2 = the first
+  `new_quota` items of one sequence of new items: (a) every capture of any
+  origin **without an `srs_state` row** (`list_unscheduled_captures()`: Automator
+  captures, Anki imports) whose front is not the hanzi of a curriculum row, by
+  `captured_at` then `card_id`, as `NewCapture`; then (b) the curriculum rows in
+  `curriculum_order` whose hanzi is not in `learned_chinese_fronts()` (a Chinese
+  capture **with an `srs_state` row**), as `New`. One quota covers both and (a)
+  comes first, so a backlog of captures and imports holds the curriculum back
+  until it is started. `new_quota == 0` is the zero-length case of the same code
+  path, not a separate branch. Every capture is a card of its own: a learned card
+  with the same front does not hide it from (a).
+- A capture whose front is a curriculum hanzi is left to (b): it is offered when
+  that word's turn comes, and `introduce_new_item` adopts the existing Chinese
+  capture instead of inserting a duplicate, so an imported HSK deck is learned in
+  curriculum order. Without (a) and this adoption an unscheduled capture would be
+  neither new nor due, and never reach a review.
+- `introduce_capture` gives an existing capture a `new` `srs_state` row due now,
+  in one transaction, and returns its id; its content stays as captured. It is
+  idempotent (a card that has a state keeps it) and fails with `NotFound` for an
+  unknown id. Anki imports start fresh this way: Anki's review state is not read
+  (`notesInfo` carries none, and SM-2 state would map to FSRS only lossily).
 - `introduce_new_item` inserts a `captures` row (`origin = curriculum`,
   `front = hanzi`, `back = meaning_de` when `target_lang` is `de` and present,
   else `meaning_en`, curriculum example sentence/pinyin/HSK level copied in,
@@ -500,7 +517,7 @@ pub fn record_session_progress(store: &Store, kind: SessionProgress, clock: &dyn
 - **Session progress is counted on reviews, not on introductions:** the caller
   records `SessionProgress::NewItem` when a card's review log has
   `state_before == "new"` (its first review), and `Review` otherwise. Introducing
-  a word twice (double click, retry) therefore can never count twice.
+  a word or a capture twice (double click, retry) therefore can never count twice.
 - Daily prompt: `needs_prompt` is true when `last_prompted_date != today` (or
   unset). Submitting writes/updates today's `daily_sessions` row
   (`reviews_due_count` = queue reviews at that moment whose `fsrs_state` is not
@@ -900,6 +917,7 @@ core logic, verified against golden vectors generated from the Rust core).
 | `reopen_daily_prompt`    | —                                                      | `null`                        |
 | `get_daily_queue`        | —                                                      | `QueueItem[]`                 |
 | `start_new_item`         | `hanzi: string`                                        | `number` (card id)            |
+| `start_new_capture`      | `cardId: number`                                       | `number` (card id)            |
 | `get_card`               | `cardId: number`                                       | `StoredCapture`               |
 | `preview_ratings`        | `cardId: number`                                       | `RatingPreview[]`             |
 | `submit_review_rating`   | `cardId: number, rating: 1\|2\|3\|4`                   | `ReviewResult`                |
@@ -924,13 +942,16 @@ the copy of the command bodies that records it cannot drift from the desktop app
 
 - `get_daily_queue`: reviews due before the end of the local day, then
   `new_quota = requested_new_count − new_items_completed − (due cards whose fsrs_state
-is "new")`, floored at 0, and 0 while today's session does not exist. Introducing a
-  word moves it from the new part to the review part instead of pulling in another.
+is "new")`, floored at 0, and 0 while today's session does not exist, filled as § 7.1
+  says (unstarted captures and imports, then curriculum words). Introducing an item
+  moves it from the new part to the review part instead of pulling in another.
 - `submit_review_rating`: one transaction runs `submit_review`, awards `XP_NEW_ITEM`
   for a card's first review (`state_before == "new"`) and `XP_REVIEW` for any other,
   records the matching `SessionProgress`, and calls `on_session_completed` when the
   session has just completed (its bonus is included in `xp_awarded`).
 - `start_new_item` trims the hanzi, is idempotent and records no progress;
+  `start_new_capture` (a `new_capture` item: `introduce_capture`) is idempotent,
+  records no progress and reports an unknown id as "There is no card N.";
   `record_exercise_result` rejects cards without an `srs_state` row and pays
   `XP_EXERCISE_CORRECT` for correct answers only; lessons use `CARDS_PER_LESSON = 5`
   (lesson ids depend on it) and pay `XP_LESSON_COMPLETE` once per lesson per local day.
@@ -939,7 +960,8 @@ is "new")`, floored at 0, and 0 while today's session does not exist. Introducin
   setting from `LearnSettings`; it stops at the first "unreachable" and counts an
   all-duplicate card as skipped and synced. `anki_import` reads Chinese vocabulary from a
   deck, swaps reverse notes back, skips fronts already stored (any origin), and stores
-  rows as `origin = anki_import`, synced.
+  rows as `origin = anki_import`, synced, without an `srs_state` row: the queue then
+  offers them as § 7.1 says.
 - `LearnSettings` defaults: `meaning_lang` `en`; Anki `http://127.0.0.1:8765`, deck
   `Chinese::HSK`, note type `Chinese (HSK)`, `FieldMapping::chinese_default()`,
   `create_reverse` false. Loading is lenient (bad stored values fall back to defaults);
@@ -966,6 +988,13 @@ invokes the commands above, which need none, so no core or plugin command
 `apps/learn/src-tauri/tests/security_config.rs` pins both. The web build is not
 served by Tauri, so its CSP is up to whoever hosts it (it needs the same
 policy plus `connect-src 'self'` for its curriculum JSON).
+
+`--mode demo` builds the web build as the public live demo
+([live-demo.md](live-demo.md)), entered through `apps/learn/src/demo/main.ts`, so
+no other build contains it: the same app and web adapter on an IndexedDB database of
+its own (`vocab-learn-demo`, memory where the browser refuses IndexedDB), started
+with a ten-day history played through the adapter's own commands, plus a bar that
+moves the demo's clock by whole days and starts the demo over.
 
 ## 11. Serialized shapes (TypeScript)
 
@@ -1052,6 +1081,7 @@ interface SetupStatus {
 type QueueItem =
   | { kind: 'review'; card_id: number; due_date: string }
   | { kind: 'new'; hanzi: string; curriculum_order: number }
+  | { kind: 'new_capture'; card_id: number }
 ```
 
 ## 12. Deviations from IMPLEMENTATION_PLAN.md (and why)
@@ -1089,3 +1119,9 @@ type QueueItem =
    every Chinese capture as L3's pseudo-code does, so an Automator capture that was
    never scheduled is adopted when its curriculum turn comes instead of being
    stranded (§ 7.1).
+10. Captures and Anki imports that are not curriculum words enter the daily queue,
+    which no plan item covered (operator decision, 2026-10-31): automatically, from
+    the same new-item quota as curriculum words, oldest capture first and before
+    them; an import starts fresh instead of carrying Anki's review state over.
+    Captured or imported curriculum words keep their curriculum turn (item 9), so an
+    imported HSK deck keeps the curriculum's order (§ 7.1).
