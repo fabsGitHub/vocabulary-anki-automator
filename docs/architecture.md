@@ -47,7 +47,8 @@ scripts/                   bootstrap, run-all-checks, git hooks
 - **HTTP clients** are built with a 10 s timeout and a descriptive User-Agent.
 - **Formatting/lint gates:** `cargo fmt --all --check`,
   `cargo clippy --workspace --all-targets -- -D warnings`, `npx vue-tsc --noEmit`,
-  `npx eslint .`, `npx prettier --check .`. New code must pass all of them.
+  `npx vue-tsc --noEmit -p apps/learn`, `npx eslint .`, `npx prettier --check .`. New code
+  must pass all of them.
 - **Sandboxed dev environments:** if `~/.cargo` is not writable, set `CARGO_HOME` to an
   absolute path such as `/tmp/claude-501/cargo-home` (seed it by copying
   `~/.cargo/registry`; `$TMPDIR` resolves differently inside and outside the sandbox),
