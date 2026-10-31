@@ -1,10 +1,15 @@
-//! Anki field HTML -> the plain text a `Card` holds (used by the import path).
+//! Plain card text <-> Anki field HTML.
 //!
-//! Anki stores every field as HTML, and its editor adds markup nobody typed:
-//! `&nbsp;` for trailing spaces, a `<div>` per line, `<br>`, formatting tags,
-//! and `[sound:...]` references wherever audio was attached. This is a small
-//! converter for exactly that, not an HTML parser: anything it does not
-//! recognise stays as text, so `a < b` or `AT&T` survive unchanged.
+//! Anki stores every field as HTML. On export, card text is escaped so that
+//! text which merely looks like markup (`Vec<String>`, a pasted `<script>`)
+//! shows up literally instead of being rendered, or run, by Anki's reviewer.
+//! On import, Anki's editor has added markup nobody typed: `&nbsp;` for
+//! trailing spaces, a `<div>` per line, `<br>`, formatting tags, and
+//! `[sound:...]` references wherever audio was attached. The import side is a
+//! small converter for exactly that, not an HTML parser: anything it does not
+//! recognise stays as text, so `a < b` or `AT&T` survive unchanged. Imported
+//! notes are untrusted (shared decks), so every step is linear in the field
+//! length.
 
 /// Tags that start a new line in the rendered field.
 const LINE_BREAK_TAGS: &[&str] = &[
@@ -13,6 +18,23 @@ const LINE_BREAK_TAGS: &[&str] = &[
 
 /// Entity names longer than this are not looked up (`#x10FFFF` is 8 chars).
 const MAX_ENTITY_LEN: usize = 10;
+
+/// Card text as field HTML: `&`, `<` and `>` escaped, the minimum that keeps
+/// text from being read as markup (quotes only matter inside attributes).
+/// Line breaks stay `\n`, the legacy combined-example format (§ 9).
+/// [`to_plain_text`] decodes the escapes again.
+pub(crate) fn escape_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            c => out.push(c),
+        }
+    }
+    out
+}
 
 /// Tags removed (line-level tags become line breaks), entities decoded once,
 /// `[sound:...]` references removed, runs of spaces collapsed, and every line
@@ -30,16 +52,23 @@ fn strip_tags(html: &str) -> String {
         let after = &rest[start + 1..];
         let looks_like_tag =
             after.starts_with(|c: char| c.is_ascii_alphabetic() || c == '/' || c == '!');
+        if !looks_like_tag {
+            out.push('<');
+            rest = after;
+            continue;
+        }
         match after.find('>') {
-            Some(end) if looks_like_tag => {
+            Some(end) => {
                 if is_line_break(&after[..end]) {
                     out.push('\n');
                 }
                 rest = &after[end + 1..];
             }
-            _ => {
-                out.push('<');
-                rest = after;
+            // No later `>` can close this or any following tag: the rest is
+            // text. (Searching again for every later `<` would be quadratic.)
+            None => {
+                rest = &rest[start..];
+                break;
             }
         }
     }
@@ -62,9 +91,12 @@ fn decode_entities(text: &str) -> String {
     while let Some(start) = rest.find('&') {
         out.push_str(&rest[..start]);
         let after = &rest[start + 1..];
+        // Only the next few bytes can hold the `;` of an entity; `;` is ASCII,
+        // so its byte position is a char boundary.
         let decoded = after
-            .find(';')
-            .filter(|&end| end <= MAX_ENTITY_LEN)
+            .bytes()
+            .take(MAX_ENTITY_LEN + 1)
+            .position(|b| b == b';')
             .and_then(|end| decode_entity(&after[..end]).map(|c| (c, end)));
         match decoded {
             Some((c, end)) => {
@@ -173,6 +205,54 @@ mod tests {
         ];
         for (html, expected) in cases {
             assert_eq!(to_plain_text(html), expected, "input: {html:?}");
+        }
+    }
+
+    #[test]
+    fn escaped_text_reads_back_unchanged() {
+        let cases = [
+            ("serendipity", "serendipity"),
+            ("Vec<String>", "Vec&lt;String&gt;"),
+            ("AT&T", "AT&amp;T"),
+            ("&amp; stays literal", "&amp;amp; stays literal"),
+            ("<b>not bold</b>", "&lt;b&gt;not bold&lt;/b&gt;"),
+            (
+                "<script>alert(1)</script>",
+                "&lt;script&gt;alert(1)&lt;/script&gt;",
+            ),
+            ("don't \"quote\"", "don't \"quote\""),
+            ("first\nsecond", "first\nsecond"),
+            ("我们一起学习中文。", "我们一起学习中文。"),
+            ("", ""),
+        ];
+        for (text, escaped) in cases {
+            assert_eq!(escape_text(text), escaped, "{text:?}");
+            assert_eq!(to_plain_text(escaped), text, "{text:?}");
+        }
+    }
+
+    /// Imported notes are untrusted (shared decks): a field full of unmatched
+    /// `&` or `<` must not make the conversion quadratic. Each input took tens
+    /// of seconds when every `&`/`<` rescanned the rest of the field, and
+    /// takes milliseconds when it does not. None of them contains a tag or an
+    /// entity, so each converts to itself.
+    #[test]
+    fn hostile_fields_convert_in_linear_time() {
+        let inputs = [
+            "&".repeat(1_000_000),
+            "<a".repeat(500_000),
+            format!("{}>", "< ".repeat(500_000)),
+        ];
+        for html in inputs {
+            let started = std::time::Instant::now();
+            let text = to_plain_text(&html);
+            let elapsed = started.elapsed();
+            assert!(
+                elapsed < std::time::Duration::from_secs(3),
+                "{elapsed:?} for {:?}...",
+                &html[..8]
+            );
+            assert!(text == html, "{:?}...", &text[..8]);
         }
     }
 }

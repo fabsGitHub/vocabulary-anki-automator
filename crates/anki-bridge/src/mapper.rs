@@ -64,7 +64,8 @@ impl FieldBinding {
 /// How cards map onto the fields of one Anki note type.
 ///
 /// Anki fields the mapping does not mention are left empty. When several
-/// bindings name the same Anki field, the first one wins.
+/// bindings name the same Anki field (compared case-insensitively, as
+/// AnkiConnect compares field names), the first one wins.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FieldMapping {
     pub fields: Vec<FieldBinding>,
@@ -123,7 +124,7 @@ impl FieldMapping {
                 missing.push(name.to_string());
             }
         };
-        for binding in &self.fields {
+        for binding in self.effective_bindings() {
             let lowered = binding.anki_field.to_lowercase();
             let known = model_fields
                 .iter()
@@ -136,8 +137,24 @@ impl FieldMapping {
         missing
     }
 
+    /// The bindings that take effect: the first one for each Anki field. Both
+    /// directions use these, so import never reads a binding export skipped.
+    fn effective_bindings(&self) -> impl Iterator<Item = &FieldBinding> {
+        self.fields
+            .iter()
+            .enumerate()
+            .filter(|&(index, binding)| {
+                let name = binding.anki_field.to_lowercase();
+                !self.fields[..index]
+                    .iter()
+                    .any(|earlier| earlier.anki_field.to_lowercase() == name)
+            })
+            .map(|(_, binding)| binding)
+    }
+
     fn binds(&self, source: CardField) -> bool {
-        self.fields.iter().any(|binding| binding.source == source)
+        self.effective_bindings()
+            .any(|binding| binding.source == source)
     }
 }
 
@@ -204,6 +221,9 @@ pub struct AudioAttachment {
 
 /// Maps `card` onto `mapping`'s note type for `direction`.
 ///
+/// Anki fields hold HTML and card values are plain text, so every value has
+/// `&`, `<` and `>` escaped; line breaks stay `\n`.
+///
 /// `audio` is the MP3 for this note's front (normally `card.audio_front`
 /// forward and TTS of `card.back` reversed). It is attached only when it is
 /// non-empty and the mapping has an audio field, as
@@ -216,12 +236,13 @@ pub fn map_card(
     mapping: &FieldMapping,
     audio: Option<&[u8]>,
 ) -> NoteSpec {
-    let mut fields = BTreeMap::new();
-    for binding in &mapping.fields {
-        fields
-            .entry(binding.anki_field.clone())
-            .or_insert_with(|| field_value(card, direction, binding.source));
-    }
+    let fields = mapping
+        .effective_bindings()
+        .map(|binding| {
+            let value = field_value(card, direction, binding.source);
+            (binding.anki_field.clone(), html::escape_text(&value))
+        })
+        .collect();
     let audio = match (audio, mapping.audio_field()) {
         (Some(bytes), Some(field)) if !bytes.is_empty() => Some(AudioAttachment {
             filename: format!(
@@ -310,11 +331,13 @@ pub fn add_note_params(note: &NoteSpec) -> Value {
 /// Field contents are converted from Anki's HTML to plain text (tags removed,
 /// `&nbsp;`/`&amp;`/... decoded, `[sound:...]` references dropped). Returns
 /// `None` unless both front and back are non-empty. Explicit
-/// `ExampleSource`/`ExampleTarget` bindings are read as they are; otherwise an
-/// `Example` binding is split at its first line break. `Pinyin`/`HskLevel`
-/// bindings rebuild `ScriptMetadata::Chinese` when either has a value. The
-/// card gets the note's tags, no audio, and the given languages (canonical
-/// codes) and timestamp.
+/// `ExampleSource`/`ExampleTarget` bindings are read as they are; a half
+/// without a binding of its own comes from the `Example` field: what is left
+/// once the bound half is removed, or, with neither half bound, the text
+/// before and after its first line break. `Pinyin`/`HskLevel` bindings
+/// rebuild `ScriptMetadata::Chinese` when either has a value. The card gets
+/// the note's tags, no audio, and the given languages (canonical codes) and
+/// timestamp.
 ///
 /// `captured_at` is a `chrono::DateTime<Utc>`, as in docs/architecture.md
 /// § 9. It is accepted as any `Serialize` value only because chrono is not
@@ -329,14 +352,14 @@ pub fn card_from_note(
 ) -> Option<Card> {
     let read = |source: CardField| -> String {
         mapping
-            .fields
-            .iter()
+            .effective_bindings()
             .filter(|binding| binding.source == source)
             .filter_map(|binding| note.field(&binding.anki_field))
             .map(html::to_plain_text)
             .find(|value| !value.is_empty())
             .unwrap_or_default()
     };
+    let read_bound = |source: CardField| mapping.binds(source).then(|| read(source));
 
     let front = read(CardField::Front);
     let back = read(CardField::Back);
@@ -344,15 +367,11 @@ pub fn card_from_note(
         return None;
     }
     let mut card = new_card(front, back, source_lang, target_lang, captured_at)?;
-    (card.example_source, card.example_target) =
-        if mapping.binds(CardField::ExampleSource) || mapping.binds(CardField::ExampleTarget) {
-            (
-                read(CardField::ExampleSource),
-                read(CardField::ExampleTarget),
-            )
-        } else {
-            split_example(&read(CardField::Example))
-        };
+    (card.example_source, card.example_target) = example_halves(
+        read_bound(CardField::ExampleSource),
+        read_bound(CardField::ExampleTarget),
+        &read(CardField::Example),
+    );
     card.notes = read(CardField::Notes);
     card.tags = note.tags.clone();
     card.script_metadata = chinese_metadata(read(CardField::Pinyin), &read(CardField::HskLevel));
@@ -378,6 +397,48 @@ fn new_card(
         "captured_at": captured_at,
     }))
     .ok()
+}
+
+/// (example_source, example_target) from the explicitly bound halves (`None`
+/// when unbound) and the combined `Example` field. map_card writes `Example`
+/// as the non-blank halves joined by `\n`, so a known half is removed from
+/// it; without a known half the split falls at the first line break.
+fn example_halves(
+    source: Option<String>,
+    target: Option<String>,
+    example: &str,
+) -> (String, String) {
+    match (source, target) {
+        (Some(source), Some(target)) => (source, target),
+        (Some(source), None) => {
+            let target =
+                remove_half(example, &source, true).unwrap_or_else(|| split_example(example).1);
+            (source, target)
+        }
+        (None, Some(target)) => {
+            let source =
+                remove_half(example, &target, false).unwrap_or_else(|| split_example(example).0);
+            (source, target)
+        }
+        (None, None) => split_example(example),
+    }
+}
+
+/// `example` without its `known` half (the first half when `known_first`),
+/// or `None` when `known` is not where map_card would have put it.
+fn remove_half(example: &str, known: &str, known_first: bool) -> Option<String> {
+    if known.is_empty() {
+        return Some(example.to_string());
+    }
+    if example == known {
+        return Some(String::new());
+    }
+    let rest = if known_first {
+        example.strip_prefix(known)?.strip_prefix('\n')?
+    } else {
+        example.strip_suffix(known)?.strip_suffix('\n')?
+    };
+    Some(rest.to_string())
 }
 
 fn split_example(example: &str) -> (String, String) {
@@ -790,6 +851,91 @@ mod tests {
         assert_eq!(note.fields["Front"], "学习");
     }
 
+    /// AnkiConnect matches field names case-insensitively, so `front` is the
+    /// same Anki field as `Front`: sending both would let the later JSON key
+    /// overwrite the first binding inside Anki.
+    #[test]
+    fn first_binding_wins_case_insensitively() {
+        let mapping = FieldMapping {
+            fields: vec![
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+                FieldBinding::new("front", CardField::Pinyin),
+            ],
+            audio_field: None,
+        };
+        let note = map_card(
+            &chinese_card(),
+            Direction::Forward,
+            &target(),
+            &mapping,
+            None,
+        );
+        assert_eq!(
+            note.fields,
+            BTreeMap::from([
+                ("Front".to_string(), "学习".to_string()),
+                ("Back".to_string(), "lernen".to_string()),
+            ])
+        );
+    }
+
+    /// Anki fields are HTML. Card text is plain text, so markup-like text is
+    /// escaped on the way out (or Anki would render `<b>`, drop `<String>`
+    /// and run a pasted `<script>`) and decoded again on import.
+    #[test]
+    fn text_is_escaped_for_anki_s_html_fields() {
+        let mut card = english_card();
+        card.front = "Vec<String>".into();
+        card.back = "R&D <Abteilung>".into();
+        card.example_source = "Use Vec<String> & co.".into();
+        card.example_target = "<b>Beispiel</b>".into();
+        card.notes = "<script>alert(1)</script>".into();
+        let mapping = every_field_mapping();
+
+        let forward = map_card(&card, Direction::Forward, &target(), &mapping, None);
+        let reverse = map_card(&card, Direction::Reverse, &target(), &mapping, None);
+
+        let fields = |pairs: &[(&str, &str)]| -> BTreeMap<String, String> {
+            pairs
+                .iter()
+                .map(|(name, value)| (name.to_string(), value.to_string()))
+                .collect()
+        };
+        assert_eq!(
+            forward.fields,
+            fields(&[
+                ("F", "Vec&lt;String&gt;"),
+                ("B", "R&amp;D &lt;Abteilung&gt;"),
+                ("ES", "Use Vec&lt;String&gt; &amp; co."),
+                ("ET", "&lt;b&gt;Beispiel&lt;/b&gt;"),
+                (
+                    "E",
+                    "Use Vec&lt;String&gt; &amp; co.\n&lt;b&gt;Beispiel&lt;/b&gt;"
+                ),
+                ("N", "&lt;script&gt;alert(1)&lt;/script&gt;"),
+                ("P", ""),
+                ("H", ""),
+            ])
+        );
+        assert_eq!(forward.fields["F"], reverse.fields["B"]);
+        assert_eq!(forward.fields["ES"], reverse.fields["ET"]);
+        assert_eq!(
+            reverse.fields["E"],
+            "&lt;b&gt;Beispiel&lt;/b&gt;\nUse Vec&lt;String&gt; &amp; co."
+        );
+
+        let back = card_from_note(
+            &stored(&forward),
+            &mapping,
+            &card.source_lang,
+            &card.target_lang,
+            card.captured_at,
+        );
+        card.audio_front = None;
+        assert_eq!(back, Some(card));
+    }
+
     #[test]
     fn add_note_params_is_the_exact_ankiconnect_shape() {
         let card = english_card();
@@ -918,6 +1064,16 @@ mod tests {
             no_audio.missing_fields(&names(&["Front", "Back", "Notes"])),
             names(&["Context Sentence"])
         );
+        // A binding shadowed by an earlier one for the same field is not sent,
+        // so it is not reported a second time under another spelling.
+        let shadowed = FieldMapping {
+            fields: vec![
+                FieldBinding::new("Word", CardField::Front),
+                FieldBinding::new("WORD", CardField::Pinyin),
+            ],
+            audio_field: None,
+        };
+        assert_eq!(shadowed.missing_fields(&names(&["Back"])), names(&["Word"]));
         // AnkiConnect attaches media only to an exactly named field.
         assert_eq!(
             FieldMapping::apple_style_default().missing_fields(&names(&[
@@ -1069,6 +1225,101 @@ mod tests {
         assert_eq!(card.captured_at, captured_at());
         assert_eq!(card.audio_front, None);
         assert_eq!(card.script_metadata, ScriptMetadata::None);
+    }
+
+    /// A note type with a combined example field plus a field for one of its
+    /// halves: the other half comes out of the combined field, so the round
+    /// trip holds for every example shape map_card can write, including a
+    /// single half and a sentence that spans two lines.
+    #[test]
+    fn card_from_note_derives_an_unbound_example_half_from_example() {
+        let with_one_half = |half: CardField, name: &str| FieldMapping {
+            fields: vec![
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+                FieldBinding::new("Sentence", CardField::Example),
+                FieldBinding::new(name, half),
+            ],
+            audio_field: None,
+        };
+        let mappings = [
+            with_one_half(CardField::ExampleTarget, "Translation"),
+            with_one_half(CardField::ExampleSource, "Original"),
+        ];
+        let examples = [
+            ("It was pure serendipity.", "Es war reiner Zufall."),
+            ("It was pure serendipity.", ""),
+            ("", "Es war reiner Zufall."),
+            ("", ""),
+            ("Line one.\nLine two.", "Zeile eins.\nZeile zwei."),
+            ("Line one.\nLine two.", ""),
+            ("", "Zeile eins.\nZeile zwei."),
+        ];
+        for mapping in &mappings {
+            for (source, target_text) in examples {
+                let mut card = english_card();
+                card.example_source = source.into();
+                card.example_target = target_text.into();
+                card.notes.clear(); // not mapped
+                card.audio_front = None;
+                let spec = map_card(&card, Direction::Forward, &target(), mapping, None);
+                let back = card_from_note(
+                    &stored(&spec),
+                    mapping,
+                    &card.source_lang,
+                    &card.target_lang,
+                    card.captured_at,
+                );
+                assert_eq!(
+                    back,
+                    Some(card),
+                    "{:?}: {source:?}/{target_text:?}",
+                    mapping.fields[3].source
+                );
+            }
+        }
+    }
+
+    /// map_card writes only the first binding for an Anki field, so import
+    /// must not read a shadowed binding from the winner's content.
+    #[test]
+    fn card_from_note_ignores_shadowed_bindings() {
+        for shadowed in ["Front", "FRONT"] {
+            let mapping = FieldMapping {
+                fields: vec![
+                    FieldBinding::new("Front", CardField::Front),
+                    FieldBinding::new("Back", CardField::Back),
+                    FieldBinding::new(shadowed, CardField::Pinyin),
+                ],
+                audio_field: None,
+            };
+            let spec = map_card(
+                &chinese_card(),
+                Direction::Forward,
+                &target(),
+                &mapping,
+                None,
+            );
+            let card =
+                card_from_note(&stored(&spec), &mapping, "zh-CN", "de", captured_at()).unwrap();
+            assert_eq!(card.front, "学习", "{shadowed}");
+            assert_eq!(card.script_metadata, ScriptMetadata::None, "{shadowed}");
+        }
+    }
+
+    #[test]
+    fn card_from_note_takes_the_first_non_empty_of_several_bindings() {
+        let mapping = FieldMapping {
+            fields: vec![
+                FieldBinding::new("Word", CardField::Front),
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+            ],
+            audio_field: None,
+        };
+        let note = note_with(&[("Word", "<br>"), ("Front", "Haus"), ("Back", "house")]);
+        let card = card_from_note(&note, &mapping, "de", "en", captured_at()).unwrap();
+        assert_eq!(card.front, "Haus");
     }
 
     #[test]
