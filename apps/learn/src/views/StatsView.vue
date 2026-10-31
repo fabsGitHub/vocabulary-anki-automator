@@ -51,7 +51,7 @@ watch(
         type="button"
         class="btn btn-secondary btn-mini"
         data-test="refresh"
-        :disabled="loading"
+        :aria-disabled="loading || undefined"
         @click="load"
       >
         {{ t('stats.refresh') }}

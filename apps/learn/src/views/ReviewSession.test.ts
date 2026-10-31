@@ -443,6 +443,34 @@ describe('when something fails', () => {
     expect(front()).toBe('serendipity')
   })
 
+  it('moves keyboard focus on to the card a skip or a retry shows', async () => {
+    const platform = reviewPlatform()
+    platform.getCard.mockRejectedValueOnce('card 1 not found')
+    await mountReview(platform)
+    const press = async (selector: string) => {
+      ;(find(selector).element as HTMLElement).focus()
+      await click(selector)
+    }
+    await press('[data-test="skip"]')
+    expect(front()).toBe('serendipity')
+    expect(document.activeElement).toBe(find('[data-test="reveal"]').element)
+
+    platform.getCard.mockRejectedValueOnce('card 2 not found')
+    platform.getDailyQueue.mockResolvedValueOnce([QUEUE[1]])
+    await wrapper!.setProps({ round: 1 })
+    await flushPromises()
+    await press('[data-test="retry"]')
+    expect(front()).toBe('serendipity')
+    expect(document.activeElement).toBe(find('[data-test="reveal"]').element)
+
+    platform.getDailyQueue.mockRejectedValueOnce('database is locked')
+    await wrapper!.setProps({ round: 2 })
+    await flushPromises()
+    await press('[data-test="retry"]')
+    expect(front()).toBe('学习')
+    expect(document.activeElement).toBe(find('[data-test="reveal"]').element)
+  })
+
   it('asks for the streak when no rating reported one', async () => {
     const platform = reviewPlatform()
     platform.getDailyQueue.mockResolvedValue([QUEUE[0]])

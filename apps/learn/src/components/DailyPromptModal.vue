@@ -6,7 +6,9 @@
  * (also Esc) emits a dismissal, which the core records as reviews only for
  * today (docs/architecture.md § 7.1); the dialog says so, so closing it is
  * never a silent choice. Focus stays inside while it is open and returns to
- * where it was when it closes.
+ * where it was when it closes. While an answer is saved both buttons are
+ * `aria-disabled` rather than disabled, so a failed save leaves focus (and
+ * with it Esc) in the dialog instead of on the inert page behind it.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -155,7 +157,7 @@ onBeforeUnmount(() => returnFocus?.focus())
             type="button"
             class="btn btn-secondary"
             data-test="prompt-dismiss"
-            :disabled="busy"
+            :aria-disabled="busy || undefined"
             @click="dismiss"
           >
             {{ t('prompt.notToday') }}
@@ -164,7 +166,8 @@ onBeforeUnmount(() => returnFocus?.focus())
             type="submit"
             class="btn btn-primary"
             data-test="prompt-start"
-            :disabled="busy || !valid"
+            :disabled="!valid"
+            :aria-disabled="busy || undefined"
           >
             {{ busy ? t('prompt.saving') : t('prompt.start') }}
           </button>

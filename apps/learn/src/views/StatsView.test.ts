@@ -2,7 +2,8 @@ import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { setLocale } from '../i18n'
-import { fakePlatform, mountWith, type FakePlatform } from '../test/fakePlatform'
+import type { StatsSummary } from '../platform/types'
+import { deferred, fakePlatform, mountWith, type FakePlatform } from '../test/fakePlatform'
 import * as fx from '../test/fixtures'
 import StatsView from './StatsView.vue'
 
@@ -55,6 +56,26 @@ describe('stats', () => {
     await mountStats(platform)
     expect(value('today')).toBe('Die heutige Sitzung ist abgeschlossen.')
     expect(value('xp-total')).toBe('1.250')
+  })
+
+  it('keeps the refresh button focused, and loads once, while it refreshes', async () => {
+    const platform = fakePlatform()
+    wrapper = mountWith(StatsView, { platform }, { attachTo: document.body })
+    await flushPromises()
+    const pending = deferred<StatsSummary>()
+    platform.getStats.mockReturnValueOnce(pending.promise)
+    const refresh = wrapper.find('[data-test="refresh"]')
+    ;(refresh.element as HTMLElement).focus()
+    await refresh.trigger('click')
+    expect(refresh.attributes('aria-disabled')).toBe('true')
+    expect(refresh.attributes('disabled')).toBeUndefined()
+    await refresh.trigger('click')
+    expect(platform.getStats).toHaveBeenCalledTimes(2)
+    pending.resolve(fx.stats({ xp_total: 7 }))
+    await flushPromises()
+    expect(value('xp-total')).toBe('7')
+    expect(refresh.attributes('aria-disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(refresh.element)
   })
 
   it('refreshes on request and reports a failure', async () => {

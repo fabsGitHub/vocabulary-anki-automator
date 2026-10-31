@@ -16,9 +16,9 @@
  * keys) the card is worked with Tab and Enter, and focus follows the card
  * instead of dropping to the page as its buttons come and go: from "Show
  * answer" to the group of rating buttons (the group itself, so a second
- * Space never rates by accident), and from a rating to the next card's
- * "Show answer", or to "Check for more cards" at the end. The rating buttons
- * stay focusable while a rating is saved (`aria-disabled`).
+ * Space never rates by accident), and from a rating (or a skip, or a retry)
+ * to the next card's "Show answer", or to "Check for more cards" at the end.
+ * The rating buttons stay focusable while a rating is saved (`aria-disabled`).
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -145,14 +145,28 @@ function rate(rating: Rating): void {
   void session.rate(rating)
 }
 
-// The rated card's buttons are gone once the next card (or the summary) is
-// shown; focus goes on to it unless the learner moved it elsewhere meanwhile.
+function skip(): void {
+  if (focusIn(pane.value)) focusFollows = true
+  void session.skip()
+}
+
+function retry(): void {
+  if (focusIn(pane.value)) focusFollows = true
+  void session.retry()
+}
+
+// The buttons that were used (a rating, skip, retry) are gone once the next
+// card or the summary is shown; focus goes on to it, unless the learner
+// moved it elsewhere meanwhile.
 watch([current, phase], ([shown, now]) => {
-  if (!focusFollows || (shown === null && now === 'card')) return
+  if (!focusFollows || now === 'loading' || (shown === null && now === 'card')) return
   focusFollows = false
   const focused = document.activeElement
   if (focused !== null && focused !== document.body && !focusIn(pane.value)) return
-  void nextTick(() => (now === 'complete' ? moreButton.value : revealButton.value)?.focus())
+  void nextTick(() => {
+    if (now === 'complete') moreButton.value?.focus()
+    else if (now === 'card') revealButton.value?.focus()
+  })
 })
 
 useShortcuts((key) => {
@@ -206,7 +220,7 @@ onMounted(() => void session.start())
 
     <div v-else-if="phase === 'error'" class="onboarding-notice warning" data-test="review-error">
       <p role="alert">{{ t('review.loadFailed', { error: error?.message ?? '' }) }}</p>
-      <button type="button" class="btn btn-primary" data-test="retry" @click="session.retry()">
+      <button type="button" class="btn btn-primary" data-test="retry" @click="retry">
         {{ t('review.retry') }}
       </button>
     </div>
@@ -337,16 +351,11 @@ onMounted(() => void session.start())
             type="button"
             class="btn btn-secondary btn-mini"
             data-test="retry"
-            @click="session.retry()"
+            @click="retry"
           >
             {{ t('review.retry') }}
           </button>
-          <button
-            type="button"
-            class="btn btn-secondary btn-mini"
-            data-test="skip"
-            @click="session.skip()"
-          >
+          <button type="button" class="btn btn-secondary btn-mini" data-test="skip" @click="skip">
             {{ t('review.skip') }}
           </button>
         </span>

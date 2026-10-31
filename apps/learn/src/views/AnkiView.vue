@@ -9,7 +9,9 @@
  * saved back exactly as it was loaded. Export takes its target from the
  * *saved* settings (§ 10), so it waits until the form is saved; import reads
  * the deck typed next to its button. Both need AnkiConnect, which only the
- * desktop app has (`capabilities.anki`).
+ * desktop app has (`capabilities.anki`). While a transfer runs, both buttons
+ * are `aria-disabled` rather than disabled: a transfer takes a while, and a
+ * disabled button would drop the keyboard focus to the top of the page.
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -254,7 +256,8 @@ onMounted(() => void load())
               type="button"
               class="btn btn-primary"
               data-test="export"
-              :disabled="busy || dirty"
+              :disabled="dirty"
+              :aria-disabled="busy || undefined"
               :aria-describedby="dirty ? 'anki-save-first' : undefined"
               @click="runExport"
             >
@@ -286,7 +289,8 @@ onMounted(() => void load())
               type="submit"
               class="btn btn-secondary"
               data-test="import"
-              :disabled="busy || !importDeck.trim()"
+              :disabled="!importDeck.trim()"
+              :aria-disabled="busy || undefined"
             >
               {{ importing ? t('anki.importing') : t('anki.import') }}
             </button>

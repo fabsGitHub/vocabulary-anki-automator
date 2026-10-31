@@ -51,11 +51,34 @@ describe('the daily prompt dialog', () => {
 
   it('locks both answers while one is being saved', async () => {
     mountPrompt({ busy: true })
-    expect(find('[data-test="prompt-start"]').text()).toBe('Saving…')
-    expect(find('[data-test="prompt-start"]').attributes('disabled')).toBeDefined()
-    expect(find('[data-test="prompt-dismiss"]').attributes('disabled')).toBeDefined()
+    const start = find('[data-test="prompt-start"]')
+    const dismiss = find('[data-test="prompt-dismiss"]')
+    expect(start.text()).toBe('Saving…')
+    expect(start.attributes('aria-disabled')).toBe('true')
+    expect(dismiss.attributes('aria-disabled')).toBe('true')
+    await start.trigger('click')
+    await find('form').trigger('submit')
+    await dismiss.trigger('click')
     await find('[data-test="prompt-count"]').trigger('keydown', { key: 'Escape' })
+    expect(wrapper!.emitted('start')).toBeUndefined()
     expect(wrapper!.emitted('dismiss')).toBeUndefined()
+  })
+
+  it('keeps focus, and Esc, in the dialog through a save that fails', async () => {
+    mountPrompt({})
+    const start = find('[data-test="prompt-start"]')
+    ;(start.element as HTMLElement).focus()
+    await start.trigger('click')
+    expect(wrapper!.emitted('start')).toEqual([[5]])
+
+    await wrapper!.setProps({ busy: true })
+    // Not disabled, so the browser does not move focus out to the inert page.
+    expect(start.attributes('disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(start.element)
+    await wrapper!.setProps({ busy: false, error: 'database is locked' })
+    expect(document.activeElement).toBe(start.element)
+    await start.trigger('keydown', { key: 'Escape' })
+    expect(wrapper!.emitted('dismiss')).toHaveLength(1)
   })
 
   it('is fully translated', () => {
