@@ -1,0 +1,5 @@
+# LF everywhere, Windows included: Git for Windows defaults to
+# core.autocrlf=true and would check text files out with CRLF, but the tests
+# and builds read repository files (docs, sources, workflows, license texts)
+# and expect them byte for byte as committed.
+* text=auto eol=lf
