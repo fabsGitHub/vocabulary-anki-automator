@@ -12,7 +12,7 @@ use vocab_core::{
         should_prompt, submit_daily_quota, submit_review, DailyPromptState, ReviewRating,
         SessionProgress, SrsScheduler, LAST_PROMPTED_KEY,
     },
-    store::{DailySessionRow, Store},
+    store::{DailySessionRow, SrsStateRow, Store},
     time::{Clock, FixedClock},
     CaptureOrigin, Card,
 };
@@ -65,8 +65,36 @@ impl Learner {
         format!("UTC{:+}", self.offset.local_minus_utc() / 3600)
     }
 
-    /// A learned card due at a local time.
+    /// A card reviewed before, due again at a local time: one of the day's
+    /// reviews.
     fn add_card_due(&self, local_due: &str) -> i64 {
+        let id = self.add_capture(local_due);
+        let due = self.local(local_due);
+        let state = SrsStateRow {
+            stability: Some(3.0),
+            difficulty: Some(5.0),
+            interval_days: 3,
+            repetitions: 2,
+            fsrs_state: "review".into(),
+            elapsed_days: 3,
+            last_reviewed_at: Some(due - Duration::days(3)),
+            last_rating: Some(3),
+            ..SrsScheduler::default().initial_state(id, due)
+        };
+        self.store.upsert_srs_state(&state).unwrap();
+        id
+    }
+
+    /// A word introduced at a local time and not rated since: due, but its
+    /// first rating will count as a new item, not as a review.
+    fn add_card_waiting(&self, local_introduced: &str) -> i64 {
+        let id = self.add_capture(local_introduced);
+        let state = SrsScheduler::default().initial_state(id, self.local(local_introduced));
+        self.store.upsert_srs_state(&state).unwrap();
+        id
+    }
+
+    fn add_capture(&self, local_due: &str) -> i64 {
         let card = Card::new(
             format!("word due {local_due}"),
             "Bedeutung",
@@ -74,13 +102,9 @@ impl Learner {
             "de",
             self.local("2026-10-01 00:00:00.000"),
         );
-        let id = self
-            .store
+        self.store
             .insert_capture(&card, CaptureOrigin::Capture, false)
-            .unwrap();
-        let state = SrsScheduler::default().initial_state(id, self.local(local_due));
-        self.store.upsert_srs_state(&state).unwrap();
-        id
+            .unwrap()
     }
 
     /// Two cards due on Oct 31 (one this evening) and one on Nov 1.
@@ -471,6 +495,66 @@ fn the_review_target_is_counted_when_the_day_is_set_up() {
             session("2026-10-31", 6, 3, 1, 0),
             "{label}"
         );
+    }
+}
+
+/// A word introduced on an earlier day and not rated since (the app was
+/// closed on its card) is due today, and its first rating counts as a new
+/// item (§ 7.1), never as a review. So it is no review target: rating it
+/// could never meet one, and once it is rated nothing else is due, so the
+/// day would stay open for good.
+#[test]
+fn a_word_waiting_for_its_first_rating_is_not_a_review_target() {
+    let scheduler = SrsScheduler::default();
+    let first_rating = |learner: &Learner, card_id: i64| {
+        let outcome = submit_review(
+            &learner.store,
+            &scheduler,
+            card_id,
+            ReviewRating::Easy,
+            &learner.clock,
+        )
+        .unwrap();
+        assert_eq!(outcome.log.state_before, "new", "{}", learner.label());
+        learner.progress(SessionProgress::NewItem)
+    };
+    for hours in OFFSETS {
+        // Reviews only, and the waiting word is all there is to do.
+        let learner = Learner::new(hours);
+        let label = learner.label();
+        let waiting = learner.add_card_waiting("2026-10-30 21:00:00.000");
+        assert_eq!(
+            learner.dismiss(),
+            session("2026-10-31", 0, 0, 0, 0),
+            "{label}"
+        );
+        let done = first_rating(&learner, waiting);
+        assert_eq!(done.completed_at, Some(learner.clock.now()), "{label}");
+
+        // With a review due too, the day completes once both are done.
+        let learner = Learner::new(hours);
+        let waiting = learner.add_card_waiting("2026-10-30 21:00:00.000");
+        let reviewed = learner.add_card_due("2026-10-31 06:00:00.000");
+        assert_eq!(
+            learner.submit(1),
+            session("2026-10-31", 1, 1, 0, 0),
+            "{label}"
+        );
+        assert_eq!(
+            first_rating(&learner, waiting),
+            session("2026-10-31", 1, 1, 0, 1),
+            "{label}"
+        );
+        submit_review(
+            &learner.store,
+            &scheduler,
+            reviewed,
+            ReviewRating::Good,
+            &learner.clock,
+        )
+        .unwrap();
+        let done = learner.progress(SessionProgress::Review);
+        assert_eq!(done.completed_at, Some(learner.clock.now()), "{label}");
     }
 }
 

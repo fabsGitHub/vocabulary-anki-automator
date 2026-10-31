@@ -481,6 +481,8 @@ async function runOp(
       return store.getState(field('key'))
     case 'insert_streak_freeze':
       return store.insertStreakFreeze(field('date'))
+    case 'list_srs_due_before':
+      return (await store.listSrsDueBefore(parseInstantMillis(field('before')))).map(srsStateToJson)
     case 'build_daily_queue':
       return (await buildDailyQueue(store, field('quota'), clock)).map(queueItemToJson)
     case 'introduce_new_item':

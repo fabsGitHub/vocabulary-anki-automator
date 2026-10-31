@@ -230,10 +230,15 @@ mod tests {
     #[test]
     fn other_scripts_are_cut_at_whitespace_without_surrounding_punctuation() {
         let dict = dictionary(&["学习"]);
-        let cases: [(&str, &[&str]); 5] = [
+        let cases: [(&str, &[&str]); 6] = [
             (
                 "It was pure serendipity.",
                 &["It", "was", "pure", "serendipity"],
+            ),
+            // Digits are word characters, superscripts included.
+            (
+                "Die Wohnung hat 80 m².",
+                &["Die", "Wohnung", "hat", "80", "m²"],
             ),
             (
                 "We use the expression 'serendipity' in everyday context.",
@@ -282,7 +287,7 @@ mod tests {
 
     #[test]
     fn find_word_prefers_an_occurrence_that_stands_alone() {
-        let cases: [(&str, &str, Option<std::ops::Range<usize>>); 7] = [
+        let cases: [(&str, &str, Option<std::ops::Range<usize>>); 8] = [
             // The word itself, not the letters inside "concatenate".
             ("concatenate the cat", "cat", Some(16..19)),
             ("Concatenate the CAT!", "cat", Some(16..19)),
@@ -292,8 +297,10 @@ mod tests {
             ("concatenate", "cat", Some(3..6)),
             // Punctuation and the ends of the text are boundaries.
             ("„Haus“ und Haustür", "haus", Some(3..7)),
-            // Hanzi have no boundaries: always the first occurrence.
+            // Hanzi have no boundaries: always the first occurrence, even
+            // when a later one stands between punctuation.
             ("学习学", "学", Some(0..3)),
+            ("学习，学！", "学", Some(0..3)),
         ];
         for (text, word, expected) in cases {
             assert_eq!(

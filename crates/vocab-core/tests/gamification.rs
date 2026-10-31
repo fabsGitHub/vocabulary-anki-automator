@@ -378,6 +378,23 @@ mod sessions {
         assert_eq!(store.xp_total().unwrap(), 0);
     }
 
+    /// A frozen day is covered, not completed: with the clock set back onto
+    /// a day a freeze was spent on, today counts for the streak but is still
+    /// open, and asking for the bonus pays nothing.
+    #[test]
+    fn a_frozen_today_is_not_a_completed_today() {
+        let store = Store::open_in_memory().unwrap();
+        complete(&store, day("2026-11-09"));
+        store.insert_streak_freeze(day("2026-11-10")).unwrap();
+        let clock = tokyo_clock("2026-11-10", 12, 0);
+
+        let summary = on_session_completed(&store, &clock).unwrap();
+        assert_eq!((summary.current, summary.completed_today), (2, false));
+        assert_eq!(store.xp_total().unwrap(), 0);
+        let stats = stats_summary(&store, &clock).unwrap();
+        assert!(!stats.streak.completed_today);
+    }
+
     #[test]
     fn other_xp_on_the_same_day_does_not_count_as_the_bonus() {
         let store = Store::open_in_memory().unwrap();

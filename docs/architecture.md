@@ -36,6 +36,19 @@ scripts/                   bootstrap, run-all-checks, git hooks
 - **Time:** anything that depends on "now" or the local date takes
   `&dyn vocab_core::time::Clock`. Never call `Utc::now()`/`Local::now()` in
   scheduling, session, streak or prompt logic.
+- **Local dates and DST:** the UTC offset is a `FixedOffset` sampled when the
+  clock is read (`Local::now().offset()`; the web build's
+  `Date.getTimezoneOffset()`), and each command reads the clock once (both
+  apps snapshot it), so its instant, local date and offset always agree:
+  `session_date`, XP dates, streak days and the prompt date are the local
+  date of that instant, DST switches included. Only "the end of today"
+  (`local_day_bounds(today, offset)`: local midnight at that offset plus 24 h)
+  is approximate on the day of a DST switch, and only while the switch is
+  still ahead: before a spring-forward switch the day ends an hour late
+  (cards due in the next day's first hour count as due today), before a
+  fall-back switch an hour early (cards due in the day's last hour wait for
+  the switch). The due queue, `reviews_due_count` and `due_today` are
+  computed from that bound; nothing stores it.
 - **Timestamps** are stored and serialized as RFC 3339 UTC with milliseconds
   (`to_rfc3339_opts(SecondsFormat::Millis, true)`, e.g.
   `2026-10-31T12:00:00.000Z`), which sorts lexicographically. Local calendar
@@ -482,8 +495,10 @@ pub fn record_session_progress(store: &Store, kind: SessionProgress, clock: &dyn
   a word twice (double click, retry) therefore can never count twice.
 - Daily prompt: `needs_prompt` is true when `last_prompted_date != today` (or
   unset). Submitting writes/updates today's `daily_sessions` row
-  (`reviews_due_count` = queue reviews at that moment) and sets
-  `last_prompted_date = today`. **Dismiss without answering = quota 0
+  (`reviews_due_count` = queue reviews at that moment whose `fsrs_state` is not
+  `new`: a due card that was never rated — a word introduced on an earlier day
+  and left unrated — waits for its first review, which counts as a new item, so
+  it is no review target) and sets `last_prompted_date = today`. **Dismiss without answering = quota 0
   (reviews only) for today**; `reopen_daily_prompt` clears the flag so the
   menu action can show the prompt again, and a later submit updates
   `requested_new_count` while keeping the progress counters.
@@ -567,16 +582,21 @@ pub fn lessons_from_store(store: &Store, cards_per_lesson: usize) -> StoreResult
 
 A streak counts consecutive local dates ending today (or yesterday, if today
 is not completed yet) that have a completed daily session or a freeze. XP and
-streaks are tied to review sessions, not to raw captures. Freezes only bridge
-gaps between completed days (they never extend a streak on their own) and a
-frozen day counts toward the streak length. One freeze is earned each time the
-current streak reaches a multiple of `STREAK_FREEZE_INTERVAL` (7), capped at
-`MAX_STREAK_FREEZES`, inventory in `app_state` `STREAK_FREEZES_KEY`. XP reasons
+streaks are tied to review sessions, not to raw captures. Freezes are spent
+lazily, whenever the app asks (`apply_streak_freezes`, which `stats_summary` and
+`on_session_completed` run first): the missed days after the last completed or
+frozen day, up to yesterday, are frozen — all of them or none, when the
+inventory does not cover the gap; never today, and never before the first
+completed day. A frozen day counts toward the streak length but is no completed
+day (`completed_today` stays false and it earns no bonus). One freeze is earned
+each time the current streak reaches a multiple of `STREAK_FREEZE_INTERVAL` (7),
+capped at `MAX_STREAK_FREEZES`, inventory in `app_state` `STREAK_FREEZES_KEY`. XP reasons
 are the `gamification::reason::*` constants. `Lesson.title` is an English
 fallback; UIs build a localized title from the languages and the lesson's index.
 Lessons use only
 `origin = capture` rows whose `example_source` contains the word (so the cloze
-has something to blank), grouped by language pair in capture order.
+has something to blank) and whose `example_target` is not blank, grouped by
+language pair in capture order.
 
 ## 8. Automator (`src-tauri`, package `vocab-automator`)
 
