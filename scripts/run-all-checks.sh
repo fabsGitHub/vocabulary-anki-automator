@@ -26,7 +26,10 @@ cargo test --workspace --test '*'
 echo "==> Rust doc tests"
 cargo test --workspace --doc
 
-echo "==> Frontend unit tests (Vitest)"
+echo "==> Rust/TypeScript parity vectors (Learn web build)"
+cargo run -q -p vocab-core --example golden_vectors -- --check
+
+echo "==> Frontend unit tests (Vitest: Automator, then Learn incl. the web core)"
 npm run test:unit
 
 echo "==> all checks passed"

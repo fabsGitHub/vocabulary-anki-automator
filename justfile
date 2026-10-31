@@ -39,7 +39,15 @@ lint:
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
     npx vue-tsc --noEmit
+    npx vue-tsc --noEmit -p apps/learn
     npm run lint
+
+# Learn: desktop dev (Tauri) and the standalone web build.
+learn-dev:
+    npm run learn:tauri dev
+
+learn-web:
+    npm run learn:dev
 
 # Chains the fast test tiers; the same script CI and the pre-commit hook run.
 check-all:

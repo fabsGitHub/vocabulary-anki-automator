@@ -57,11 +57,15 @@ jobs:
           cargo fmt --all --check
           cargo clippy --workspace --all-targets -- -D warnings
           npx vue-tsc --noEmit
+          npx vue-tsc --noEmit -p apps/learn
           npm run lint
 
       - name: Unit + integration tests
         shell: bash
         run: ./scripts/run-all-checks.sh
 
-      - name: Production frontend build
-        run: npm run build
+      - name: Production frontend builds (Automator, Learn desktop + web)
+        run: |
+          npm run build
+          npm run learn:build
+          npm run learn:build:web

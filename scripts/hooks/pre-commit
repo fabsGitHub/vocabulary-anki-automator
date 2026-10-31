@@ -20,8 +20,9 @@ cargo fmt --all --check
 echo "[pre-commit] cargo clippy --workspace --all-targets -- -D warnings"
 cargo clippy --workspace --all-targets -- -D warnings
 
-echo "[pre-commit] vue-tsc --noEmit"
+echo "[pre-commit] vue-tsc --noEmit (Automator, Learn)"
 npx vue-tsc --noEmit
+npx vue-tsc --noEmit -p apps/learn
 
 echo "[pre-commit] ESLint + Prettier"
 npm run lint
