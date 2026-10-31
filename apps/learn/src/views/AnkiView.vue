@@ -3,22 +3,27 @@
  * Settings and Anki portability (Milestone I, decision 6: the app never
  * locks anyone out of their Anki collection).
  *
- * The form edits the parts of `LearnSettings` a learner chooses: the meaning
- * language of new HSK words, the Anki deck and note type, reverse cards.
- * Everything else in the settings (the AnkiConnect URL, the field mapping) is
- * saved back exactly as it was loaded. Export takes its target from the
- * *saved* settings (§ 10), so it waits until the form is saved; import reads
- * the deck typed next to its button. Both need AnkiConnect, which only the
- * desktop app has (`capabilities.anki`). While a transfer runs, both buttons
- * are `aria-disabled` rather than disabled: a transfer takes a while, and a
- * disabled button would drop the keyboard focus to the top of the page.
+ * The form edits all of `LearnSettings`: the meaning language of new HSK
+ * words, and the Anki deck, note type, field mapping, reverse cards and
+ * AnkiConnect address. The field mapping is what makes export and import
+ * work with the learner's own note type: both read and write exactly the
+ * fields it names. What a save would refuse is shown at the field, and the
+ * form saves the normalized value the backend stores. Export takes its
+ * target from the *saved* settings (§ 10), so it waits until the form is
+ * saved; import reads the deck typed next to its button. Both need
+ * AnkiConnect, which only the desktop app has (`capabilities.anki`). While a
+ * transfer runs, both buttons are `aria-disabled` rather than disabled: a
+ * transfer takes a while, and a disabled button would drop the keyboard
+ * focus to the top of the page.
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import FieldMappingEditor from '../components/FieldMappingEditor.vue'
 import SyncReportView from '../components/SyncReportView.vue'
 import { usePlatform } from '../context'
 import { errorMessage } from '../domain/errors'
+import { isAnkiConnectUrl, mappingProblems, normalizeSettings } from '../domain/fieldMapping'
 import type { AnkiSyncReport, LearnSettings } from '../platform/types'
 
 /** The meaning languages, in the order the select lists them. */
@@ -48,20 +53,31 @@ function copy(settings: LearnSettings): LearnSettings {
   return JSON.parse(JSON.stringify(settings)) as LearnSettings
 }
 
-/** What a save sends: the draft with the names trimmed. */
-const toSave = computed<LearnSettings | null>(() => {
-  if (!draft.value) return null
-  const next = copy(draft.value)
-  next.anki.deck_name = next.anki.deck_name.trim()
-  next.anki.model_name = next.anki.model_name.trim()
-  return next
-})
+/** What a save sends: the draft, normalized as the backend stores it. */
+const toSave = computed<LearnSettings | null>(() =>
+  draft.value ? normalizeSettings(draft.value) : null,
+)
 const dirty = computed(
-  () => saved.value !== null && JSON.stringify(toSave.value) !== JSON.stringify(saved.value),
+  () =>
+    saved.value !== null &&
+    JSON.stringify(toSave.value) !== JSON.stringify(normalizeSettings(saved.value)),
 )
 const deckMissing = computed(() => toSave.value?.anki.deck_name === '')
 const modelMissing = computed(() => toSave.value?.anki.model_name === '')
-const canSave = computed(() => dirty.value && !deckMissing.value && !modelMissing.value)
+const urlInvalid = computed(
+  () => !!toSave.value && !isAnkiConnectUrl(toSave.value.anki.connect_url),
+)
+const mappingInvalid = computed(
+  () => !!toSave.value && mappingProblems(toSave.value.anki.field_mapping).length > 0,
+)
+const canSave = computed(
+  () =>
+    dirty.value &&
+    !deckMissing.value &&
+    !modelMissing.value &&
+    !urlInvalid.value &&
+    !mappingInvalid.value,
+)
 const busy = computed(() => saving.value || exporting.value || importing.value)
 
 async function load(): Promise<void> {
@@ -204,10 +220,30 @@ onMounted(() => void load())
             </p>
           </div>
         </div>
+        <FieldMappingEditor v-model="draft.anki.field_mapping" />
         <label class="checkbox-row">
           <input v-model="draft.anki.create_reverse" type="checkbox" data-test="reverse" />
           {{ t('settings.reverse') }}
         </label>
+        <div class="field-group">
+          <label for="settings-url">{{ t('settings.connectUrl') }}</label>
+          <input
+            id="settings-url"
+            v-model="draft.anki.connect_url"
+            type="text"
+            inputmode="url"
+            spellcheck="false"
+            autocomplete="off"
+            data-test="connect-url"
+            :class="{ 'has-error': urlInvalid }"
+            :aria-invalid="urlInvalid"
+            :aria-describedby="urlInvalid ? 'settings-url-error' : 'settings-url-hint'"
+          />
+          <p v-if="urlInvalid" id="settings-url-error" class="field-error">
+            {{ t('settings.connectUrlInvalid') }}
+          </p>
+          <p v-else id="settings-url-hint" class="input-hint">{{ t('settings.connectUrlHint') }}</p>
+        </div>
 
         <div class="footer-action-bar">
           <div v-if="saveError" class="interactive-toast error" role="alert" data-test="save-error">

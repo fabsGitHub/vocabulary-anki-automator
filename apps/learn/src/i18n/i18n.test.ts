@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DIRECTION_KEYS, KIND_KEYS } from '../domain/exercises'
+import { CARD_FIELD_KEYS } from '../domain/fieldMapping'
 import { INTERVAL_KEYS, RATING_KEYS } from '../domain/intervals'
 import { LANGUAGE_NAME_KEYS } from '../domain/languages'
 import { de } from './de'
@@ -82,6 +83,7 @@ describe('message files', () => {
       'review.hskBand',
       'exercise.xp',
       'settings.ankiTitle',
+      'mapping.sources.pinyin',
       'anki.failure',
     ])
     const copied = KEYS.filter((key) => !same.has(key) && MESSAGES.en[key] === MESSAGES.de[key])
@@ -107,6 +109,10 @@ describe('keys the UI asks for', () => {
       ...Object.values(INTERVAL_KEYS),
       ...Object.values(RATING_KEYS),
       ...Object.values(LANGUAGE_NAME_KEYS),
+      ...Object.values(CARD_FIELD_KEYS),
+      'mapping.nameMissing',
+      'mapping.wordMissing',
+      'mapping.meaningMissing',
       'tabs.review',
       'tabs.practice',
       'tabs.lessons',

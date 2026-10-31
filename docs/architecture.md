@@ -60,8 +60,8 @@ scripts/                   bootstrap, run-all-checks, git hooks
 - **HTTP clients** are built with a 10 s timeout and a descriptive User-Agent.
 - **Formatting/lint gates:** `cargo fmt --all --check`,
   `cargo clippy --workspace --all-targets -- -D warnings`, `npx vue-tsc --noEmit`,
-  `npx vue-tsc --noEmit -p apps/learn`, `npx eslint .`, `npx prettier --check .`. New code
-  must pass all of them.
+  `npx vue-tsc --noEmit -p apps/learn`, `npx eslint .`, `npx prettier --check .`
+  (`just lint` runs them all). New code must pass all of them.
 - **Sandboxed dev environments:** if `~/.cargo` is not writable, set `CARGO_HOME` to an
   absolute path such as `/tmp/claude-501/cargo-home` (seed it by copying
   `~/.cargo/registry`; `$TMPDIR` resolves differently inside and outside the sandbox),
@@ -807,6 +807,8 @@ pub struct FieldMapping { pub fields: Vec<FieldBinding>, pub audio_field: Option
 impl FieldMapping {
     pub fn apple_style_default() -> Self; // Front->Front, Back->Back, Example->"Context Sentence", Notes->Notes, audio "Front Audio"
     pub fn chinese_default() -> Self;     // Front->Hanzi, Pinyin->Pinyin, Back->Meaning, Example->Sentence, audio "Audio"
+    pub fn audio_field(&self) -> Option<&str>;                    // None when unset or blank
+    pub fn missing_fields(&self, model_fields: &[String]) -> Vec<String>; // mapped fields the note type lacks
 }
 impl Default for FieldMapping { /* apple_style_default */ }
 pub enum Direction { Forward, Reverse }
@@ -920,7 +922,14 @@ is "new")`, floored at 0, and 0 while today's session does not exist. Introducin
 - `LearnSettings` defaults: `meaning_lang` `en`; Anki `http://127.0.0.1:8765`, deck
   `Chinese::HSK`, note type `Chinese (HSK)`, `FieldMapping::chinese_default()`,
   `create_reverse` false. Loading is lenient (bad stored values fall back to defaults);
-  saving validates (http(s) URL with a host, non-blank deck/model, named bindings).
+  saving normalizes (trimmed names and URL, a blank audio field is none) and validates
+  (http(s) URL with a host, non-blank deck/model, named bindings, and a binding for
+  the front and one for the back), refusing with one sentence per problem.
+- Export writes, and import reads, exactly the fields `field_mapping` names (§ 9), so
+  the settings tab edits every part of `LearnSettings`, the mapping and the
+  AnkiConnect address included: a deck on any other note type transfers once the
+  mapping uses its field names. The form mirrors normalize/validate
+  (`apps/learn/src/domain/fieldMapping.ts`) to say up front what a save would refuse.
 
 `apps/learn/src/platform/types.ts` is the TypeScript side of this table and holds
 every argument and result shape (`ReviewResult`, `LearnedCard`, `LearnSettings`,

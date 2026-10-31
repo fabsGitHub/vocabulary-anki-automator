@@ -30,23 +30,28 @@ a signed, auto-installed "update" to every user's machine.
 
 ## Updater keypair generation (operator step)
 
-Run on the operator's actual macOS/Linux machine (not in a sandbox/CI), from the
-repo root (the CLI is a local devDependency, hence `npx`):
+Run by the operator, on their own machine — never by an agent, in a sandbox
+or in CI, since whoever runs it sees the private key — from the repo root
+(the CLI is a local devDependency, hence `npx`):
 
 ```bash
 npx tauri signer generate -w ~/.tauri/vocab-automator.key
 ```
 
-This writes the private key to `~/.tauri/vocab-automator.key` and the public key
-to `~/.tauri/vocab-automator.key.pub`: outside the repository, so no `git add`
-can pick either up. The command is interactive (password prompt) and cannot run
-in a headless environment.
+This writes the private key to `~/.tauri/vocab-automator.key` and the public
+key to `~/.tauri/vocab-automator.key.pub`, both **outside the repository**;
+never point `-w` into the working tree, where the key could be committed. It
+asks for the key's password; `-p PASSWORD` would skip the prompt but leave the
+password in the shell history.
 
 After generation:
 
 1. Replace `KEYS_PLACEHOLDER_REPLACE_AFTER_GENERATION` in `src-tauri/tauri.conf.json`
    → `plugins.updater.pubkey` with the contents of the `.pub` file.
-2. Set `TAURI_SIGNING_PRIVATE_KEY` as a GitHub Actions secret — and nowhere else.
+2. Set the contents of the private key file as the `TAURI_SIGNING_PRIVATE_KEY`
+   GitHub Actions secret — and nowhere else online — then keep the file only
+   in an encrypted offline backup: GitHub never shows a secret again, and
+   without the key no update can ever reach the apps already installed.
 3. Store the password securely (password manager, not in this repo).
 
 ## Release gate
@@ -70,7 +75,9 @@ in `.git/config`.
 
 `tauri.conf.json` names no signing identity: the CLI reads `APPLE_SIGNING_IDENTITY`
 (or the identity of the imported `APPLE_CERTIFICATE`) from the environment, and a
-local bundle without them is not codesigned. A plain local `npm run tauri build`
+local bundle without them is not codesigned (Tauri expands no templates or variables
+in that file, so a value there would be taken literally; `src-tauri/tests/bundle_config.rs`
+guards this). A plain local `npm run tauri build`
 still stops after bundling, at the updater signature (`bundle.createUpdaterArtifacts`),
 because only CI has `TAURI_SIGNING_PRIVATE_KEY`: build locally with
 `npm run tauri build -- --no-sign` (every bundle, nothing signed) or `-- --no-bundle`.
