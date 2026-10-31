@@ -553,6 +553,28 @@ async fn example_not_found_uses_the_language_fallback() {
     assert_eq!(zh.card.hsk_level(), None);
 }
 
+/// § 5: an empty `Ok` example counts as `NotFound`, a blank one too, so the
+/// card gets the fallback sentence rather than no sentence, and no warning.
+#[tokio::test]
+async fn a_blank_example_counts_as_not_found() {
+    let fakes = Fakes::default();
+    let pipeline = fakes.english_pipeline(ProviderSet {
+        example: fakes.example(|_| Ok(" \n ".into())),
+        ..fakes.full_set()
+    });
+
+    let outcome = pipeline
+        .run(request("serendipity", "en", "de"))
+        .await
+        .unwrap();
+
+    assert_eq!(outcome.warnings, vec![]);
+    assert_eq!(
+        outcome.card.example_source,
+        "We use the expression 'serendipity' in everyday context."
+    );
+}
+
 #[tokio::test]
 async fn other_example_errors_warn_and_fall_back() {
     let cases = [
@@ -673,6 +695,25 @@ async fn tts_failure_is_a_warning_and_leaves_no_audio() {
     assert_eq!(outcome.card.audio_front, None);
     assert_eq!(outcome.card.back, "<serendipity>");
     assert_eq!(outcome.card.script_metadata, annotation("").unwrap());
+}
+
+/// § 5: empty audio is no audio (`None`, not an empty recording that the
+/// listening exercises would then try to play), and no warning.
+#[tokio::test]
+async fn empty_audio_is_no_audio() {
+    let fakes = Fakes::default();
+    let pipeline = fakes.english_pipeline(ProviderSet {
+        tts: fakes.tts(|_| Ok(Vec::new())),
+        ..fakes.full_set()
+    });
+
+    let outcome = pipeline
+        .run(request("serendipity", "en", "de"))
+        .await
+        .unwrap();
+
+    assert_eq!(outcome.warnings, vec![]);
+    assert_eq!(outcome.card.audio_front, None);
 }
 
 #[tokio::test]

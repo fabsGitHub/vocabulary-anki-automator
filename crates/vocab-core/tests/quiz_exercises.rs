@@ -417,6 +417,57 @@ mod multiple_choice {
         }
     }
 
+    /// Asked for the word, every option is a Chinese-source front: the other
+    /// card of the pair comes first, then the other card in Chinese script,
+    /// and only the last slot goes to a front without script metadata.
+    #[test]
+    fn distractors_prefer_the_pair_then_the_script_then_the_rest() {
+        let deck = Deck::new();
+        let target = deck.learn(zh("学习", "lernen", "xué xí"));
+        let pair = deck.learn(zh("中文", "Chinesisch", "zhōng wén"));
+        let mut friend = zh("朋友", "friend", "péng you");
+        friend.target_lang = "en".into();
+        let script = deck.learn(friend);
+        let rest: HashSet<i64> = ["OK", "App"]
+            .into_iter()
+            .map(|front| {
+                deck.learn(Card::new(
+                    front,
+                    front.to_lowercase(),
+                    "zh-CN",
+                    "en",
+                    at("2026-10-01T08:00:00.000Z"),
+                ))
+            })
+            .collect();
+        let pool = deck.pool();
+        let mut asked = 0;
+        for seed in seeds() {
+            let exercise = choice(&pool, target, seed);
+            if exercise.direction != ChoiceDirection::BackToFront {
+                continue;
+            }
+            asked += 1;
+            let ids: HashSet<i64> = exercise
+                .options
+                .iter()
+                .map(|option| option.card_id)
+                .collect();
+            assert!(
+                ids.contains(&pair) && ids.contains(&script),
+                "seed {seed}: {:?}",
+                exercise.options
+            );
+            assert_eq!(
+                ids.intersection(&rest).count(),
+                1,
+                "seed {seed}: {:?}",
+                exercise.options
+            );
+        }
+        assert!(asked > 50, "{asked}");
+    }
+
     #[test]
     fn no_option_is_a_second_correct_answer() {
         let deck = Deck::new();
