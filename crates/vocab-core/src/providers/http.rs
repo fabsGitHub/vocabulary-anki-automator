@@ -209,7 +209,7 @@ pub(crate) fn snippet(body: &str) -> String {
 /// `err` followed by its chain of causes. reqwest's own `Display` stops at
 /// "error sending request", which hides whether DNS, the connection or the
 /// timeout failed.
-fn describe(err: &(dyn StdError + 'static)) -> String {
+pub(crate) fn describe(err: &(dyn StdError + 'static)) -> String {
     let mut message = err.to_string();
     let mut source = err.source();
     while let Some(cause) = source {

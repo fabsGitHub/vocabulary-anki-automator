@@ -51,22 +51,23 @@ impl ProviderError {
     }
 
     /// Maps a `reqwest` transport error to `Network` (or `Http` when the
-    /// error carries a status code).
-    pub fn from_reqwest(provider: &str, err: &reqwest::Error) -> Self {
+    /// error carries a status code, `Malformed` for a body that failed to
+    /// decode). The request URL is dropped first: it carries the captured text
+    /// and MyMemory's contact e-mail, and these messages are logged and shown
+    /// in the UI. The cause chain is kept, because reqwest's own message stops
+    /// at "error sending request".
+    pub fn from_reqwest(provider: &str, err: reqwest::Error) -> Self {
+        let err = err.without_url();
+        let message = crate::providers::http::describe(&err);
+        let provider = provider.to_string();
         match err.status() {
             Some(status) => ProviderError::Http {
-                provider: provider.to_string(),
+                provider,
                 status: status.as_u16(),
-                message: err.to_string(),
+                message,
             },
-            None if err.is_decode() => ProviderError::Malformed {
-                provider: provider.to_string(),
-                message: err.to_string(),
-            },
-            None => ProviderError::Network {
-                provider: provider.to_string(),
-                message: err.to_string(),
-            },
+            None if err.is_decode() => ProviderError::Malformed { provider, message },
+            None => ProviderError::Network { provider, message },
         }
     }
 }
@@ -91,5 +92,35 @@ mod tests {
         );
         assert!(err.is_quota_exceeded());
         assert_eq!(err.provider(), "mymemory");
+    }
+
+    /// The URL of a failed request holds the user's captured text and their
+    /// contact e-mail; neither may leak into the error shown in the UI.
+    #[tokio::test]
+    async fn transport_errors_never_carry_the_request_url() {
+        // Port 1 on loopback refuses the connection (or a sandbox forbids
+        // it); either way the request fails fast and offline, and reqwest's
+        // error names the full URL.
+        let err = reqwest::Client::new()
+            .get("http://127.0.0.1:1/get?q=private+capture&de=me%40example.com")
+            .send()
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("private"),
+            "precondition: reqwest includes the URL"
+        );
+
+        let mapped = ProviderError::from_reqwest("mymemory", err);
+        let ProviderError::Network { provider, message } = &mapped else {
+            panic!("expected a network error, got {mapped:?}");
+        };
+        assert_eq!(provider, "mymemory");
+        assert!(!message.contains("private"), "{message}");
+        assert!(!message.contains("example.com"), "{message}");
+        assert!(
+            message.len() > "error sending request".len(),
+            "cause chain kept: {message}"
+        );
     }
 }

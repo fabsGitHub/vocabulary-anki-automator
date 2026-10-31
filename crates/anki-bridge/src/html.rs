@@ -21,15 +21,22 @@ const MAX_ENTITY_LEN: usize = 10;
 
 /// Card text as field HTML: `&`, `<` and `>` escaped, the minimum that keeps
 /// text from being read as markup (quotes only matter inside attributes).
-/// Line breaks stay `\n`, the legacy combined-example format (§ 9).
-/// [`to_plain_text`] decodes the escapes again.
+/// Line breaks (`\n`, `\r\n`, `\r`) become `<br>`: a raw newline in an HTML
+/// field renders as a space, which put the combined example's two sentences
+/// on one line. [`to_plain_text`] turns both back into plain text.
 pub(crate) fn escape_text(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
-    for c in text.chars() {
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
         match c {
             '&' => out.push_str("&amp;"),
             '<' => out.push_str("&lt;"),
             '>' => out.push_str("&gt;"),
+            '\r' => {
+                chars.next_if_eq(&'\n');
+                out.push_str("<br>");
+            }
+            '\n' => out.push_str("<br>"),
             c => out.push(c),
         }
     }
@@ -221,7 +228,7 @@ mod tests {
                 "&lt;script&gt;alert(1)&lt;/script&gt;",
             ),
             ("don't \"quote\"", "don't \"quote\""),
-            ("first\nsecond", "first\nsecond"),
+            ("first\nsecond", "first<br>second"),
             ("我们一起学习中文。", "我们一起学习中文。"),
             ("", ""),
         ];

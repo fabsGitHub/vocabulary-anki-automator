@@ -10,3 +10,4 @@ apps/**/src-tauri/gen
 crates/vocab-core/data
 .claude/worktrees
 package-lock.json
+crates/**/tests/fixtures

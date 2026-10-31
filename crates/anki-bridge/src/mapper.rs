@@ -15,6 +15,7 @@
 use std::collections::BTreeMap;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use vocab_core::{Card, ScriptMetadata, ScriptVariant};
@@ -222,7 +223,7 @@ pub struct AudioAttachment {
 /// Maps `card` onto `mapping`'s note type for `direction`.
 ///
 /// Anki fields hold HTML and card values are plain text, so every value has
-/// `&`, `<` and `>` escaped; line breaks stay `\n`.
+/// `&`, `<` and `>` escaped and its line breaks written as `<br>`.
 ///
 /// `audio` is the MP3 for this note's front (normally `card.audio_front`
 /// forward and TTS of `card.back` reversed). It is attached only when it is
@@ -339,16 +340,12 @@ pub fn add_note_params(note: &NoteSpec) -> Value {
 /// the note's tags, no audio, and the given languages (canonical codes) and
 /// timestamp.
 ///
-/// `captured_at` is a `chrono::DateTime<Utc>`, as in docs/architecture.md
-/// § 9. It is accepted as any `Serialize` value only because chrono is not
-/// yet a normal dependency of this crate (reported as a contract issue); a
-/// value that does not serialize to an RFC 3339 timestamp yields `None`.
 pub fn card_from_note(
     note: &NoteInfo,
     mapping: &FieldMapping,
     source_lang: &str,
     target_lang: &str,
-    captured_at: impl Serialize,
+    captured_at: DateTime<Utc>,
 ) -> Option<Card> {
     let read = |source: CardField| -> String {
         mapping
@@ -366,7 +363,7 @@ pub fn card_from_note(
     if front.is_empty() || back.is_empty() {
         return None;
     }
-    let mut card = new_card(front, back, source_lang, target_lang, captured_at)?;
+    let mut card = Card::new(front, back, source_lang, target_lang, captured_at);
     (card.example_source, card.example_target) = example_halves(
         read_bound(CardField::ExampleSource),
         read_bound(CardField::ExampleTarget),
@@ -376,27 +373,6 @@ pub fn card_from_note(
     card.tags = note.tags.clone();
     card.script_metadata = chinese_metadata(read(CardField::Pinyin), &read(CardField::HskLevel));
     Some(card)
-}
-
-/// Builds a card without naming `chrono::DateTime`, which this crate can only
-/// do once chrono is a normal dependency: the timestamp travels through the
-/// card's own serde representation (lossless RFC 3339).
-fn new_card(
-    front: String,
-    back: String,
-    source_lang: &str,
-    target_lang: &str,
-    captured_at: impl Serialize,
-) -> Option<Card> {
-    let captured_at = serde_json::to_value(captured_at).ok()?;
-    serde_json::from_value(json!({
-        "front": front,
-        "back": back,
-        "source_lang": source_lang,
-        "target_lang": target_lang,
-        "captured_at": captured_at,
-    }))
-    .ok()
 }
 
 /// (example_source, example_target) from the explicitly bound halves (`None`
@@ -577,7 +553,7 @@ mod tests {
                     ("Back", "glücklicher Zufall"),
                     (
                         "Context Sentence",
-                        "It was pure serendipity.\nEs war reiner Zufall.",
+                        "It was pure serendipity.<br>Es war reiner Zufall.",
                     ),
                     ("Notes", "Rare word. More common synonym: luck"),
                 ],
@@ -594,7 +570,7 @@ mod tests {
                     ("Back", "serendipity"),
                     (
                         "Context Sentence",
-                        "Es war reiner Zufall.\nIt was pure serendipity.",
+                        "Es war reiner Zufall.<br>It was pure serendipity.",
                     ),
                     ("Notes", "Rare word. More common synonym: luck"),
                 ],
@@ -611,7 +587,7 @@ mod tests {
                     ("Back", "glücklicher Zufall"),
                     (
                         "Context Sentence",
-                        "It was pure serendipity.\nEs war reiner Zufall.",
+                        "It was pure serendipity.<br>Es war reiner Zufall.",
                     ),
                     ("Notes", "Rare word. More common synonym: luck"),
                 ],
@@ -628,7 +604,7 @@ mod tests {
                     ("Back", "glücklicher Zufall"),
                     (
                         "Context Sentence",
-                        "It was pure serendipity.\nEs war reiner Zufall.",
+                        "It was pure serendipity.<br>Es war reiner Zufall.",
                     ),
                     ("Notes", "Rare word. More common synonym: luck"),
                 ],
@@ -645,7 +621,7 @@ mod tests {
                     ("Back", "serendipity"),
                     (
                         "Context Sentence",
-                        "Es war reiner Zufall.\nIt was pure serendipity.",
+                        "Es war reiner Zufall.<br>It was pure serendipity.",
                     ),
                     ("Notes", "Rare word. More common synonym: luck"),
                 ],
@@ -662,7 +638,7 @@ mod tests {
                     ("Back", "glücklicher Zufall"),
                     (
                         "Context Sentence",
-                        "It was pure serendipity.\nEs war reiner Zufall.",
+                        "It was pure serendipity.<br>Es war reiner Zufall.",
                     ),
                     ("Notes", "Rare word. More common synonym: luck"),
                 ],
@@ -694,7 +670,7 @@ mod tests {
                     ("Meaning", "lernen"),
                     (
                         "Sentence",
-                        "我们一起学习中文。\nWir lernen zusammen Chinesisch.",
+                        "我们一起学习中文。<br>Wir lernen zusammen Chinesisch.",
                     ),
                 ],
                 attachment: Some(("vocab_1793448000123_fwd.mp3", "//uQAA==", &["Audio"])),
@@ -711,7 +687,7 @@ mod tests {
                     ("Meaning", "学习"),
                     (
                         "Sentence",
-                        "Wir lernen zusammen Chinesisch.\n我们一起学习中文。",
+                        "Wir lernen zusammen Chinesisch.<br>我们一起学习中文。",
                     ),
                 ],
                 attachment: Some(("vocab_1793448000123_rev.mp3", "SUQzAwA=", &["Audio"])),
@@ -728,7 +704,7 @@ mod tests {
                     ("Meaning", "glücklicher Zufall"),
                     (
                         "Sentence",
-                        "It was pure serendipity.\nEs war reiner Zufall.",
+                        "It was pure serendipity.<br>Es war reiner Zufall.",
                     ),
                 ],
                 attachment: None,
@@ -744,7 +720,7 @@ mod tests {
                     ("B", "lernen"),
                     ("ES", "我们一起学习中文。"),
                     ("ET", "Wir lernen zusammen Chinesisch."),
-                    ("E", "我们一起学习中文。\nWir lernen zusammen Chinesisch."),
+                    ("E", "我们一起学习中文。<br>Wir lernen zusammen Chinesisch."),
                     ("N", ""),
                     ("P", "xué xí"),
                     ("H", "1"),
@@ -762,7 +738,7 @@ mod tests {
                     ("B", "serendipity"),
                     ("ES", "Es war reiner Zufall."),
                     ("ET", "It was pure serendipity."),
-                    ("E", "Es war reiner Zufall.\nIt was pure serendipity."),
+                    ("E", "Es war reiner Zufall.<br>It was pure serendipity."),
                     ("N", "Rare word. More common synonym: luck"),
                     ("P", ""),
                     ("H", ""),
@@ -823,9 +799,11 @@ mod tests {
             card.example_source = source.into();
             card.example_target = target_text.into();
             let note = map_card(&card, Direction::Forward, &target(), &mapping, None);
+            // Same text and order as `Card::combined_example`; only the line
+            // break is spelled the HTML way.
             assert_eq!(
                 note.fields["E"],
-                card.combined_example(),
+                card.combined_example().replace('\n', "<br>"),
                 "{source:?}/{target_text:?}"
             );
         }
@@ -911,7 +889,7 @@ mod tests {
                 ("ET", "&lt;b&gt;Beispiel&lt;/b&gt;"),
                 (
                     "E",
-                    "Use Vec&lt;String&gt; &amp; co.\n&lt;b&gt;Beispiel&lt;/b&gt;"
+                    "Use Vec&lt;String&gt; &amp; co.<br>&lt;b&gt;Beispiel&lt;/b&gt;"
                 ),
                 ("N", "&lt;script&gt;alert(1)&lt;/script&gt;"),
                 ("P", ""),
@@ -922,7 +900,7 @@ mod tests {
         assert_eq!(forward.fields["ES"], reverse.fields["ET"]);
         assert_eq!(
             reverse.fields["E"],
-            "&lt;b&gt;Beispiel&lt;/b&gt;\nUse Vec&lt;String&gt; &amp; co."
+            "&lt;b&gt;Beispiel&lt;/b&gt;<br>Use Vec&lt;String&gt; &amp; co."
         );
 
         let back = card_from_note(
@@ -958,7 +936,7 @@ mod tests {
                     "fields": {
                         "Front": "serendipity",
                         "Back": "glücklicher Zufall",
-                        "Context Sentence": "It was pure serendipity.\nEs war reiner Zufall.",
+                        "Context Sentence": "It was pure serendipity.<br>Es war reiner Zufall.",
                         "Notes": "Rare word. More common synonym: luck"
                     },
                     "options": { "allowDuplicate": false, "duplicateScope": "deck" },
@@ -1403,11 +1381,6 @@ mod tests {
         let precise = captured_at() + Duration::nanoseconds(456_789);
         let card = card_from_note(&note, &mapping, "de", "en", precise).unwrap();
         assert_eq!(card.captured_at, precise);
-        assert_eq!(card_from_note(&note, &mapping, "de", "en", 42), None);
-        assert_eq!(
-            card_from_note(&note, &mapping, "de", "en", "yesterday"),
-            None
-        );
     }
 
     #[test]

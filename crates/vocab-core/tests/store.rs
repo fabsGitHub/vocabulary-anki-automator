@@ -733,6 +733,40 @@ mod captures {
     }
 
     #[test]
+    fn list_captures_is_oldest_first_and_filters_by_origin() {
+        let store = Store::open_in_memory().unwrap();
+        let late = insert(&store, &english("late", "2026-10-31T12:00:00.900Z"));
+        let tie_a = insert(&store, &english("tie-a", "2026-10-31T12:00:00.100Z"));
+        let curriculum = store
+            .insert_capture(
+                &chinese("学习", "xué xí", Some(1), "2026-10-31T11:00:00.000Z"),
+                CaptureOrigin::Curriculum,
+                false,
+            )
+            .unwrap();
+        let tie_b = insert(&store, &english("tie-b", "2026-10-31T12:00:00.100Z"));
+
+        assert_eq!(
+            ids(&store.list_captures(None).unwrap()),
+            [curriculum, tie_a, tie_b, late]
+        );
+        assert_eq!(
+            ids(&store.list_captures(Some(CaptureOrigin::Capture)).unwrap()),
+            [tie_a, tie_b, late]
+        );
+        assert_eq!(
+            ids(&store
+                .list_captures(Some(CaptureOrigin::Curriculum))
+                .unwrap()),
+            [curriculum]
+        );
+        assert!(store
+            .list_captures(Some(CaptureOrigin::AnkiImport))
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
     fn unsynced_captures_are_listed_by_id_until_marked_synced() {
         let store = Store::open_in_memory().unwrap();
         let first = insert(&store, &english("first", "2026-10-31T12:00:00.000Z"));

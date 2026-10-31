@@ -48,9 +48,14 @@ scripts/                   bootstrap, run-all-checks, git hooks
 - **Formatting/lint gates:** `cargo fmt --all --check`,
   `cargo clippy --workspace --all-targets -- -D warnings`, `npx vue-tsc --noEmit`,
   `npx eslint .`, `npx prettier --check .`. New code must pass all of them.
-- **Sandboxed dev environments:** if `~/.cargo` is not writable, export
-  `CARGO_HOME="$TMPDIR/cargo-home"` (seed it by copying `~/.cargo/registry`), and
-  pass `--cache "$TMPDIR/npm-cache"` to npm.
+- **Sandboxed dev environments:** if `~/.cargo` is not writable, set `CARGO_HOME` to an
+  absolute path such as `/tmp/claude-501/cargo-home` (seed it by copying
+  `~/.cargo/registry`; `$TMPDIR` resolves differently inside and outside the sandbox),
+  and pass `--cache "$TMPDIR/npm-cache"` to npm. The wiremock tests start servers on
+  127.0.0.1, so they need local port binding (`sandbox.network.allowLocalBinding: true`)
+  or a run outside the sandbox; they never touch anything but loopback.
+- **Proxies:** clients that talk to AnkiConnect never use an HTTP proxy (it is always
+  local); provider clients honour the system proxy settings.
 
 ## 3. Language codes and script detection (`vocab_core::language`)
 
@@ -77,14 +82,29 @@ Traits (already in `providers/mod.rs`): `TranslationProvider`,
 `vocab_core::ProviderError` (`network`, `quota_exceeded`, `http`, `malformed`,
 `not_found`, `unsupported`).
 
-| type (module)                              | trait           | notes                                                                                                                                                                                                                                                     |
-| ------------------------------------------ | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MyMemoryProvider` (`mymemory`)            | Translation     | `new(contact_email: Option<String>)`, `with_base_url`. GET `{base}/get?q=..&langpair=SRC                                                                                                                                                                  | TGT[&de=EMAIL]`; base `https://api.mymemory.translated.net`. Reads `responseData.translatedText`. `quotaFinished == true`, `responseStatus == 429` or a `MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS` text → `QuotaExceeded`; other non-200 `responseStatus` → `Http`; missing fields → `Malformed`; transport → `Network`. Empty `q` → `Unsupported`. |
-| `DatamuseProvider` (`datamuse`)            | Rarity          | English only. `{base}/words?sp=WORD&md=f&max=1`, then `rel_syn` for a synonym when `f:` < 5.0 per million. Unknown word → `RarityResult::default()`.                                                                                                      |
-| `DictionaryApiProvider` (`dictionary_api`) | Example         | English only. `{base}/api/v2/entries/en/WORD`; first `meanings[].definitions[].example`; 404 or none → `NotFound`.                                                                                                                                        |
-| `GoogleTtsProvider` (`google_tts`)         | Tts             | `{base}/translate_tts?ie=UTF-8&tl=LANG&client=tw-ob&q=TEXT`; base `https://translate.google.com`; `zh-CN` is passed through verbatim. Non-audio or empty body → `Malformed`.                                                                              |
-| `PinyinAnnotator` (`chinese`)              | ScriptAnnotator | `new(Arc<dyn CurriculumLookup>)`. Curriculum hit → its pinyin + `hsk_level`; miss → generated with the `pinyin` crate (tone marks, syllables joined by single spaces, non-hanzi chars kept as-is), `hsk_level: None`. Always `ScriptVariant::Simplified`. |
-| `CurriculumExampleProvider` (`chinese`)    | Example         | `new(Arc<dyn CurriculumLookup>)`. Curriculum hit with `example_sentence_source` → that sentence; else `NotFound`.                                                                                                                                         |
+| type (module)                              | trait           | notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------ | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MyMemoryProvider` (`mymemory`)            | Translation     | `new(contact_email: Option<String>)`, `with_base_url(base, contact_email)`. GET `{base}/get` with `q`, `langpair=SRC%7CTGT` and, when the e-mail is set, `de=EMAIL`; base `https://api.mymemory.translated.net`. Reads `responseData.translatedText`. `quotaFinished == true`, `responseStatus == 429` or a `MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS` text → `QuotaExceeded`; other non-200 `responseStatus` → `Http`; missing fields → `Malformed`; transport → `Network`. Empty `q` → `Unsupported`. |
+| `DatamuseProvider` (`datamuse`)            | Rarity          | English only. `{base}/words?sp=WORD&md=f&max=1`, then `rel_syn` for a synonym when `f:` < 5.0 per million. Unknown word → `RarityResult::default()`.                                                                                                                                                                                                                                                                                                                                                                      |
+| `DictionaryApiProvider` (`dictionary_api`) | Example         | English only. `{base}/api/v2/entries/en/WORD`; first `meanings[].definitions[].example`; 404 or none → `NotFound`.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `GoogleTtsProvider` (`google_tts`)         | Tts             | `{base}/translate_tts?ie=UTF-8&tl=LANG&client=tw-ob&q=TEXT`; base `https://translate.google.com`; `zh-CN` is passed through verbatim. Non-audio or empty body → `Malformed`.                                                                                                                                                                                                                                                                                                                                              |
+| `PinyinAnnotator` (`chinese`)              | ScriptAnnotator | `new(Arc<dyn CurriculumLookup>)`. Curriculum hit → its pinyin + `hsk_level`; miss → generated with the `pinyin` crate (tone marks, syllables joined by single spaces, non-hanzi chars kept as-is), `hsk_level: None`. Always `ScriptVariant::Simplified`.                                                                                                                                                                                                                                                                 |
+| `CurriculumExampleProvider` (`chinese`)    | Example         | `new(Arc<dyn CurriculumLookup>)`. Curriculum hit with `example_sentence_source` → that sentence; else `NotFound`.                                                                                                                                                                                                                                                                                                                                                                                                         |
+
+Decisions recorded during implementation (binding for consumers):
+
+- Provider names, which reach the UI as `ProviderError.provider`: `mymemory`,
+  `datamuse`, `dictionary_api`, `google_tts`, `pinyin`, `curriculum`.
+- HTTP 429 from any provider is `QuotaExceeded`; every other non-2xx is `Http`.
+  Transport errors are `Network` and never contain the request URL (it carries the
+  captured text and the contact e-mail) — `ProviderError::from_reqwest` strips it too.
+- A blank MyMemory `translatedText` is `NotFound`; an unparsable `responseStatus` is
+  `Malformed`, so an error text can never end up on a card as a translation.
+- Datamuse only trusts an exact (case-insensitive) match of the word, because `sp=`
+  is a spelled-like search ("hipopatamus" returns "hippopotamus").
+- `PinyinAnnotator` returns `Unsupported` for text without any hanzi.
+- Google TTS was verified against the live endpoint (2026-10-31): `+`-encoded spaces
+  return the same audio as `%20`, responses are `audio/mpeg`, and `tl=zh-CN` works.
 
 `registry` (Milestone J4):
 
@@ -146,6 +166,8 @@ Semantics, in order:
    **characters** (not bytes — CJK is 3 bytes per char) → `TooLong`.
 2. `source = effective_source_lang(req.source_lang, text)`,
    `target = normalize_lang(req.target_lang)`, `set = registry.resolve(source)`.
+   When sniffing turns the source into the target (an `en` → `zh-CN` learner copies
+   Chinese text), the configured pair is reversed: `target = normalize_lang(req.source_lang)`.
 3. Translate `text`. Failure → warning, `back = ""` (the user can type it in
    the approval window). Provider failures are never fatal.
 4. Rarity, only when `set.rarity` exists **and** `!is_phrase(text)`
@@ -155,10 +177,13 @@ Semantics, in order:
 5. Example, only when `set.example` exists. `Ok(s)` → `example_source = s`.
    `NotFound` → language fallback template (`en`: `We use the expression '{w}' in everyday context.`;
    `zh-CN`: `我们在日常生活中使用“{w}”这个词。`). Other errors → warning + same fallback.
-   Languages without an example provider get no example and no warning.
+   Languages without an example provider get no example and no warning; an empty
+   `Ok` example counts as `NotFound`.
    A non-empty `example_source` is then translated into `example_target`
    (failure → warning, empty target).
-6. TTS of `text` in `source` → `audio_front` (failure → warning, `None`).
+6. TTS of `text` in `source` → `audio_front` (failure → warning, `None`; empty audio → `None`).
+   The steps run strictly in sequence (no async runtime dependency in vocab-core), so a
+   capture on a network that drops packets can take up to ~10 s per step.
 7. Annotator → `script_metadata` (failure → warning, `ScriptMetadata::None`).
 8. `card.tags = req.tags`, `card.captured_at = req.captured_at`.
 
@@ -307,6 +332,7 @@ Methods on `Store` (all `&self` unless noted):
 fn insert_capture(&self, card: &Card, origin: CaptureOrigin, synced_to_anki: bool) -> StoreResult<i64>;
 fn get_capture(&self, id: i64) -> StoreResult<Option<StoredCapture>>;
 fn list_recent_captures(&self, limit: u32) -> StoreResult<Vec<StoredCapture>>;   // captured_at DESC, id DESC
+fn list_captures(&self, origin: Option<CaptureOrigin>) -> StoreResult<Vec<StoredCapture>>; // captured_at ASC, id ASC
 fn list_unsynced_captures(&self) -> StoreResult<Vec<StoredCapture>>;             // synced_to_anki = 0, id ASC
 fn set_synced_to_anki(&self, id: i64, synced: bool) -> StoreResult<()>;
 fn delete_capture(&self, id: i64) -> StoreResult<bool>;                          // cascades srs_state + review_log
@@ -346,6 +372,30 @@ fn list_streak_freeze_dates(&self) -> StoreResult<Vec<NaiveDate>>;
 fn with_transaction<T>(&self, f: impl FnOnce(&Store) -> StoreResult<T>) -> StoreResult<T>; // commit on Ok, rollback on Err
 pub(crate) fn conn(&self) -> &rusqlite::Connection;                            // for vocab-core modules only
 ```
+
+### 6.3 Store behaviour consumers rely on
+
+- **Forward compatibility of enum values:** decoding is strict — an unknown
+  `script_kind`, `script_variant` or `origin` is `StoreError::Invalid`. Therefore
+  adding a `ScriptMetadata` kind or a `CaptureOrigin` variant **must** come with a new
+  migration (`user_version` bump), so an older build refuses the whole file with a
+  clear message instead of failing row by row.
+- Instants are truncated to milliseconds on write; `list_srs_due_before` rounds a
+  sub-millisecond `before` up, so a card made due "now" is included. Callers comparing
+  stored rows with in-memory values should use millisecond instants (`FixedClock` with
+  whole milliseconds in tests). Years outside 0000–9999 are rejected.
+- `with_transaction` is `IMMEDIATE` (takes the write lock up front, so the two apps
+  never deadlock on read-then-write) and nests as a SAVEPOINT. **Never hold a
+  transaction across a network call** (AnkiConnect, TTS): the other app's writes time
+  out after 5 s.
+- `set_synced_to_anki` and `update_capture_card` return `NotFound` for unknown ids;
+  `find_capture_by_front` and `get_curriculum_item` match exactly (no trimming —
+  `CurriculumIndex::lookup` trims); `review_log_for_card` orders by `reviewed_at`, id.
+- `ensure_curriculum_seeded` also reseeds when the row count differs from the item
+  count; duplicate `hanzi` or `curriculum_order` values make seeding fail, so the ETL
+  must guarantee uniqueness.
+- `list_recent_captures` returns `audio_front` BLOBs; IPC layers that only need text
+  (history lists) should drop them before serializing.
 
 ## 7. SRS, quiz, gamification, lessons
 
@@ -636,11 +686,46 @@ pub fn add_note_params(note: &NoteSpec) -> serde_json::Value;     // exactly Ank
 pub fn card_from_note(note: &NoteInfo, mapping: &FieldMapping, source_lang: &str, target_lang: &str, captured_at: DateTime<Utc>) -> Option<Card>;
 ```
 
-`map_card(Reverse)` swaps front/back (and example source/target); the
-`Example` field is the combined example in display order. Audio is sent inline
-(`"audio": [{ "data", "filename", "fields" }]`) — no separate
-`storeMediaFile` and no second download. The `addNote` payload uses
-`allowDuplicate: false, duplicateScope: "deck"` and the card's tags.
+Shared push helper (both apps use it; never re-implement the sequence):
+
+```rust
+#[derive(Default)] pub struct PushOptions { pub create_reverse: bool, pub reverse_audio: Option<Vec<u8>> }
+pub struct PushOutcome { pub note_ids: Vec<i64>, pub duplicates: usize }
+pub async fn push_card(client: &AnkiClient, card: &Card, target: &AnkiTarget,
+    mapping: &FieldMapping, options: &PushOptions) -> Result<PushOutcome, AnkiError>;
+pub struct NoteInfo { pub note_id: i64, pub model_name: String, pub tags: Vec<String>,
+    pub fields: BTreeMap<String, NoteField>, pub cards: Vec<i64>, pub modified: Option<i64> } // serde camelCase, "mod"
+pub struct NoteField { pub value: String, pub order: u32 }
+pub fn deck_query(deck: &str) -> String;           // "deck:NAME" with Anki search escaping
+pub const DEFAULT_URL: &str = "http://127.0.0.1:8765";  pub const API_VERSION: u32 = 6;
+pub const DUPLICATE_NOTE_MESSAGE: &str = "cannot create note because it is a duplicate";
+// AnkiClient::with_timeout(Duration), url(), timeout(); AnkiError::message(), is_duplicate(), is_unreachable()
+```
+
+Semantics:
+
+- `push_card`: `createDeck` (an "already exists" error is ignored), then the forward
+  note with `card.audio_front`, then — only when `create_reverse` is set **and
+  `card.back` is not blank** — the reverse note with `reverse_audio`. A `Duplicate`
+  on either note is counted, not returned; any other error is returned at once (a
+  failed reverse note after a successful forward note is an `Err`, and a later retry
+  sees the forward note as a duplicate). `Ok` means the card counts as synced.
+- Only AnkiConnect's exact `DUPLICATE_NOTE_MESSAGE` is `Duplicate`; anything else
+  (e.g. a missing deck whose user-chosen name contains "duplicate") is `Api`.
+- `map_card(Reverse)` swaps front/back and example source/target; the `Example`
+  field is the combined example in display order.
+- Field values are HTML-escaped (`&`, `<`, `>`) and line breaks are written as
+  `<br>` (a raw newline renders as a space in Anki's HTML fields, which put both
+  example sentences on one line). `card_from_note` reverses this (tags stripped,
+  entities decoded once, `<br>`/`<div>` → newline, `[sound:...]` dropped).
+- When several bindings name the same Anki field (compared case-insensitively, as
+  AnkiConnect does), the first wins, on export and on import.
+- Audio is sent inline (`"audio": [{ "data", "filename", "fields" }]`) only for
+  non-empty bytes and a non-blank audio field — no separate `storeMediaFile`, no
+  second download. The `addNote` payload uses `allowDuplicate: false,
+duplicateScope: "deck"` and the card's tags (Anki splits tags on whitespace).
+- `notes_info` sends 500 ids per request, skips AnkiConnect's `{}` entries for deleted
+  notes, and sends nothing for an empty slice. The client never uses a proxy.
 
 ## 10. Learn (`apps/learn`)
 

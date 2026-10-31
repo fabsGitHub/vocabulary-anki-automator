@@ -138,7 +138,13 @@ impl CapturePipeline {
         }
 
         let source = effective_source_lang(&req.source_lang, text);
-        let target = normalize_lang(&req.target_lang);
+        let mut target = normalize_lang(&req.target_lang);
+        // CJK sniffing can turn the source into the target (an en -> zh-CN
+        // learner copies Chinese text). Translating zh-CN -> zh-CN is useless
+        // and MyMemory rejects it, so the configured pair is reversed instead.
+        if source == target {
+            target = normalize_lang(&req.source_lang);
+        }
         let set = self.registry.resolve(&source);
         let mut warnings = Vec::new();
         let mut card = Card::new(text, "", source.as_str(), target.as_str(), req.captured_at);

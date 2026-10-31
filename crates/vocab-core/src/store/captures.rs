@@ -64,6 +64,18 @@ impl Store {
         self.query_captures("ORDER BY captured_at DESC, id DESC LIMIT ?1", [limit])
     }
 
+    /// Every capture in capture order (oldest first, ties by id), optionally
+    /// restricted to one origin. Lessons are built from this listing.
+    pub fn list_captures(&self, origin: Option<CaptureOrigin>) -> StoreResult<Vec<StoredCapture>> {
+        match origin {
+            Some(origin) => self.query_captures(
+                "WHERE origin = ?1 ORDER BY captured_at ASC, id ASC",
+                [origin.as_str()],
+            ),
+            None => self.query_captures("ORDER BY captured_at ASC, id ASC", []),
+        }
+    }
+
     /// Captures not yet pushed to Anki, oldest row first, for retrying.
     pub fn list_unsynced_captures(&self) -> StoreResult<Vec<StoredCapture>> {
         self.query_captures("WHERE synced_to_anki = 0 ORDER BY id ASC", [])

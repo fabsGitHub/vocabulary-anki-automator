@@ -141,7 +141,7 @@ fn english_forward_request() -> Value {
                 "fields": {
                     "Front": "serendipity",
                     "Back": "glücklicher Zufall",
-                    "Context Sentence": "It was pure serendipity.\nEs war reiner Zufall.",
+                    "Context Sentence": "It was pure serendipity.<br>Es war reiner Zufall.",
                     "Notes": "Rare word. More common synonym: luck"
                 },
                 "options": { "allowDuplicate": false, "duplicateScope": "deck" },
@@ -167,7 +167,7 @@ fn english_reverse_request() -> Value {
                 "fields": {
                     "Front": "glücklicher Zufall",
                     "Back": "serendipity",
-                    "Context Sentence": "Es war reiner Zufall.\nIt was pure serendipity.",
+                    "Context Sentence": "Es war reiner Zufall.<br>It was pure serendipity.",
                     "Notes": "Rare word. More common synonym: luck"
                 },
                 "options": { "allowDuplicate": false, "duplicateScope": "deck" },
@@ -246,7 +246,7 @@ async fn push_card_with_the_chinese_mapping_sends_hanzi_pinyin_meaning_and_audio
                     "Hanzi": "学习",
                     "Pinyin": "xué xí",
                     "Meaning": "lernen",
-                    "Sentence": "我们一起学习中文。\nWir lernen zusammen Chinesisch."
+                    "Sentence": "我们一起学习中文。<br>Wir lernen zusammen Chinesisch."
                 },
                 "options": { "allowDuplicate": false, "duplicateScope": "deck" },
                 "tags": ["vocab-automator", "hsk"],
@@ -761,10 +761,12 @@ async fn ankiconnect_errors_are_classified() {
                 message: "cannot create note because it is a duplicate".into(),
             },
         ),
+        // Only AnkiConnect's exact duplicate message counts: a duplicate is
+        // treated as "already in Anki" and the capture marked synced.
         (
-            "Duplicate note in deck",
-            AnkiError::Duplicate {
-                message: "Duplicate note in deck".into(),
+            "model was not found: Duplicate Words",
+            AnkiError::Api {
+                message: "model was not found: Duplicate Words".into(),
             },
         ),
         (

@@ -10,6 +10,10 @@
 
 use serde::{Deserialize, Serialize};
 
+/// The error text AnkiConnect (pinned commit, `plugin/__init__.py`) raises
+/// when `addNote` meets an identical note in the duplicate scope.
+pub const DUPLICATE_NOTE_MESSAGE: &str = "cannot create note because it is a duplicate";
+
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AnkiError {
@@ -32,11 +36,14 @@ pub enum AnkiError {
 }
 
 impl AnkiError {
-    /// Classifies an error string reported by AnkiConnect. Its only duplicate
-    /// error is "cannot create note because it is a duplicate"; matching the
-    /// word case-insensitively keeps forks and future wording covered.
+    /// Classifies an error string reported by AnkiConnect. Its one duplicate
+    /// error is exactly [`DUPLICATE_NOTE_MESSAGE`], and only that counts:
+    /// callers treat a duplicate as "already in Anki" and mark the capture
+    /// synced, so a looser match (the word "duplicate" anywhere) would hide
+    /// real failures such as `option parameter "allowDuplicate" must be
+    /// boolean` or a missing deck/model whose user-chosen name contains it.
     pub(crate) fn from_api_message(message: String) -> Self {
-        if message.to_lowercase().contains("duplicate") {
+        if message.trim().eq_ignore_ascii_case(DUPLICATE_NOTE_MESSAGE) {
             AnkiError::Duplicate { message }
         } else {
             AnkiError::Api { message }
@@ -96,11 +103,13 @@ mod tests {
     }
 
     #[test]
-    fn api_messages_are_classified_by_the_word_duplicate() {
+    fn only_ankiconnect_s_duplicate_message_is_a_duplicate() {
         let cases = [
             ("cannot create note because it is a duplicate", true),
-            ("Duplicate note", true),
-            ("note is a DUPLICATE of 123", true),
+            ("  Cannot create note because it is a duplicate ", true),
+            ("model was not found: Duplicate Words", false),
+            ("deck was not found: Duplicates::Review", false),
+            ("option parameter \"allowDuplicate\" must be boolean", false),
             ("model was not found: AppleStyleFinalV3", false),
             ("cannot create note because it is empty", false),
             ("collection is not available", false),

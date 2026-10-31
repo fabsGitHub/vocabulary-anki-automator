@@ -479,6 +479,38 @@ async fn cjk_text_is_routed_to_the_chinese_set_despite_an_english_config() {
     );
 }
 
+/// An en -> zh-CN learner who copies Chinese text: sniffing makes the source
+/// zh-CN, which equals the target, so the configured pair is reversed.
+#[tokio::test]
+async fn sniffing_into_the_target_language_reverses_the_pair() {
+    let fakes = Fakes::default();
+    let registry = ProviderRegistry::new(fakes.untouchable_set())
+        .with_language("en", fakes.untouchable_set())
+        .with_language(
+            "zh-CN",
+            chinese_set(&fakes, vec![hsk_item("学习", "xué xí", 1, None)]),
+        );
+    let pipeline = CapturePipeline::new(registry, 100);
+
+    let outcome = pipeline.run(request("学习", "EN", "zh-cn")).await.unwrap();
+
+    let card = &outcome.card;
+    assert_eq!(
+        (card.source_lang.as_str(), card.target_lang.as_str()),
+        ("zh-CN", "en")
+    );
+    assert_eq!(card.back, "<学习>");
+    assert_eq!(fakes.log.calls()[0], "translate 学习 zh-CN->en");
+    assert!(
+        outcome
+            .warnings
+            .iter()
+            .all(|w| w.stage != PipelineStage::Translate),
+        "{:?}",
+        outcome.warnings
+    );
+}
+
 #[tokio::test]
 async fn example_not_found_uses_the_language_fallback() {
     let fakes = Fakes::default();

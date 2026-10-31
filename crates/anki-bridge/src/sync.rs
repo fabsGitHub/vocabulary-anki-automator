@@ -43,7 +43,10 @@ pub struct PushOutcome {
 /// A `createDeck` error saying the deck already exists is ignored, and a
 /// `Duplicate` on either note is counted in [`PushOutcome::duplicates`]. Any
 /// other error is returned as soon as it happens, so a failed forward note
-/// means no reverse note is attempted.
+/// means no reverse note is attempted. A card whose `back` is blank (the
+/// translation failed and nothing was typed in) gets no reverse note: its
+/// front field would be empty, Anki would refuse it on every retry, and the
+/// capture would never count as synced.
 pub async fn push_card(
     client: &AnkiClient,
     card: &Card,
@@ -89,8 +92,7 @@ async fn push_to(
 
     let notes = [
         Some((Direction::Forward, card.audio_front.as_deref())),
-        options
-            .create_reverse
+        (options.create_reverse && !card.back.trim().is_empty())
             .then_some((Direction::Reverse, options.reverse_audio.as_deref())),
     ];
     let mut outcome = PushOutcome::default();
@@ -256,6 +258,32 @@ mod tests {
         assert_eq!(anki.notes(), expected);
         assert_eq!(anki.notes()[0].fields["Front"], "serendipity");
         assert_eq!(anki.notes()[1].fields["Front"], "glücklicher Zufall");
+    }
+
+    #[tokio::test]
+    async fn a_blank_back_gets_no_reverse_note() {
+        let anki = FakeAnki::answering(vec![Ok(10)]);
+        let mut card = card();
+        card.back = "  ".into();
+
+        let outcome = push_to(
+            &anki,
+            &card,
+            &target(),
+            &FieldMapping::apple_style_default(),
+            &both_ways(),
+        )
+        .await;
+
+        assert_eq!(
+            outcome,
+            Ok(PushOutcome {
+                note_ids: vec![10],
+                duplicates: 0
+            })
+        );
+        assert_eq!(anki.notes().len(), 1);
+        assert_eq!(anki.notes()[0].fields["Front"], "serendipity");
     }
 
     #[tokio::test]
