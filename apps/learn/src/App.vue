@@ -9,14 +9,16 @@
  * exercises, lessons, stats, and settings with the Anki export and import.
  * A tab is mounted on its first visit and kept afterwards, so switching tabs
  * never loses a half-done review. The menu reopens the prompt to change
- * today's goal, after which the review rebuilds its queue. While the prompt
- * is open, everything behind it is inert: out of reach of the keyboard,
+ * today's goal, after which the review rebuilds its queue, and opens the
+ * credits and licenses of the bundled data. While the prompt or the credits
+ * are open, everything behind them is inert: out of reach of the keyboard,
  * the pointer and assistive technology.
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppMenu, { type MenuItem } from './components/AppMenu.vue'
+import CreditsDialog from './components/CreditsDialog.vue'
 import DailyPromptModal from './components/DailyPromptModal.vue'
 import TabPanel from './components/TabPanel.vue'
 import { useDailyPrompt } from './composables/useDailyPrompt'
@@ -55,9 +57,13 @@ const {
 
 const activeTab = ref<TabId>('review')
 const visited = reactive(new Set<TabId>(['review']))
+const creditsOpen = ref(false)
+/** A dialog is open: the page behind it is inert. */
+const covered = computed(() => open.value || creditsOpen.value)
 
 const menuItems = computed<MenuItem[]>(() => [
   { id: 'change-goal', label: t('menu.changeGoal'), disabled: busy.value || open.value },
+  { id: 'credits', label: t('menu.credits') },
 ])
 const newGoal = computed(() => session.value?.requested_new_count ?? null)
 const goalText = computed(() => {
@@ -91,6 +97,7 @@ function onTabKeydown(event: KeyboardEvent, index: number): void {
 
 function onMenu(id: string): void {
   if (id === 'change-goal') void prompt.reopen()
+  else if (id === 'credits') creditsOpen.value = true
 }
 
 function clearReopenError(): void {
@@ -115,7 +122,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', onWindowFocus))
 
 <template>
   <div class="view learn-shell">
-    <div class="learn-body" :inert="open || undefined" data-test="app-body">
+    <div class="learn-body" :inert="covered || undefined" data-test="app-body">
       <header class="mac-header">
         <div class="header-titles">
           <h1>{{ t('app.title') }}</h1>
@@ -184,7 +191,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', onWindowFocus))
               :id="`panel-${tab.id}`"
               :labelled-by="`tab-${tab.id}`"
               :selected="activeTab === tab.id"
-              :interactive="!open"
+              :interactive="!covered"
             >
               <ReviewSession
                 v-if="tab.id === 'review'"
@@ -220,5 +227,6 @@ onBeforeUnmount(() => window.removeEventListener('focus', onWindowFocus))
       @start="prompt.submit($event)"
       @dismiss="prompt.dismiss()"
     />
+    <CreditsDialog v-if="creditsOpen" @close="creditsOpen = false" />
   </div>
 </template>

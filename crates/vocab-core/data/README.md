@@ -28,9 +28,12 @@ meanings machine-translated from `meaning_en` by `backfill-de`), are CC BY-SA 4.
 whoever distributes them, in this file or compiled into the apps and the web
 build, must credit CC-CEDICT and offer the adapted data under the same license.
 `NOTICE-CC-CEDICT` (written by hand, not by the tool) holds that attribution.
-Neither app nor the web build shows these notices yet, and the workspace's
-`license = "MIT"` describes the code only: both are to be settled before the
-first release (IMPLEMENTATION_PLAN.md, "Final audit").
+Both apps show every `LICENSE-*` and `NOTICE-*` file here in full, read at build
+time (`domain/credits.ts` in each app: Learn's menu, Credits and licenses; the
+Automator's help dialog), and a test fails when a new notice file has no entry
+there. The workspace's `license = "MIT"` describes the code only; whether the
+crate metadata should also name CC-BY-SA-4.0 is open (IMPLEMENTATION_PLAN.md,
+"Final audit").
 
 - **[drkameleon/complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary)**
   at `7ac65bf1a6387d35f1ade478906172a19311c7f9`: `wordlists/exclusive/new/1.json`

@@ -1,10 +1,9 @@
-The dictionary data in hsk_curriculum.json (each word's English meanings,
-`meaning_en`, and the traditional form and pinyin of the dictionary entry they
-come from) is adapted from CC-CEDICT, the community-maintained
-Chinese-English dictionary published by MDBG
-(https://www.mdbg.net/chinese/dictionary?page=cc-cedict), by way of
-drkameleon/complete-hsk-vocabulary, which credits CC-CEDICT as the source of
-its definitions.
+The dictionary data in hsk_curriculum.json (each word's English meanings and
+the traditional form and pinyin of the dictionary entry they come from) is
+adapted from CC-CEDICT, the community-maintained Chinese-English dictionary
+published by MDBG (https://www.mdbg.net/chinese/dictionary?page=cc-cedict), by
+way of drkameleon/complete-hsk-vocabulary, which credits CC-CEDICT as the
+source of its definitions.
 
 CC-CEDICT is licensed under the Creative Commons Attribution-ShareAlike 4.0
 International License: https://creativecommons.org/licenses/by-sa/4.0/

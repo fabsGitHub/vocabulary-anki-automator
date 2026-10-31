@@ -1054,3 +1054,60 @@ textarea[readonly] {
     grid-template-columns: 1fr;
   }
 }
+
+/* Credits and licenses of the bundled HSK data (HelpModal) */
+.credits {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.credits h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.credits > p,
+.credit > p {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.credit {
+  margin-top: 12px;
+}
+
+.credit strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.credit summary {
+  margin-top: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.license-text {
+  margin-top: 6px;
+  padding: 10px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.45;
+  background: var(--bg-field);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  user-select: text;
+}
+
+.license-text p {
+  white-space: pre-line;
+}
+
+.license-text p + p {
+  margin-top: 8px;
+}

@@ -316,6 +316,23 @@ describe('the main window', () => {
     expect(find('[data-test="tab-review"]').attributes('aria-selected')).toBe('true')
   })
 
+  it('opens the credits from the menu, with the page inert behind them', async () => {
+    await mountApp(fakePlatform())
+    const body = () => find('[data-test="app-body"]')
+    await click('[data-test="menu"]')
+    await click('[data-test="menu-credits"]')
+
+    const credits = find('[data-test="credits"]')
+    expect(credits.exists()).toBe(true)
+    expect(credits.text()).toContain('CC-CEDICT')
+    expect(body().attributes('inert')).toBeDefined()
+
+    await credits.trigger('keydown', { key: 'Escape' })
+    expect(find('[data-test="credits"]').exists()).toBe(false)
+    expect(body().attributes('inert')).toBeUndefined()
+    expect(document.activeElement).toBe(find('[data-test="menu"]').element)
+  })
+
   it('opens the menu from the keyboard and closes it with Esc', async () => {
     await mountApp(fakePlatform())
     const button = find('[data-test="menu"]')

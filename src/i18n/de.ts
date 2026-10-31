@@ -290,6 +290,17 @@ export const de: MessageSchema = {
     pinyin: 'Der Pinyin-Generator',
     curriculum: 'Der HSK-Lehrplan',
   },
+  credits: {
+    title: 'Quellen und Lizenzen',
+    intro:
+      'Für chinesische Wörter schlägt der Automator Pinyin, die HSK-Stufe und ein Beispiel in der mitgelieferten HSK-3.0-Wortliste nach. Sie enthält Wörterbuchdaten, die andere erstellt haben und unter diesen Lizenzen teilen.',
+    fullText: 'Volltext',
+    ccCedict:
+      'Die englischen Bedeutungen, traditionellen Schriftzeichen und das Pinyin der HSK-Wörter, übernommen und angepasst aus dem Wörterbuch CC-CEDICT. Lizenziert unter CC BY-SA 4.0, ebenso die angepassten Daten.',
+    completeHsk: 'Die HSK-3.0-Wortlisten nach Stufen, mit Häufigkeitsrängen. MIT-Lizenz.',
+    hsk30:
+      'Die offizielle HSK-3.0-Wortliste, nach der die Lesung jedes Worts gewählt wird. MIT-Lizenz.',
+  },
   help: {
     title: 'Einrichtung und Bedienung',
     close: 'Schließen',

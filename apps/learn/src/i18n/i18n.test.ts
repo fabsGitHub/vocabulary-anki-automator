@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { CREDIT_SOURCES } from '../domain/credits'
 import { DIRECTION_KEYS, KIND_KEYS } from '../domain/exercises'
 import { CARD_FIELD_KEYS } from '../domain/fieldMapping'
 import { INTERVAL_KEYS, RATING_KEYS } from '../domain/intervals'
@@ -110,6 +111,7 @@ describe('keys the UI asks for', () => {
       ...Object.values(RATING_KEYS),
       ...Object.values(LANGUAGE_NAME_KEYS),
       ...Object.values(CARD_FIELD_KEYS),
+      ...Object.values(CREDIT_SOURCES).map((source) => source.about),
       'mapping.nameMissing',
       'mapping.wordMissing',
       'mapping.meaningMissing',
