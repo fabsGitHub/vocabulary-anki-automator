@@ -42,12 +42,14 @@ lint:
     npx vue-tsc --noEmit -p apps/learn
     npm run lint
 
-# Learn: desktop dev (Tauri) and the standalone web build.
+# Learn: desktop dev (Tauri), and the standalone web build in a browser
+# (http://localhost:1430). `npm run learn:dev` alone is the desktop frontend
+# that `tauri dev` loads; in a plain browser its Tauri calls all fail.
 learn-dev:
     npm run learn:tauri dev
 
 learn-web:
-    npm run learn:dev
+    npm run learn:dev:web
 
 # Chains the fast test tiers; the same script CI and the pre-commit hook run.
 check-all:

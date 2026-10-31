@@ -14,6 +14,7 @@ Two Tauri 2 desktop apps sharing one Rust core:
 
 | Need                                                       | Read                                                                 |
 | ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| What each app does; build, run and test commands           | [README.md](README.md)                                               |
 | Module map, cross-crate APIs, schema, IPC commands, shapes | [docs/architecture.md](docs/architecture.md) — binding contract      |
 | Roadmap, milestone status, what is blocked and why         | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)                     |
 | How tests avoid real Anki / network                        | [docs/test-harness-strategy.md](docs/test-harness-strategy.md)       |
@@ -26,12 +27,13 @@ Two Tauri 2 desktop apps sharing one Rust core:
 just lint          # rustfmt, clippy -D warnings, vue-tsc, ESLint, Prettier
 just check-all     # unit + integration tiers (scripts/run-all-checks.sh; CI runs the same)
 npm run tauri dev  # Automator
-npm run learn:tauri dev   # Learn (desktop); npm run learn:dev for the browser build
+npm run learn:tauri dev   # Learn (desktop); npm run learn:dev:web for the browser build
 ```
 
-In a sandbox where `~/.cargo` is read-only, prefix cargo with
-`CARGO_HOME="$TMPDIR/cargo-home"`; give npm `--cache "$TMPDIR/npm-cache"`. HTTP-mock tests
-(wiremock) need local port binding.
+In a sandbox where `~/.cargo` is read-only, prefix cargo with an absolute `CARGO_HOME`
+seeded from `~/.cargo/registry` (e.g. `/tmp/claude-501/cargo-home`; not `$TMPDIR`, which
+differs inside and outside the sandbox); give npm `--cache "$TMPDIR/npm-cache"`. HTTP-mock
+tests (wiremock) need local port binding (docs/architecture.md § 2).
 
 ## Rules that are easy to break
 

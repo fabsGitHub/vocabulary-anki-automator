@@ -13,6 +13,7 @@
     "test:unit": "vitest run && vitest run --config apps/learn/vitest.config.ts",
     "test:e2e": "echo 'no E2E harness yet (Milestone G wires tauri-driver + WebdriverIO here); see docs/test-harness-strategy.md' && exit 0",
     "learn:dev": "vite --config apps/learn/vite.config.ts",
+    "learn:dev:web": "vite --config apps/learn/vite.config.ts --mode web",
     "learn:build": "vue-tsc --noEmit -p apps/learn && vite build --config apps/learn/vite.config.ts",
     "learn:build:web": "vue-tsc --noEmit -p apps/learn && vite build --config apps/learn/vite.config.ts --mode web",
     "learn:tauri": "cd apps/learn && tauri"

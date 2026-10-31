@@ -34,7 +34,6 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": "{{env.APPLE_SIGNING_IDENTITY:::}}",
       "entitlements": "./entitlements.mac.plist",
       "minimumSystemVersion": "10.13"
     },

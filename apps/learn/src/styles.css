@@ -1154,6 +1154,54 @@ input[type='number']:focus {
   padding: 0 4px;
 }
 
+.mapping-editor {
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mapping-editor legend {
+  margin-bottom: 4px;
+}
+
+.mapping-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mapping-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  padding: 0 8px 6px 0;
+}
+
+.mapping-table td {
+  padding: 4px 8px 4px 0;
+  vertical-align: middle;
+}
+
+.mapping-table td:first-child {
+  width: 45%;
+}
+
+.mapping-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .sync-row {
   display: flex;
   align-items: flex-end;

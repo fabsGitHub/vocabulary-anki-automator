@@ -104,6 +104,115 @@ describe('settings', () => {
   })
 })
 
+describe('the fields of the note type', () => {
+  const rows = () => wrapper!.findAll('[data-test="mapping-row"]')
+  const names = () => rows().map((row) => (row.find('input').element as HTMLInputElement).value)
+  const sources = () => rows().map((row) => (row.find('select').element as HTMLSelectElement).value)
+  const saveDisabled = () => find('[data-test="save"]').attributes('disabled') !== undefined
+
+  it('shows the saved field mapping and AnkiConnect address', async () => {
+    await mountAnki(fakePlatform())
+    expect(names()).toEqual(['Hanzi', 'Pinyin', 'Meaning'])
+    expect(sources()).toEqual(['front', 'pinyin', 'back'])
+    expect(input('[data-test="mapping-audio"]').value).toBe('Audio')
+    expect(input('[data-test="connect-url"]').value).toBe('http://127.0.0.1:8765')
+  })
+
+  // Export writes, and import reads, exactly the fields the mapping names: a
+  // deck on any other note type (Anki's Basic one, say) transfers only once
+  // the mapping can be set to its fields.
+  it('saves a mapping for the learner’s own note type and another address', async () => {
+    const platform = fakePlatform()
+    await mountAnki(platform)
+    await find('[data-test="mapping-name-0"]').setValue(' Front ')
+    await find('[data-test="mapping-name-2"]').setValue('Back')
+    await click('[data-test="mapping-remove-1"]')
+    expect(names()).toEqual([' Front ', 'Back'])
+    await click('[data-test="mapping-add"]')
+    expect(sources()[2]).toBe('example_source')
+    await find('[data-test="mapping-name-2"]').setValue('Notes')
+    await find('[data-test="mapping-source-2"]').setValue('notes')
+    await find('[data-test="mapping-audio"]').setValue('  ')
+    await find('[data-test="connect-url"]').setValue(' http://localhost:8766 ')
+
+    await click('[data-test="save"]')
+
+    const expected: LearnSettings = fx.settings((value) => {
+      value.anki.connect_url = 'http://localhost:8766'
+      value.anki.field_mapping = {
+        fields: [
+          { anki_field: 'Front', source: 'front' },
+          { anki_field: 'Back', source: 'back' },
+          { anki_field: 'Notes', source: 'notes' },
+        ],
+        audio_field: null,
+      }
+    })
+    expect(platform.saveSettings).toHaveBeenCalledWith(expected)
+    expect(find('[data-test="saved"]').exists()).toBe(true)
+    expect(saveDisabled()).toBe(true)
+  })
+
+  it('says what a save would refuse, and does not save it', async () => {
+    const platform = fakePlatform()
+    await mountAnki(platform)
+    await find('[data-test="mapping-name-1"]').setValue('  ')
+    expect(find('[data-test="mapping-problems"]').text()).toBe('Every Anki field needs a name.')
+    expect(find('[data-test="mapping-name-1"]').attributes('aria-invalid')).toBe('true')
+    expect(saveDisabled()).toBe(true)
+
+    await find('[data-test="mapping-name-1"]').setValue('Pinyin')
+    await find('[data-test="mapping-source-0"]').setValue('notes')
+    await find('[data-test="mapping-source-2"]').setValue('example')
+    expect(find('[data-test="mapping-problems"]').text()).toContain(
+      'One Anki field has to hold the word.',
+    )
+    expect(find('[data-test="mapping-problems"]').text()).toContain(
+      'One Anki field has to hold the meaning.',
+    )
+    expect(saveDisabled()).toBe(true)
+    await find('form').trigger('submit')
+    await flushPromises()
+    expect(platform.saveSettings).not.toHaveBeenCalled()
+  })
+
+  it('refuses an AnkiConnect address that is not http(s)', async () => {
+    const platform = fakePlatform()
+    await mountAnki(platform)
+    await find('[data-test="connect-url"]').setValue('ftp://127.0.0.1:8765')
+    expect(wrapper!.text()).toContain('Enter an http:// or https:// address')
+    expect(find('[data-test="connect-url"]').attributes('aria-invalid')).toBe('true')
+    expect(saveDisabled()).toBe(true)
+    await find('form').trigger('submit')
+    await flushPromises()
+    expect(platform.saveSettings).not.toHaveBeenCalled()
+  })
+
+  it('goes back to the default fields', async () => {
+    await mountAnki(fakePlatform())
+    await click('[data-test="mapping-default"]')
+    expect(names()).toEqual(['Hanzi', 'Pinyin', 'Meaning', 'Sentence'])
+    expect(sources()).toEqual(['front', 'pinyin', 'back', 'example'])
+    expect(input('[data-test="mapping-audio"]').value).toBe('Audio')
+  })
+
+  it('keeps the keyboard focus while fields come and go', async () => {
+    await mountAnki(fakePlatform())
+    await click('[data-test="mapping-add"]')
+    expect(document.activeElement).toBe(find('[data-test="mapping-name-3"]').element)
+
+    ;(find('[data-test="mapping-remove-1"]').element as HTMLElement).focus()
+    await click('[data-test="mapping-remove-1"]')
+    expect(document.activeElement).toBe(find('[data-test="mapping-remove-1"]').element)
+
+    await click('[data-test="mapping-remove-0"]')
+    await click('[data-test="mapping-remove-0"]')
+    await click('[data-test="mapping-remove-0"]')
+    expect(find('[data-test="mapping-empty"]').text()).toBe('No Anki field is filled yet.')
+    expect(document.activeElement).toBe(find('[data-test="mapping-add"]').element)
+  })
+})
+
 describe('Anki export', () => {
   it('exports with the saved settings and summarizes the report', async () => {
     const platform = fakePlatform()
