@@ -2,7 +2,7 @@ import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { setLocale } from '../i18n'
-import { fakePlatform, mountWith, type FakePlatform } from '../test/fakePlatform'
+import { deferred, fakePlatform, mountWith, type FakePlatform } from '../test/fakePlatform'
 import * as fx from '../test/fixtures'
 import LessonsView from './LessonsView.vue'
 
@@ -142,6 +142,23 @@ describe('a lesson', () => {
     await click('[data-test="complete"]')
     expect(platform.completeLesson).toHaveBeenCalledTimes(1)
     expect(platform.completeLesson).toHaveBeenCalledWith('lesson-11')
+    expect(find('[data-test="lesson-result"]').text()).toBe('Lesson complete! +20 XP')
+  })
+
+  it('completes once however often it is pressed while saving', async () => {
+    const platform = lessonsPlatform()
+    const pending = deferred<number>()
+    platform.completeLesson.mockReturnValueOnce(pending.promise)
+    await mountLessons(platform)
+    await click('[data-test="open-lesson-20"]')
+    await click('[data-test="next"]')
+    await click('[data-test="complete"]')
+    expect(find('[data-test="complete"]').text()).toBe('Saving…')
+    expect(find('[data-test="complete"]').attributes('aria-disabled')).toBe('true')
+    await click('[data-test="complete"]')
+    expect(platform.completeLesson).toHaveBeenCalledTimes(1)
+    pending.resolve(20)
+    await flushPromises()
     expect(find('[data-test="lesson-result"]').text()).toBe('Lesson complete! +20 XP')
   })
 
