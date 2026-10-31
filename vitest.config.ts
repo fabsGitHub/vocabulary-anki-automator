@@ -9,7 +9,8 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.{test,spec}.{ts,js}'],
+    // scripts/: the release preflight and the workflow rules (Node, not jsdom).
+    include: ['src/**/*.{test,spec}.{ts,js}', 'scripts/**/*.test.ts'],
     globals: false,
     // Milestone A installs the runner; Milestone G writes the actual specs.
     // Vitest's default (exit 1 on zero test files) would otherwise break

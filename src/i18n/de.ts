@@ -163,7 +163,7 @@ export const de: MessageSchema = {
     ankiconnectVerify:
       'Alle vier Dateien werden in einen temporären Ordner geladen, und ihre SHA-256-Prüfsummen werden mit in diese App eingebauten Werten verglichen, bevor etwas in den Add-on-Ordner von Anki geschrieben wird. Weicht eine ab, wird nichts installiert.',
     ankiconnectWrite:
-      'Die Dateien und eine config.json werden in den Add-on-Ordner 2055492159 im Datenordner von Anki geschrieben. Mit dieser Konfiguration ist AnkiConnect nur auf diesem Computer erreichbar (127.0.0.1:8765) und lehnt Anfragen von Webseiten außer dieser App ab. Jetzt wird nichts ausgeführt; Anki lädt das Add-on beim nächsten Start.',
+      'Die Dateien und eine config.json werden in den Add-on-Ordner 2055492159 im Datenordner von Anki geschrieben. Mit dieser Konfiguration ist AnkiConnect nur auf diesem Computer erreichbar (127.0.0.1:8765) und lehnt Anfragen von allen Webseiten ab. Jetzt wird nichts ausgeführt; Anki lädt das Add-on beim nächsten Start.',
     checksums: 'Erwartete SHA-256-Prüfsummen',
     agree: 'Zustimmen und installieren',
     cancel: 'Abbrechen',

@@ -8,7 +8,7 @@ use std::{
 };
 
 use hsk_import::{
-    apkg::{enrich_from_apkg, ApkgFields},
+    apkg::{enrich_from_apkg, enrich_from_apkg_with_limits, ApkgFields, ApkgLimits},
     cli::{run, Command},
     output::{read_curriculum, write_curriculum},
     Error,
@@ -430,6 +430,210 @@ fn the_real_collection_wins_over_the_anki2_stub_and_anki2_alone_is_read() {
         "no media map, no media"
     );
     assert_eq!(items[0].example_sentence_source.as_deref(), Some("真的。"));
+}
+
+/// One note for 学习 whose word audio is `word` and sentence audio
+/// `sentence`, packed with `media` (entry name, file name, bytes).
+fn deck_with_media(
+    dir: &Path,
+    word: &str,
+    sentence: &str,
+    media: &[(&str, &str, Vec<u8>)],
+) -> PathBuf {
+    let db = dir.join("collection.anki21");
+    let word_ref = format!("[sound:{word}]");
+    let sentence_ref = format!("[sound:{sentence}]");
+    collection(
+        &db,
+        &[chinese_note([
+            "学习",
+            "xué xí",
+            "to study",
+            &word_ref,
+            "我学习中文。",
+            "",
+            "",
+            &sentence_ref,
+            "",
+        ])],
+    );
+    let map: serde_json::Map<String, serde_json::Value> = media
+        .iter()
+        .map(|(entry, name, _)| (entry.to_string(), json!(name)))
+        .collect();
+    let mut entries = vec![
+        ("collection.anki21", std::fs::read(&db).unwrap()),
+        (
+            "media",
+            serde_json::Value::Object(map).to_string().into_bytes(),
+        ),
+    ];
+    entries.extend(
+        media
+            .iter()
+            .map(|(entry, _, bytes)| (*entry, bytes.clone())),
+    );
+    let apkg = dir.join("deck.apkg");
+    package(&apkg, &entries);
+    apkg
+}
+
+fn files_in(dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .collect();
+    names.sort();
+    names
+}
+
+const SMALL: ApkgLimits = ApkgLimits {
+    collection_bytes: 16 * 1024 * 1024,
+    entry_bytes: 64 * 1024,
+};
+
+/// A zip bomb in miniature: a megabyte of zeros deflates to about a kilobyte.
+/// An entry over the limit is skipped and reported, not written, and leaves
+/// no partial file behind.
+#[test]
+fn media_over_the_size_limit_are_never_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let apkg = deck_with_media(
+        dir.path(),
+        "bomb.mp3",
+        "fine.mp3",
+        &[
+            ("0", "bomb.mp3", vec![0; 1024 * 1024]),
+            ("1", "fine.mp3", b"ID3 fine".to_vec()),
+        ],
+    );
+    assert!(
+        std::fs::metadata(&apkg).unwrap().len() < 64 * 1024,
+        "precondition"
+    );
+    let media = dir.path().join("media");
+    let mut items = curriculum();
+
+    let report =
+        enrich_from_apkg_with_limits(&apkg, &mut items, &media, &ApkgFields::default(), SMALL)
+            .unwrap();
+
+    assert_eq!(report.media_too_large, ["bomb.mp3"]);
+    assert_eq!(items[0].vocab_audio_path, None);
+    assert_eq!(items[0].sentence_audio_path.as_deref(), Some("fine.mp3"));
+    assert_eq!(
+        files_in(&media),
+        ["fine.mp3"],
+        "no partial or temporary file"
+    );
+    assert!(report
+        .to_string()
+        .contains("media over the size limit: 1 (bomb.mp3)"));
+
+    // The default limit takes the same package.
+    let mut items = curriculum();
+    let report = enrich_from_apkg(&apkg, &mut items, &media, &ApkgFields::default()).unwrap();
+    assert!(report.media_too_large.is_empty());
+    assert_eq!(items[0].vocab_audio_path.as_deref(), Some("bomb.mp3"));
+}
+
+/// The size an entry declares is the packer's claim: one that claims to be
+/// small but inflates past the limit is stopped by the bytes actually read.
+#[test]
+fn an_entry_that_lies_about_its_size_is_stopped_at_the_limit() {
+    let dir = tempfile::tempdir().unwrap();
+    let apkg = deck_with_media(
+        dir.path(),
+        "liar.mp3",
+        "fine.mp3",
+        &[
+            ("0", "liar.mp3", vec![0; 1024 * 1024]),
+            ("1", "fine.mp3", b"ID3 fine".to_vec()),
+        ],
+    );
+    // Rewrite the uncompressed size of entry "0" in the central directory
+    // (offset 24 of its header) to 16 bytes.
+    let mut bytes = std::fs::read(&apkg).unwrap();
+    let header = (0..bytes.len() - 47)
+        .find(|&at| {
+            bytes[at..at + 4] == [0x50, 0x4b, 0x01, 0x02]
+                && bytes[at + 28..at + 30] == [1, 0]
+                && bytes[at + 46] == b'0'
+        })
+        .expect("the central directory header of entry 0");
+    bytes[header + 24..header + 28].copy_from_slice(&16u32.to_le_bytes());
+    std::fs::write(&apkg, &bytes).unwrap();
+    let media = dir.path().join("media");
+    let mut items = curriculum();
+
+    let report =
+        enrich_from_apkg_with_limits(&apkg, &mut items, &media, &ApkgFields::default(), SMALL)
+            .unwrap();
+
+    // The zip reader inflates deflate data past the declared size; the limit
+    // on the bytes read is what stops it.
+    assert_eq!(report.media_too_large, ["liar.mp3"], "{report:?}");
+    assert_eq!(items[0].vocab_audio_path, None);
+    assert_eq!(
+        files_in(&media),
+        ["fine.mp3"],
+        "nothing of the liar written"
+    );
+}
+
+#[test]
+fn a_collection_over_the_size_limit_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let apkg = deck_with_media(dir.path(), "a.mp3", "b.mp3", &[]);
+    let mut items = curriculum();
+    let limits = ApkgLimits {
+        collection_bytes: 1024,
+        ..SMALL
+    };
+
+    let result = enrich_from_apkg_with_limits(
+        &apkg,
+        &mut items,
+        &dir.path().join("media"),
+        &ApkgFields::default(),
+        limits,
+    );
+
+    assert!(
+        matches!(&result, Err(Error::Apkg(message)) if message.contains("larger than 1024 bytes")),
+        "{result:?}"
+    );
+    assert_eq!(items, curriculum(), "nothing filled");
+}
+
+/// A file or symlink already at a media name is replaced, never written
+/// through: a link planted in the output directory cannot redirect a write.
+#[cfg(unix)]
+#[test]
+fn an_existing_symlink_in_the_media_directory_is_replaced_not_followed() {
+    let dir = tempfile::tempdir().unwrap();
+    let apkg = deck_with_media(
+        dir.path(),
+        "word.mp3",
+        "fine.mp3",
+        &[("0", "word.mp3", b"ID3 word".to_vec())],
+    );
+    let media = dir.path().join("media");
+    std::fs::create_dir_all(&media).unwrap();
+    let outside = dir.path().join("outside.txt");
+    std::fs::write(&outside, "keep me").unwrap();
+    std::os::unix::fs::symlink(&outside, media.join("word.mp3")).unwrap();
+    let mut items = curriculum();
+
+    enrich_from_apkg(&apkg, &mut items, &media, &ApkgFields::default()).unwrap();
+
+    assert_eq!(std::fs::read_to_string(&outside).unwrap(), "keep me");
+    let written = media.join("word.mp3");
+    assert!(!std::fs::symlink_metadata(&written)
+        .unwrap()
+        .file_type()
+        .is_symlink());
+    assert_eq!(std::fs::read(&written).unwrap(), b"ID3 word");
 }
 
 #[test]

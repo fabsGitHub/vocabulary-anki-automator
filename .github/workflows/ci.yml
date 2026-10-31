@@ -27,7 +27,11 @@ jobs:
         os: [ubuntu-22.04, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
+      # The token stays out of .git/config, where the npm and cargo code the
+      # checks run could read it.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Install Tauri system dependencies (Linux)
         if: runner.os == 'Linux'
