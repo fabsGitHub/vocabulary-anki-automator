@@ -227,6 +227,9 @@ describe('the web adapter', () => {
     expect(await rejection(web.getCard(1.5))).toBe(
       'invalid args `cardId` for command `get_card`: invalid type: floating point `1.5`, expected i64',
     )
+    expect(await rejection(web.startNewCapture(1.5))).toBe(
+      'invalid args `cardId` for command `start_new_capture`: invalid type: floating point `1.5`, expected i64',
+    )
     expect(await rejection(web.nextExercise(1, 'flashcard' as 'multiple_choice', 0))).toBe(
       'invalid args `kind` for command `next_exercise`: unknown variant `flashcard`, expected one of ' +
         '`multiple_choice`, `sentence_builder`, `listening_choice`, `listening_sentence`',

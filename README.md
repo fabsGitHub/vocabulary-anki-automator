@@ -55,11 +55,13 @@ Accessibility).
 
 ### Learn (macOS, Windows, Linux, and the web)
 
-- **Daily goal**: on the first start of a day Learn asks how many new characters
-  you want to learn. "Not today" means reviews only; the menu reopens the question.
-- **Review**: cards that are due come first, then new words from the HSK 3.0 list
-  in order. Each card is rated Again / Hard / Good / Easy and rescheduled with
-  FSRS (`rs-fsrs`); the buttons show when the card would come back.
+- **Daily goal**: on the first start of a day Learn asks how many new words you
+  want to learn. "Not today" means reviews only; the menu reopens the question.
+- **Review**: cards that are due come first, then new words: first those you
+  captured in the Automator or imported from Anki and have not started yet,
+  oldest first, then the HSK 3.0 list in order (captured HSK words keep their
+  place in it). Each card is rated Again / Hard / Good / Easy and rescheduled
+  with FSRS (`rs-fsrs`); the buttons show when the card would come back.
 - **Practice**: multiple choice, sentence builder, and two listening exercises,
   built only from words you have already learned.
 - **Lessons**: cloze lessons from the example sentences of your own captures.

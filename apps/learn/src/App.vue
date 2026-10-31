@@ -39,7 +39,8 @@ const TABS: { id: TabId; label: MessageKey }[] = [
 ]
 
 const { t, locale } = useI18n()
-const prompt = useDailyPrompt(usePlatform(), useClock())
+const platform = usePlatform()
+const prompt = useDailyPrompt(platform, useClock())
 const {
   phase,
   loadError,
@@ -217,6 +218,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', onWindowFocus))
       :initial-count="suggestedCount"
       :busy="busy"
       :error="actionError"
+      :web="platform.capabilities.kind === 'web'"
       @start="prompt.submit($event)"
       @dismiss="prompt.dismiss()"
     />

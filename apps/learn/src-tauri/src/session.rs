@@ -12,8 +12,8 @@
 //! - **Progress is counted on reviews.** A card's first review (its log's
 //!   `state_before` is `new`) counts as a new item and earns `XP_NEW_ITEM`;
 //!   every other review counts as a review and earns `XP_REVIEW`. Introducing
-//!   a word (`start_new_item`) counts nothing, so introducing it twice cannot
-//!   count twice.
+//!   a word or a capture (`start_new_item`, `start_new_capture`) counts
+//!   nothing, so introducing it twice cannot count twice.
 //! - **Completion is noticed by the write that causes it**: a rating, or an
 //!   answer to the prompt that lowers the quota to what is already done.
 //!   [`track_completion`] compares today's session before and after the
@@ -22,12 +22,14 @@
 //! - **The queue offers what is left of today's quota**: the session's
 //!   `requested_new_count`, minus the new items already done, minus the cards
 //!   still waiting for their first review (introduced but not rated yet,
-//!   whose rating will count as a new item). Introducing a word therefore
-//!   moves it from the new part of the queue to the review part instead of
-//!   pulling in one word more. Before today's prompt is answered there is no
-//!   session, and the queue holds reviews only, as after a dismissed prompt.
-//!   This rule is Learn's, not the core's, so the web build's adapter has to
-//!   apply the same one for both platforms to show the same queue.
+//!   whose rating will count as a new item). The core fills it with
+//!   unstarted captures and imports first, then curriculum words; one quota
+//!   covers both. Introducing an item therefore moves it from the new part
+//!   of the queue to the review part instead of pulling in one item more.
+//!   Before today's prompt is answered there is no session, and the queue
+//!   holds reviews only, as after a dismissed prompt. This rule is Learn's,
+//!   not the core's, so the web build's adapter has to apply the same one for
+//!   both platforms to show the same queue.
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -63,24 +65,26 @@ pub struct ReviewResult {
 }
 
 /// Today's queue: every card due before the end of the local day, then the
-/// new curriculum words that are left of today's quota (see the module docs).
+/// new items that are left of today's quota (see the module docs).
 pub fn daily_queue(store: &Store, clock: &dyn Clock) -> StoreResult<Vec<QueueItem>> {
     let today = clock.today();
     let (_, end_of_today) = local_day_bounds(today, clock.local_offset());
     let due = store.list_srs_due_before(end_of_today)?;
     let new_quota = remaining_new_quota(store.get_daily_session(today)?.as_ref(), &due);
+    let unscheduled = store.list_unscheduled_captures()?;
     let curriculum = store.curriculum_in_order()?;
     let learned_hanzi = store.learned_chinese_fronts()?;
     Ok(build_daily_queue_from(
         &due,
+        &unscheduled,
         &curriculum,
         &learned_hanzi,
         new_quota,
     ))
 }
 
-/// How many new curriculum words today's queue still offers, given the
-/// states due today.
+/// How many new items today's queue still offers, given the states due
+/// today.
 fn remaining_new_quota(session: Option<&DailySessionRow>, due: &[SrsStateRow]) -> u32 {
     let Some(session) = session else {
         return 0;
@@ -171,12 +175,12 @@ fn xp_earned_since(store: &Store, date: NaiveDate, before: i64) -> StoreResult<i
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, TimeZone, Utc};
+    use chrono::{DateTime, Duration, TimeZone, Utc};
     use vocab_core::{
         gamification::XP_SESSION_COMPLETE,
-        srs::{dismiss_daily_prompt, introduce_new_item, submit_daily_quota},
+        srs::{dismiss_daily_prompt, introduce_capture, introduce_new_item, submit_daily_quota},
         time::FixedClock,
-        CaptureOrigin, Card, CurriculumItem,
+        CaptureOrigin, Card, CurriculumItem, ScriptMetadata, ScriptVariant,
     };
 
     use super::*;
@@ -214,11 +218,14 @@ mod tests {
         store
     }
 
-    fn new_items(queue: &[QueueItem]) -> Vec<&str> {
+    /// The new part of `queue`: curriculum words by their hanzi, captures as
+    /// `#` and their card id.
+    fn new_items(queue: &[QueueItem]) -> Vec<String> {
         queue
             .iter()
             .filter_map(|item| match item {
-                QueueItem::New { hanzi, .. } => Some(hanzi.as_str()),
+                QueueItem::New { hanzi, .. } => Some(hanzi.clone()),
+                QueueItem::NewCapture { card_id } => Some(format!("#{card_id}")),
                 QueueItem::Review { .. } => None,
             })
             .collect()
@@ -253,6 +260,61 @@ mod tests {
         let second = introduce_new_item(&store, &scheduler, "二", "en", &clock).unwrap();
         rate(&store, &scheduler, second, ReviewRating::Good, &clock).unwrap();
         assert!(new_items(&daily_queue(&store, &clock).unwrap()).is_empty());
+    }
+
+    /// A clipboard capture and an Anki import nobody started come before any
+    /// curriculum word, oldest first, from the same quota; a captured
+    /// curriculum word waits for its turn. Starting one moves it to the
+    /// reviews, and its first rating is a new item.
+    #[test]
+    fn unstarted_captures_and_imports_come_first_from_the_same_quota() {
+        let store = store();
+        let clock = FixedClock::utc(now());
+        let scheduler = SrsScheduler::default();
+        let unstarted =
+            |card: Card, origin: CaptureOrigin| store.insert_capture(&card, origin, true).unwrap();
+        let import = unstarted(
+            Card::new("Baum", "tree", "de", "en", now() - Duration::days(1)),
+            CaptureOrigin::AnkiImport,
+        );
+        let capture = unstarted(
+            Card::new("Haus", "house", "de", "en", now() - Duration::days(2)),
+            CaptureOrigin::Capture,
+        );
+        let mut hanzi = Card::new("二", "two", "zh-CN", "en", now() - Duration::days(3));
+        hanzi.script_metadata = ScriptMetadata::Chinese {
+            pinyin: "èr".into(),
+            hsk_level: Some(1),
+            script_variant: ScriptVariant::Simplified,
+        };
+        unstarted(hanzi, CaptureOrigin::Capture);
+        assert!(new_items(&daily_queue(&store, &clock).unwrap()).is_empty());
+
+        submit_daily_quota(&store, 3, &clock).unwrap();
+        let (capture_item, import_item) = (format!("#{capture}"), format!("#{import}"));
+        assert_eq!(
+            new_items(&daily_queue(&store, &clock).unwrap()),
+            [capture_item.as_str(), import_item.as_str(), "一"]
+        );
+
+        assert_eq!(
+            introduce_capture(&store, &scheduler, capture, &clock).unwrap(),
+            capture
+        );
+        let queue = daily_queue(&store, &clock).unwrap();
+        assert_eq!(new_items(&queue), [import_item.as_str(), "一"]);
+        assert!(queue.contains(&QueueItem::Review {
+            card_id: capture,
+            due_date: now()
+        }));
+
+        let rated = rate(&store, &scheduler, capture, ReviewRating::Good, &clock).unwrap();
+        assert_eq!(rated.xp_awarded, XP_NEW_ITEM);
+        assert_eq!(rated.session.unwrap().new_items_completed, 1);
+        assert_eq!(
+            new_items(&daily_queue(&store, &clock).unwrap()),
+            [import_item.as_str(), "一"]
+        );
     }
 
     #[test]

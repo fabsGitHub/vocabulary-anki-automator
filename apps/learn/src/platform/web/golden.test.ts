@@ -67,6 +67,7 @@ import { LearnedVocabularyPool } from './pool'
 import {
   buildDailyQueue,
   buildDailyQueueFrom,
+  introduceCapture,
   introduceNewItem,
   queueItemToJson,
   submitReview,
@@ -84,7 +85,7 @@ import {
 } from './scheduler'
 import { defaultSettings } from './settings'
 import { MemoryStorage } from './storage'
-import { Store, dailySessionFromJson, dailySessionToJson } from './store'
+import { Store, type UnscheduledCapture, dailySessionFromJson, dailySessionToJson } from './store'
 import { compareStrings, debugString } from './text'
 import {
   FixedClock,
@@ -117,6 +118,21 @@ function range(length: number): number[] {
 
 function sorted(texts: Iterable<string>): string[] {
   return [...texts].sort(compareStrings)
+}
+
+/** `store::UnscheduledCapture`'s serde shape. */
+interface UnscheduledCaptureJson {
+  card_id: number
+  front: string
+  captured_at: ipc.Instant
+}
+
+function unscheduledFromJson(value: UnscheduledCaptureJson): UnscheduledCapture {
+  return { ...value, captured_at: parseInstantMillis(value.captured_at) }
+}
+
+function unscheduledToJson(row: UnscheduledCapture): UnscheduledCaptureJson {
+  return { ...row, captured_at: formatInstant(row.captured_at) }
 }
 
 describe('rng::Mulberry32', () => {
@@ -329,10 +345,11 @@ describe('srs::SrsScheduler', () => {
 })
 
 describe('srs::build_daily_queue_from', () => {
-  it('orders reviews first and new words by curriculum order, skipping learned hanzi', () => {
+  it('orders reviews first, then unstarted captures, then curriculum words skipping learned hanzi', () => {
     for (const vector of golden.queue) {
       const queue = buildDailyQueueFrom(
         vector.due.map((row) => srsStateFromJson(row as ipc.SrsState)),
+        vector.unscheduled.map((row) => unscheduledFromJson(row as UnscheduledCaptureJson)),
         vector.curriculum.map((item) => curriculumItemFromJson(item as CurriculumItem)),
         new Set(vector.learned),
         vector.quota,
@@ -487,6 +504,8 @@ async function runOp(
       return (await buildDailyQueue(store, field('quota'), clock)).map(queueItemToJson)
     case 'introduce_new_item':
       return introduceNewItem(store, scheduler, field('hanzi'), field('target_lang'), clock)
+    case 'introduce_capture':
+      return introduceCapture(store, scheduler, field('card_id'), clock)
     case 'submit_review':
       return reviewOutcomeToJson(
         await submitReview(store, scheduler, field('card_id'), field('rating'), clock),
@@ -507,6 +526,8 @@ async function runOp(
       return (await store.reviewLogForCard(field('card_id'))).map(reviewLogToJson)
     case 'list_captures':
       return (await store.listCaptures(null)).map(storedCaptureToJson)
+    case 'list_unscheduled_captures':
+      return (await store.listUnscheduledCaptures()).map(unscheduledToJson)
     case 'learned_chinese_fronts':
       return sorted(await store.learnedChineseFronts())
     case 'delete_capture':

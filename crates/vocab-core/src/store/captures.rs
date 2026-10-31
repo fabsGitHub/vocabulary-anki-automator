@@ -9,7 +9,9 @@
 
 use std::collections::HashSet;
 
+use chrono::{DateTime, Utc};
 use rusqlite::{params, Params, Row, ToSql};
+use serde::{Deserialize, Serialize};
 
 use super::{codec, Store, StoreError, StoreResult};
 use crate::model::{CaptureOrigin, Card, ScriptMetadata, ScriptVariant, StoredCapture};
@@ -31,6 +33,16 @@ const UPDATE_CAPTURE_CARD: &str = "UPDATE captures SET front = :front, back = :b
      captured_at = :captured_at, script_kind = :script_kind, pinyin = :pinyin, \
      hsk_level = :hsk_level, script_variant = :script_variant, audio_front = :audio_front \
      WHERE id = :id";
+
+/// A capture that has no `srs_state` row yet, as the daily queue sees it
+/// ([`Store::list_unscheduled_captures`]).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnscheduledCapture {
+    /// The `captures.id`.
+    pub card_id: i64,
+    pub front: String,
+    pub captured_at: DateTime<Utc>,
+}
 
 impl Store {
     /// Saves `card` as a new row and returns its id.
@@ -138,6 +150,28 @@ impl Store {
         )?;
         let fronts = statement.query_map([], |row| row.get(0))?;
         Ok(fronts.collect::<Result<_, _>>()?)
+    }
+
+    /// Every capture of any origin that has no `srs_state` row, in capture
+    /// order (oldest first, ties by id): the cards nobody has started to
+    /// learn. Only the columns the daily queue needs are read.
+    pub fn list_unscheduled_captures(&self) -> StoreResult<Vec<UnscheduledCapture>> {
+        let mut statement = self.conn().prepare_cached(
+            "SELECT c.id, c.front, c.captured_at FROM captures c \
+             WHERE NOT EXISTS (SELECT 1 FROM srs_state s WHERE s.card_id = c.id) \
+             ORDER BY c.captured_at ASC, c.id ASC",
+        )?;
+        let captures = statement.query_and_then([], |row| {
+            let card_id: i64 = row.get(0)?;
+            let captured_at = codec::parse_timestamp(&row.get::<_, String>(2)?)
+                .map_err(|err| err.in_row("captures", card_id))?;
+            Ok(UnscheduledCapture {
+                card_id,
+                front: row.get(1)?,
+                captured_at,
+            })
+        })?;
+        captures.collect()
     }
 
     /// Replaces every card field of an existing capture, `captured_at`

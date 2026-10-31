@@ -68,6 +68,7 @@ export interface DailyPromptState {
 export type QueueItem =
   | { kind: 'review'; card_id: number; due_date: Instant }
   | { kind: 'new'; hanzi: string; curriculum_order: number }
+  | { kind: 'new_capture'; card_id: number }
 
 /** vocab_core::srs::ReviewRating: 1 = Again, 2 = Hard, 3 = Good, 4 = Easy. */
 export type Rating = 1 | 2 | 3 | 4
@@ -286,7 +287,8 @@ export interface PlatformCapabilities {
 /**
  * Tauri command for each method (JS args camelCase):
  * get_daily_prompt_state, submit_daily_quota{newCount}, dismiss_daily_prompt,
- * reopen_daily_prompt, get_daily_queue, start_new_item{hanzi}, get_card{cardId},
+ * reopen_daily_prompt, get_daily_queue, start_new_item{hanzi},
+ * start_new_capture{cardId}, get_card{cardId},
  * preview_ratings{cardId}, submit_review_rating{cardId, rating},
  * list_learned_cards, next_exercise{cardId, kind, seed},
  * check_exercise{exercise, answer}, record_exercise_result{cardId, kind, correct},
@@ -311,6 +313,8 @@ export interface PlatformAdapter {
   getDailyQueue(): Promise<QueueItem[]>
   /** Introduces a curriculum word; returns its card id (idempotent). */
   startNewItem(hanzi: string): Promise<number>
+  /** Starts a capture or Anki import the queue offered; returns its card id (idempotent). */
+  startNewCapture(cardId: number): Promise<number>
   getCard(cardId: number): Promise<StoredCapture>
   previewRatings(cardId: number): Promise<RatingPreview[]>
   submitReviewRating(cardId: number, rating: Rating): Promise<ReviewResult>

@@ -21,7 +21,7 @@ export const en = {
     dismiss: 'Dismiss',
   },
   goal: {
-    newWords: 'New characters today: {count}',
+    newWords: 'New words today: {count}',
     reviewsOnly: 'Today: reviews only',
   },
   menu: {
@@ -37,10 +37,12 @@ export const en = {
     anki: 'Anki & settings',
   },
   prompt: {
-    title: 'How many new characters do you want to learn today?',
+    title: 'How many new words do you want to learn today?',
     intro:
-      'New characters come from the HSK word list, in order. Cards that are due for review always come first.',
-    countLabel: 'New characters today',
+      'Cards that are due for review always come first. Then come the words you captured in the Automator or imported from Anki, oldest first, and then the HSK word list in order; HSK words you captured keep their place in that list.',
+    introWeb:
+      'New words come from the HSK word list, in order. Cards that are due for review always come first.',
+    countLabel: 'New words today',
     countHint: 'Any number from 0 to 50.',
     quickPicks: 'Quick picks',
     invalid: 'Enter a whole number from 0 to 50.',
@@ -48,7 +50,7 @@ export const en = {
     saving: 'Saving…',
     notToday: 'Not today',
     notTodayHint:
-      '“Not today” means reviews only: you review the cards that are due and learn no new characters today. You can change this later with “Change today’s new-word goal” in the menu.',
+      '“Not today” means reviews only: you review the cards that are due and learn no new words today. You can change this later with “Change today’s new-word goal” in the menu.',
     failed: 'Today’s goal could not be saved: {error}',
   },
   review: {
@@ -57,7 +59,7 @@ export const en = {
     loadFailed: 'Your cards could not be loaded: {error}',
     emptyTitle: 'All caught up',
     emptyBody: 'No card is due right now.',
-    emptyGoalHint: 'Want to learn new characters today? Change today’s goal.',
+    emptyGoalHint: 'Want to learn new words today? Change today’s goal.',
     changeGoal: 'Change today’s goal',
     progress: 'Card {current} of {total}',
     progressLabel: 'Session progress',

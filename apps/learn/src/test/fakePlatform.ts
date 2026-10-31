@@ -55,6 +55,7 @@ export function fakePlatform(capabilities: Partial<PlatformCapabilities> = {}): 
     reopenDailyPrompt: vi.fn<Methods['reopenDailyPrompt']>(async () => undefined),
     getDailyQueue: vi.fn<Methods['getDailyQueue']>(async () => []),
     startNewItem: vi.fn<Methods['startNewItem']>(async () => 100),
+    startNewCapture: vi.fn<Methods['startNewCapture']>(async (cardId) => cardId),
     getCard: vi.fn<Methods['getCard']>(async (cardId) => fx.capture({ id: cardId })),
     previewRatings: vi.fn<Methods['previewRatings']>(async () => fx.previews()),
     submitReviewRating: vi.fn<Methods['submitReviewRating']>(async () => fx.reviewResult()),

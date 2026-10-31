@@ -15,7 +15,7 @@ export const de: MessageSchema = {
     dismiss: 'Ausblenden',
   },
   goal: {
-    newWords: 'Neue Schriftzeichen heute: {count}',
+    newWords: 'Neue Wörter heute: {count}',
     reviewsOnly: 'Heute: nur Wiederholungen',
   },
   menu: {
@@ -31,10 +31,12 @@ export const de: MessageSchema = {
     anki: 'Anki & Einstellungen',
   },
   prompt: {
-    title: 'Wie viele neue Schriftzeichen möchtest du heute lernen?',
+    title: 'Wie viele neue Wörter möchtest du heute lernen?',
     intro:
-      'Neue Schriftzeichen kommen der Reihe nach aus der HSK-Wortliste. Fällige Wiederholungen kommen immer zuerst.',
-    countLabel: 'Neue Schriftzeichen heute',
+      'Fällige Wiederholungen kommen immer zuerst. Danach kommen die Wörter, die du im Automator erfasst oder aus Anki importiert hast, die ältesten zuerst, und dann die HSK-Wortliste der Reihe nach; erfasste HSK-Wörter behalten ihren Platz in dieser Liste.',
+    introWeb:
+      'Neue Wörter kommen der Reihe nach aus der HSK-Wortliste. Fällige Wiederholungen kommen immer zuerst.',
+    countLabel: 'Neue Wörter heute',
     countHint: 'Eine Zahl von 0 bis 50.',
     quickPicks: 'Schnellauswahl',
     invalid: 'Gib eine ganze Zahl von 0 bis 50 ein.',
@@ -42,7 +44,7 @@ export const de: MessageSchema = {
     saving: 'Wird gespeichert…',
     notToday: 'Heute nicht',
     notTodayHint:
-      '„Heute nicht“ heißt nur Wiederholungen: Du wiederholst die fälligen Karten und lernst heute keine neuen Schriftzeichen. Du kannst das später im Menü unter „Heutiges Ziel für neue Wörter ändern“ ändern.',
+      '„Heute nicht“ heißt nur Wiederholungen: Du wiederholst die fälligen Karten und lernst heute keine neuen Wörter. Du kannst das später im Menü unter „Heutiges Ziel für neue Wörter ändern“ ändern.',
     failed: 'Das heutige Ziel konnte nicht gespeichert werden: {error}',
   },
   review: {
@@ -51,7 +53,7 @@ export const de: MessageSchema = {
     loadFailed: 'Deine Karten konnten nicht geladen werden: {error}',
     emptyTitle: 'Alles erledigt',
     emptyBody: 'Gerade ist keine Karte fällig.',
-    emptyGoalHint: 'Möchtest du heute neue Schriftzeichen lernen? Ändere das heutige Ziel.',
+    emptyGoalHint: 'Möchtest du heute neue Wörter lernen? Ändere das heutige Ziel.',
     changeGoal: 'Heutiges Ziel ändern',
     progress: 'Karte {current} von {total}',
     progressLabel: 'Fortschritt der Sitzung',

@@ -99,6 +99,7 @@ export interface Golden {
   queue: {
     name: string
     due: unknown[]
+    unscheduled: unknown[]
     curriculum: unknown[]
     learned: string[]
     quota: number

@@ -104,6 +104,7 @@ const dailyPromptState = object({
 const queueItem = union(
   object({ kind: literal('review'), card_id: integer, due_date: instant }),
   object({ kind: literal('new'), hanzi: string, curriculum_order: integer }),
+  object({ kind: literal('new_capture'), card_id: integer }),
 )
 const rating = literal(1, 2, 3, 4)
 const ratingPreview = object({ rating, due_date: instant, interval_days: integer })
@@ -381,6 +382,7 @@ const RETURNS = {
   reopenDailyPrompt: 'null',
   getDailyQueue: 'QueueItem[]',
   startNewItem: 'number',
+  startNewCapture: 'number',
   getCard: 'StoredCapture',
   previewRatings: 'RatingPreview[]',
   submitReviewRating: 'ReviewResult',
@@ -418,6 +420,7 @@ const ARGS: { [M in Method]: Parameters<T.PlatformAdapter[M]> } = {
   reopenDailyPrompt: [],
   getDailyQueue: [],
   startNewItem: ['学习'],
+  startNewCapture: [14],
   getCard: [12],
   previewRatings: [12],
   submitReviewRating: [12, 3],
@@ -471,7 +474,9 @@ describe('the Rust shapes of Learn', () => {
     expect(new Set(all('ExerciseAnswer').map((value) => value.kind))).toEqual(
       new Set(['choice', 'order']),
     )
-    expect(new Set(all('QueueItem').map((value) => value.kind))).toEqual(new Set(['review', 'new']))
+    expect(new Set(all('QueueItem').map((value) => value.kind))).toEqual(
+      new Set(['review', 'new', 'new_capture']),
+    )
     expect(all('Rating')).toEqual([1, 2, 3, 4])
   })
 

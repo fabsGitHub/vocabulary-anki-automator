@@ -50,6 +50,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         commands::daily::reopen_daily_prompt,
         commands::daily::get_daily_queue,
         commands::daily::start_new_item,
+        commands::daily::start_new_capture,
         commands::review::get_card,
         commands::review::preview_ratings,
         commands::review::submit_review_rating,
