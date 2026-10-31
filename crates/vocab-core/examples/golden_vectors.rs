@@ -366,6 +366,10 @@ fn language() -> Value {
         "。、！",
         "\u{4DBF}\u{4DC0}\u{9FFF}\u{A000}",
         "\u{1F600}学",
+        // Han script outside the two blocks counts as no hanzi: the
+        // ideographic zero and iteration mark, a compatibility ideograph and
+        // one of Extension B.
+        "〇々\u{F900}\u{20000}学",
     ];
     let cjk: Vec<Value> = texts
         .iter()
@@ -975,6 +979,15 @@ fn invalid_rows() -> Vec<(&'static str, SrsStateRow)> {
             "a new card with a last review",
             SrsStateRow {
                 last_reviewed_at: Some(instant("2026-11-01T00:00:00Z")),
+                ..new.clone()
+            },
+        ),
+        (
+            "a new card with a whole memory state",
+            SrsStateRow {
+                stability: Some(3.0),
+                difficulty: Some(5.0),
+                last_reviewed_at: Some(instant("2026-11-01T00:00:00Z")),
                 ..new
             },
         ),
@@ -1237,6 +1250,12 @@ fn streak_cases() -> Value {
         ),
         case("2026-11-20", &["2026-11-18"], &["2026-11-19"]),
         case("2026-11-20", &["2026-11-19", "2026-11-20"], &["2026-11-19"]),
+        // A day both completed and frozen is one day of the run.
+        case(
+            "2026-11-20",
+            &["2026-11-18", "2026-11-19", "2026-11-20"],
+            &["2026-11-19"],
+        ),
         case(
             "2026-11-20",
             &["2026-11-20", "2026-11-21", "2026-11-22"],
@@ -1463,6 +1482,34 @@ fn lesson_cases() -> Value {
         stored(
             17,
             english("é", "Caf\u{e9} au lait, cafe\u{301}.", "Milchkaffee.", 15),
+            capture,
+        ),
+        // English like the first cards, but into French: another lesson.
+        stored(
+            18,
+            captured_at(
+                with_example(
+                    plain("cat", "chat", "en", "fr"),
+                    "The cat is black.",
+                    "Le chat est noir.",
+                ),
+                &at(16),
+            ),
+            capture,
+        ),
+        // A hanzi has no word boundaries: the first occurrence is blanked,
+        // even when a later one stands between punctuation. The pinyin is
+        // trimmed.
+        stored(
+            19,
+            captured_at(
+                with_example(
+                    chinese("学", "lernen", "de", " xué "),
+                    "学习，学！",
+                    "Lernen!",
+                ),
+                &at(17),
+            ),
             capture,
         ),
     ];
@@ -1765,6 +1812,57 @@ fn exercise_words() -> Vec<Word> {
                 chinese("谢谢", "danke", "de", "xiè xie"),
                 "谢谢！",
                 "Danke!",
+            ),
+            true,
+        ),
+        // Homophones whose pinyin differ in spacing only (the dataset's
+        // `gōngshì`, the generator's `gōng shì`): the same sound.
+        word(chinese("公式", "Formel", "de", "gōngshì"), true),
+        word(chinese("公事", "Dienstsache", "de", "gōng shì"), true),
+        // A Chinese capture without hanzi is no dictionary word, so never a
+        // tile of a Chinese sentence.
+        word(plain("OK", "okay", "zh-CN", "de"), true),
+        // Rust's text rules where JavaScript's differ: NEL is whitespace and
+        // the byte-order mark is not; letters are `Alphabetic` (Devanagari
+        // vowel signs included), digits any `N` (²), characters code points
+        // (𝐛𝐨𝐥𝐝); and punctuation is stripped on both sides of a word.
+        word(
+            with_example(
+                plain("e\u{feff}mail", "E-Mail", "en", "de"),
+                "Send an\u{85}e\u{feff}mail.",
+                "Schick eine E-Mail.",
+            ),
+            true,
+        ),
+        word(
+            with_example(
+                plain("Wohnung", "flat", "de", "en"),
+                "Die Wohnung hat 80 m².",
+                "The flat has 80 m².",
+            ),
+            true,
+        ),
+        word(
+            with_example(
+                plain("नमस्ते", "hallo", "hi", "de"),
+                "नमस्ते दुनिया",
+                "Hallo Welt",
+            ),
+            true,
+        ),
+        word(
+            with_example(
+                plain("bold", "fett", "en", "de"),
+                "Write it in 𝐛𝐨𝐥𝐝, bold.",
+                "Schreib es fett.",
+            ),
+            true,
+        ),
+        word(
+            with_example(
+                plain("Tür", "door", "de", "en"),
+                "„Tür“, sagte er.",
+                "\"Door,\" he said.",
             ),
             true,
         ),
@@ -2125,6 +2223,14 @@ impl Runner {
         );
     }
 
+    fn list_srs_due_before(&mut self, before: DateTime<Utc>) {
+        let result = self.store.list_srs_due_before(before);
+        self.record(
+            json!({ "op": "list_srs_due_before", "before": before }),
+            outcome(result),
+        );
+    }
+
     fn build_daily_queue(&mut self, quota: u32) {
         let result = build_daily_queue(&self.store, quota, &self.clock);
         self.record(
@@ -2311,9 +2417,11 @@ fn scenarios() -> Value {
     for offset_seconds in [9 * 3600, -5 * 3600, 19_800, -34_200] {
         all.push(queue_boundaries_scenario(offset_seconds));
     }
+    all.push(due_order_scenario());
     all.push(queue_learning_scenario());
     all.push(gamification_scenario());
     all.push(freezes_at_completion_scenario());
+    all.push(stats_spend_freezes_scenario());
     all.push(pool_and_lessons_scenario());
     all.push(seeding_scenario());
     Value::Array(all)
@@ -2456,6 +2564,60 @@ fn queue_boundaries_scenario(offset_seconds: i32) -> Value {
     run.build_daily_queue(0);
     run.set_local("2026-11-01 00:00:00.000");
     run.build_daily_queue(0);
+    run.stats_summary();
+    run.finish()
+}
+
+/// `list_srs_due_before` itself: strictly before the bound, by due date and
+/// then card id whatever order the rows were written in, with bounds in the
+/// last storable year (whose stored text still compares as text).
+fn due_order_scenario() -> Value {
+    let mut run = Runner::new("due states in order", instant("2026-10-31T08:00:00Z"), 0);
+    let dues = [
+        "2026-11-02T08:00:00.000Z",
+        "2026-11-01T08:00:00.000Z",
+        "2026-11-02T08:00:00.000Z",
+        "9999-12-31T23:59:59.999Z",
+        "2026-10-30T23:59:59.999Z",
+        "9999-06-01T00:00:00.000Z",
+        "2026-11-01T08:00:00.000Z",
+    ];
+    let mut ids = Vec::new();
+    for (index, _) in dues.iter().enumerate() {
+        let card = plain(&format!("word {index}"), "Wort", "en", "de");
+        ids.push(run.insert_capture(&card, CaptureOrigin::Capture));
+    }
+    // Written in reverse, so neither insertion nor id order is the answer.
+    for (id, due) in ids.iter().zip(dues).rev() {
+        run.upsert_srs_state(&due_state(*id, instant(due)));
+    }
+    for before in [
+        "2026-10-30T23:59:59.999Z",
+        "2026-11-01T08:00:00.000Z",
+        "2026-11-01T08:00:00.001Z",
+        "2026-11-03T00:00:00.000Z",
+        "9999-01-01T00:00:00.000Z",
+        "9999-12-31T23:59:59.999Z",
+    ] {
+        run.list_srs_due_before(instant(before));
+    }
+    run.finish()
+}
+
+/// The stats screen spends due freezes itself: the first thing to ask after
+/// a missed day is `stats_summary`, and the streak it reports is bridged.
+fn stats_spend_freezes_scenario() -> Value {
+    let berlin = 3600;
+    let mut run = Runner::new(
+        "stats spend due freezes",
+        local(offset(berlin), "2026-11-01 20:00:00.000"),
+        berlin,
+    );
+    run.complete_day("2026-11-01");
+    run.complete_day("2026-11-02");
+    run.set_state(STREAK_FREEZES_KEY, "1");
+    run.set_local("2026-11-04 09:00:00.000");
+    run.stats_summary();
     run.stats_summary();
     run.finish()
 }
@@ -2749,6 +2911,8 @@ fn pool_and_lessons_scenario() -> Value {
         ids.push(id);
     }
     run.load_pool();
+    // Capture order, not id order: these were captured newest first.
+    run.list_captures();
     run.lessons_from_store(2);
     run.lessons_from_store(0);
     run.generate_exercise(ids[0], ExerciseKind::SentenceBuilder, 5);

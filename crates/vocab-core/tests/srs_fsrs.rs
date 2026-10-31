@@ -963,6 +963,15 @@ mod conversion {
                 },
             ),
             (
+                "a new card with a whole memory state",
+                SrsStateRow {
+                    stability: Some(3.0),
+                    difficulty: Some(5.0),
+                    last_reviewed_at: Some(now),
+                    ..new.clone()
+                },
+            ),
+            (
                 "negative lapses",
                 SrsStateRow {
                     lapses: -1,
