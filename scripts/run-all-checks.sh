@@ -1,9 +1,9 @@
 #!/bin/bash
 # scripts/run-all-checks.sh
 #
-# Chains the unit + integration test tiers. Shared entry point used by the
-# `just watch`/`just check-all` loop, the pre-commit hook and CI
-# (.github/workflows/ci.yml) — one script, not duplicated logic.
+# Chains the unit + integration test tiers. Shared entry point used by
+# `just check-all`, the pre-commit hook and CI (.github/workflows/ci.yml) —
+# one script, not duplicated logic. (`just watch` is a faster Rust-only loop.)
 #
 # Deliberately excludes the E2E tier (tauri-driver + WebdriverIO): it is slow,
 # launches the compiled app, and tauri-driver has no macOS backend, so it

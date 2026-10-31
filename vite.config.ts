@@ -25,8 +25,9 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ['**/src-tauri/**'],
+      // 3. tell Vite to ignore watching `src-tauri`, and the Cargo workspace's
+      //    `target/`, which sits at the repo root (Vite's root) since Milestone B
+      ignored: ['**/src-tauri/**', '**/target/**'],
     },
   },
 }))

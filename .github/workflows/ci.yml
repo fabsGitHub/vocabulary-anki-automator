@@ -73,3 +73,14 @@ jobs:
           npm run build
           npm run learn:build
           npm run learn:build:web
+
+      # What `tauri build` adds to cargo, which the steps above never run: the
+      # CLI's crate/npm version check, beforeBuildCommand and its cwd, and the
+      # frontend embedded from frontendDist. Bundling and signing stay in
+      # release.yml.
+      - name: Tauri builds without bundling (Automator, Learn)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          npm run tauri -- build --debug --no-bundle
+          npm run learn:tauri -- build --debug --no-bundle

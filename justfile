@@ -42,12 +42,15 @@ lint:
     npx vue-tsc --noEmit -p apps/learn
     npm run lint
 
-# Learn: desktop dev (Tauri) and the standalone web build.
+# Learn: desktop dev (Tauri).
 learn-dev:
     npm run learn:tauri dev
 
+# Learn: the standalone web build in a browser. It needs `--mode web`: plain
+# `learn:dev` is Tauri's dev server and serves the desktop adapter, which fails
+# outside the app.
 learn-web:
-    npm run learn:dev
+    npm run learn:dev:web
 
 # Chains the fast test tiers; the same script CI and the pre-commit hook run.
 check-all:
