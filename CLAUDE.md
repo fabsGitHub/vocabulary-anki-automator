@@ -37,12 +37,15 @@ tests (wiremock) need local port binding (docs/architecture.md § 2).
 
 ## Rules that are easy to break
 
-- **Git:** work on a feature branch (`pot-N-...` for Paperclip tickets), commit there, never
-  directly to `main`; the operator merges (Tier 2 per SOUL.md). Never push. Tag releases
-  `v0.MINOR.PATCH`; CI releases on tag push, and only the operator tags.
-- **Dependencies:** adding any crate or npm package needs operator approval (Tier 2). Tauri crates
-  and `@tauri-apps/*` packages must stay on the same major.minor (the CLI refuses to build
-  otherwise) — they are pinned together in `Cargo.toml` and `package.json`.
+- **Git:** work on a feature branch (`pot-N-...` for Paperclip tickets), commit there, push it to
+  `origin` and open a pull request against `main`; the user reviews and merges. Never commit or
+  push to `main` directly, and never force-push it. Releases are tags `v0.MINOR.PATCH`, and CI
+  releases on a tag push (a signed update every installed Automator downloads): only the user
+  pushes release tags, so prepare a release (version bump, notes) in a PR.
+- **Dependencies:** add a crate or npm package when it is the right tool: prefer well-maintained
+  ones, pin the version, and list every new dependency in the PR description. Tauri crates and
+  `@tauri-apps/*` packages must stay on the same major.minor (the CLI refuses to build otherwise)
+  — they are pinned together in `Cargo.toml` and `package.json`.
 - **Tests:** never touch the real network or a real Anki install. `download_and_install_anki` /
   `auto_provision_ankiconnect` run only from consent-gated UI actions, never at startup or in tests.
 - **Anki field names** exist only in `crates/anki-bridge/src/mapper.rs`; the core `Card` is

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { CaptureOrigin, PipelineStage, ProviderError } from '../api'
+import { CREDIT_SOURCES } from '../domain/credits'
 import { CARD_FIELDS, chineseMapping } from '../domain/fieldMapping'
 import { de } from './de'
 import { en } from './en'
@@ -104,6 +105,7 @@ describe('keys the UI asks for', () => {
       ...kinds.map((kind) => `warnings.kind.${kind}`),
       ...origins.map((origin) => `history.origin.${origin}`),
       ...providers.map((provider) => `providers.${provider}`),
+      ...Object.values(CREDIT_SOURCES).map((source) => source.about),
     ]
     expect(dynamic.filter((key) => !(key in MESSAGES.en))).toEqual([])
   })

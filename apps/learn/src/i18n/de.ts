@@ -21,6 +21,19 @@ export const de: MessageSchema = {
   menu: {
     open: 'Menü',
     changeGoal: 'Heutiges Ziel für neue Wörter ändern',
+    credits: 'Quellen und Lizenzen',
+  },
+  credits: {
+    title: 'Quellen und Lizenzen',
+    intro:
+      'Learn enthält die HSK-3.0-Wortliste mit Wörterbuchdaten, die andere erstellt haben und unter diesen Lizenzen teilen.',
+    close: 'Schließen',
+    fullText: 'Volltext',
+    ccCedict:
+      'Die englischen Bedeutungen, traditionellen Schriftzeichen und das Pinyin der HSK-Wörter, übernommen und angepasst aus dem Wörterbuch CC-CEDICT. Lizenziert unter CC BY-SA 4.0, ebenso die angepassten Daten.',
+    completeHsk: 'Die HSK-3.0-Wortlisten nach Stufen, mit Häufigkeitsrängen. MIT-Lizenz.',
+    hsk30:
+      'Die offizielle HSK-3.0-Wortliste, nach der die Lesung jedes Worts gewählt wird. MIT-Lizenz.',
   },
   tabs: {
     label: 'Bereiche',

@@ -291,6 +291,16 @@ export const en = {
     pinyin: 'The pinyin generator',
     curriculum: 'The HSK curriculum',
   },
+  credits: {
+    title: 'Credits and licenses',
+    intro:
+      'For Chinese words, the Automator looks up pinyin, the HSK level and an example in the bundled HSK 3.0 word list. It carries dictionary data that others made and share under these licenses.',
+    fullText: 'Full text',
+    ccCedict:
+      'The English meanings, traditional characters and pinyin of the HSK words, adapted from the CC-CEDICT dictionary. Licensed under CC BY-SA 4.0, and so is the adapted data.',
+    completeHsk: 'The HSK 3.0 word lists by level, with frequency ranks. MIT License.',
+    hsk30: 'The official HSK 3.0 word list, which picks each word’s reading. MIT License.',
+  },
   help: {
     title: 'Setting up and using the Automator',
     close: 'Close',

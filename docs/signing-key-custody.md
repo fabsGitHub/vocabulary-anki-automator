@@ -56,9 +56,10 @@ After generation:
 
 ## Release gate
 
-Publishing and releasing remain deliberate, human-triggered actions (Tier 2/3 per
-SOUL.md). The CI pipeline (N5) builds and publishes automatically on tag push,
-but the tag push itself is a deliberate operator action — no agent triggers it.
+Publishing and releasing remain deliberate, human-triggered actions. The CI
+pipeline (N5) builds and publishes automatically on tag push, but the tag push
+itself is the operator's: agents prepare a release in a pull request and never
+push a release tag (CLAUDE.md).
 
 ## Where the pipeline lives
 

@@ -27,6 +27,18 @@ export const en = {
   menu: {
     open: 'Menu',
     changeGoal: 'Change today’s new-word goal',
+    credits: 'Credits and licenses',
+  },
+  credits: {
+    title: 'Credits and licenses',
+    intro:
+      'Learn ships the HSK 3.0 word list with dictionary data that others made and share under these licenses.',
+    close: 'Close',
+    fullText: 'Full text',
+    ccCedict:
+      'The English meanings, traditional characters and pinyin of the HSK words, adapted from the CC-CEDICT dictionary. Licensed under CC BY-SA 4.0, and so is the adapted data.',
+    completeHsk: 'The HSK 3.0 word lists by level, with frequency ranks. MIT License.',
+    hsk30: 'The official HSK 3.0 word list, which picks each word’s reading. MIT License.',
   },
   tabs: {
     label: 'Sections',
