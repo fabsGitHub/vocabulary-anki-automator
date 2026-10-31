@@ -8,10 +8,11 @@
 //! should never change, so a mismatch means something between here and
 //! upstream did, and that is not something to retry around.
 //!
-//! The LICENSE files are pinned with the data because the MIT license is what
-//! allows shipping the derived curriculum; the copies next to the bundled JSON
-//! are taken from these downloads. The English meanings are CC-CEDICT's,
-//! under CC BY-SA 4.0, which no download carries: their attribution is the
+//! The LICENSE files are pinned with the data because the upstreams' MIT
+//! licenses are part of what allows shipping the derived curriculum; the
+//! copies next to the bundled JSON are taken from these downloads. The
+//! dictionary data (meanings, traditional forms, pinyin) is also CC-CEDICT's,
+//! under CC BY-SA 4.0, which no download carries: its attribution is the
 //! hand-written `NOTICE-CC-CEDICT` there.
 
 use std::{
@@ -27,7 +28,8 @@ use crate::{
     output::write_atomic,
 };
 
-/// drkameleon/complete-hsk-vocabulary (MIT): meanings, forms, frequency.
+/// drkameleon/complete-hsk-vocabulary (MIT; its forms and meanings come from
+/// CC-CEDICT, CC BY-SA 4.0): meanings, forms, frequency.
 pub const VOCABULARY_REPO: &str = "drkameleon/complete-hsk-vocabulary";
 pub const VOCABULARY_COMMIT: &str = "7ac65bf1a6387d35f1ade478906172a19311c7f9";
 /// Its directory under the source directory.

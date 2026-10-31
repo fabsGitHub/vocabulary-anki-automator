@@ -80,17 +80,23 @@ else
   brew install rtk || fail "brew install rtk failed"
 fi
 
-# --- pre-commit hook: install the tracked script into git's hooks dir -------
-# `git rev-parse --git-path hooks` names that dir in a plain clone and in a
-# linked worktree, where .git is a file and the hooks live in the common dir.
+# --- pre-commit hook: install the tracked script into .git/hooks -----------
+# Only into this checkout's own repository (not one it was copied into), and
+# into the common git dir, so a linked worktree (where .git is a file) gets it
+# too. With core.hooksPath set, git ignores .git/hooks, and that path may be
+# shared by every repository on the machine: the hook is left to the developer.
 HOOK_SRC="$REPO_ROOT/scripts/hooks/pre-commit"
-if HOOKS_DIR="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-path hooks 2>/dev/null)"; then
+TOPLEVEL="$(git -C "$REPO_ROOT" rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$TOPLEVEL" || "$(cd "$TOPLEVEL" && pwd -P)" != "$(cd "$REPO_ROOT" && pwd -P)" ]]; then
+  log "not a git checkout of its own, skipping pre-commit hook install"
+elif HOOKS_PATH="$(git -C "$REPO_ROOT" config --get core.hooksPath)"; then
+  log "core.hooksPath is set ($HOOKS_PATH), so git ignores .git/hooks; not installing the pre-commit hook (add scripts/hooks/pre-commit there yourself)"
+else
+  HOOKS_DIR="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir)/hooks"
   log "installing pre-commit hook into $HOOKS_DIR"
   mkdir -p "$HOOKS_DIR" || fail "failed to create $HOOKS_DIR"
   cp "$HOOK_SRC" "$HOOKS_DIR/pre-commit" || fail "failed to install pre-commit hook"
   chmod +x "$HOOKS_DIR/pre-commit" || fail "failed to chmod pre-commit hook"
-else
-  log "not a git checkout, skipping pre-commit hook install"
 fi
 
 log "bootstrap complete"

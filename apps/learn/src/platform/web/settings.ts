@@ -9,8 +9,9 @@
  * their defaults, as serde's `#[serde(default)]` gives them. Saving
  * normalizes the input and refuses whatever {@link validateSettings}
  * rejects, with the desktop build's sentences. The web build cannot export
- * to Anki, but it keeps and validates the Anki settings all the same, so the
- * settings tab behaves as on the desktop. (They stay in this browser's
+ * to Anki, and its settings tab shows only the meaning language, but it keeps
+ * and validates the Anki settings all the same, so a save round-trips them
+ * exactly as the desktop's command does. (They stay in this browser's
  * IndexedDB: the desktop apps' SQLite file never sees them.)
  */
 

@@ -91,6 +91,9 @@ describe("Learn's builds", () => {
     expect(platformOf(beforeBuildCommand.script)).toBe('tauri')
     const outDir = learnViteConfig(viteEnvOf(beforeBuildCommand.script)).build.outDir
     expect(`../${outDir}`).toBe(frontendDist)
+    // `just learn-dev` starts the desktop app, not only its frontend (which
+    // fails in a plain browser).
+    expect(justfile).toMatch(/^learn-dev:\r?\n[ \t]+npm run learn:tauri dev\r?$/m)
   })
 
   it('give the browser the web platform, in its own output directory', () => {

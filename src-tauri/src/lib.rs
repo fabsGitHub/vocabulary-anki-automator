@@ -28,6 +28,7 @@ pub mod state;
 
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
+    plugin::TauriPlugin,
     tray::TrayIconBuilder,
     AppHandle, Builder, Manager, RunEvent, Runtime, WebviewWindowBuilder, Window, WindowEvent,
 };
@@ -41,9 +42,9 @@ use crate::{
 pub const MAIN_LABEL: &str = "main";
 
 /// What the real app and the `tauri::test` mock app share: the invoke handler
-/// with every command of § 8.2, and the approval window's close behaviour.
-/// Plugins, the tray and [`AppState`] are added by [`run`] (tests manage
-/// their own state).
+/// with every command of § 8.2, the approval window's close behaviour and the
+/// app's lifecycle ([`on_run_event`]). The other plugins, the tray and
+/// [`AppState`] are added by [`run`] (tests manage their own state).
 pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     builder
         .invoke_handler(tauri::generate_handler![
@@ -68,6 +69,15 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::app::restart_app,
         ])
         .on_window_event(on_window_event)
+        .plugin(lifecycle())
+}
+
+/// [`on_run_event`] as a plugin: plugins see every run event, including the
+/// exit request, before the app's own `run` callback.
+fn lifecycle<R: Runtime>() -> TauriPlugin<R> {
+    tauri::plugin::Builder::new("lifecycle")
+        .on_event(on_run_event)
+        .build()
 }
 
 /// Closing the approval window discards its capture, and the window is only
@@ -103,34 +113,37 @@ pub fn run() {
             start(app)?;
             Ok(())
         })
-        .build(tauri::generate_context!());
-    match result {
-        Ok(app) => app.run(|app, event| on_run_event(app, &event)),
-        Err(err) => {
-            log::error!("Vocabulary Automator stopped with an error: {err}");
-            eprintln!("Vocabulary Automator stopped with an error: {err}");
-            std::process::exit(1);
-        }
+        .run(tauri::generate_context!());
+    if let Err(err) = result {
+        log::error!("Vocabulary Automator stopped with an error: {err}");
+        eprintln!("Vocabulary Automator stopped with an error: {err}");
+        std::process::exit(1);
     }
 }
 
-/// The app lives in the tray, so closing its last window must not end it:
-/// the hotkeys and the tray would go with it. Before the first capture builds
-/// the (hidden, never destroyed) approval window, the settings window is the
-/// only one, and closing it asks to exit with no exit code. The tray's Quit
-/// (`app.exit(0)`) and `restart_app` carry a code and still end the app;
-/// Cmd+Q on macOS ends it without asking.
+/// Whether an exit request leaves the app running. The app lives in the
+/// tray, so closing its last window must not end it: the hotkeys and the
+/// tray would go with it. Before the first capture builds the (hidden, never
+/// destroyed) approval window, the settings window is the only one, and
+/// closing it asks to exit with no exit code. The tray's Quit (`app.exit(0)`)
+/// asks with a code and still ends the app; `restart_app`, Cmd+Q and a
+/// logout or shutdown end it without asking.
+pub fn keeps_running(exit_code: Option<i32>) -> bool {
+    exit_code.is_none()
+}
+
+/// The app's run events (§ 8.3): see [`keeps_running`]; on macOS, a click on
+/// the Dock icon while no window is visible also brings back the settings
+/// window, as the tray's Settings item does.
 #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
 pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: &RunEvent) {
     match event {
-        RunEvent::ExitRequested {
-            code: None, api, ..
-        } => {
+        RunEvent::ExitRequested { code, api, .. } if keeps_running(*code) => {
             log::info!("No window is open; Vocabulary Automator keeps running in the tray.");
             api.prevent_exit();
         }
-        // Clicking the Dock icon while no window is visible brings back the
-        // settings window, as the tray's Settings item does.
+        // Not reachable through tauri::test: the mock runtime raises no
+        // Reopen, and the event cannot be built outside Tauri.
         #[cfg(target_os = "macos")]
         RunEvent::Reopen {
             has_visible_windows: false,

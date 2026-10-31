@@ -113,8 +113,7 @@ With [just](https://github.com/casey/just): `just dev`, `just learn-dev`,
 ```bash
 npm run learn:build:web                # Learn web build -> apps/learn/dist-web (static files, host anywhere)
 npm run learn:tauri build              # Learn desktop bundles -> target/release/bundle
-npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
-                                       # Automator bundles for local testing -> target/release/bundle
+npm run tauri build -- --no-sign      # Automator bundles for local testing, unsigned -> target/release/bundle
 ```
 
 Automator's real releases are built, signed and published by
@@ -122,8 +121,9 @@ Automator's real releases are built, signed and published by
 `src-tauri/tauri.conf.json`'s version. Because Automator ships with the updater,
 a plain `npm run tauri build` also signs updater artifacts and needs the updater
 key (`TAURI_SIGNING_PRIVATE_KEY`), which only CI holds
-([docs/signing-key-custody.md](docs/signing-key-custody.md)); the `--config`
-override above skips them for a local build.
+([docs/signing-key-custody.md](docs/signing-key-custody.md)); `--no-sign` above
+skips all signing (codesign and updater signatures) for a local build, and
+`-- --no-bundle` only compiles the app.
 
 ### Test and lint
 
@@ -152,8 +152,11 @@ production frontend builds on Linux, macOS and Windows.
 
 `crates/vocab-core/data/hsk_curriculum.json` (10,969 words, HSK 3.0 levels 1–6
 plus the 7–9 band) is generated from two pinned, MIT-licensed upstream lists by
-`tools/hsk-import` (`just hsk-import --help`). Provenance, licenses, known gaps
-(no German meanings or example sentences yet) and how to regenerate it are in
+`tools/hsk-import` (`just hsk-import --help`). Its dictionary data (English
+meanings, traditional forms, pinyin) comes from CC-CEDICT, which is licensed
+CC BY-SA 4.0, not MIT ([NOTICE-CC-CEDICT](crates/vocab-core/data/NOTICE-CC-CEDICT)).
+Provenance, licenses, known gaps (no German meanings or example sentences yet)
+and how to regenerate it are in
 [crates/vocab-core/data/README.md](crates/vocab-core/data/README.md).
 
 ## Documentation

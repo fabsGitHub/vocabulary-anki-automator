@@ -12,20 +12,25 @@ commits and reviewed as a diff; do not edit the generated files by hand.
 | `hsk_meaning_de.json`               | German meanings by hanzi, merged by `build` (written by `backfill-de`)    |
 | `LICENSE-complete-hsk-vocabulary`   | MIT license of drkameleon/complete-hsk-vocabulary                         |
 | `LICENSE-hsk30`                     | MIT license of ivankra/hsk30                                              |
-| `NOTICE-CC-CEDICT`                  | attribution and license of the English meanings (CC BY-SA 4.0)            |
+| `NOTICE-CC-CEDICT`                  | attribution and license of the dictionary data (CC BY-SA 4.0)             |
 
 ## Provenance and licenses
 
 Both upstream repositories are MIT-licensed; their license texts, downloaded
 from the pinned commits and covered by the manifest, are the two `LICENSE-*`
-files. The English meanings are not only theirs, though: complete-hsk-vocabulary
-takes its definitions from [CC-CEDICT](https://www.mdbg.net/chinese/dictionary?page=cc-cedict),
-which is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
-Whoever distributes `meaning_en`, in this file or compiled into the apps and
-the web build, must credit CC-CEDICT and offer the adapted meanings under the
-same license; `NOTICE-CC-CEDICT` (written by hand, not by the tool) holds that
-attribution. Neither app nor the web build shows these notices yet, which must
-be settled before the first release (IMPLEMENTATION_PLAN.md, Milestone N).
+files. The dictionary data is not only theirs, though: complete-hsk-vocabulary
+builds each word's forms (traditional headword, pinyin, definitions) from
+[CC-CEDICT](https://www.mdbg.net/chinese/dictionary?page=cc-cedict) entries and
+credits it for the definitions, and CC-CEDICT is licensed under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). So `meaning_en`,
+`traditional` and `pinyin`, and anything derived from them (such as German
+meanings machine-translated from `meaning_en` by `backfill-de`), are CC BY-SA 4.0:
+whoever distributes them, in this file or compiled into the apps and the web
+build, must credit CC-CEDICT and offer the adapted data under the same license.
+`NOTICE-CC-CEDICT` (written by hand, not by the tool) holds that attribution.
+Neither app nor the web build shows these notices yet, and the workspace's
+`license = "MIT"` describes the code only: both are to be settled before the
+first release (IMPLEMENTATION_PLAN.md, "Final audit").
 
 - **[drkameleon/complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary)**
   at `7ac65bf1a6387d35f1ade478906172a19311c7f9`: `wordlists/exclusive/new/1.json`
