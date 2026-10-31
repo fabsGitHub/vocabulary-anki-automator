@@ -5469,12 +5469,20 @@ dependencies = [
 name = "vocab-learn"
 version = "0.1.0"
 dependencies = [
+ "anki-bridge",
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
  "log",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-plugin-log",
+ "tempfile",
+ "thiserror 2.0.18",
  "vocab-core",
+ "wiremock",
 ]
 
 [[package]]
