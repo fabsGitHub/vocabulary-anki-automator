@@ -582,16 +582,21 @@ pub fn lessons_from_store(store: &Store, cards_per_lesson: usize) -> StoreResult
 
 A streak counts consecutive local dates ending today (or yesterday, if today
 is not completed yet) that have a completed daily session or a freeze. XP and
-streaks are tied to review sessions, not to raw captures. Freezes only bridge
-gaps between completed days (they never extend a streak on their own) and a
-frozen day counts toward the streak length. One freeze is earned each time the
-current streak reaches a multiple of `STREAK_FREEZE_INTERVAL` (7), capped at
-`MAX_STREAK_FREEZES`, inventory in `app_state` `STREAK_FREEZES_KEY`. XP reasons
+streaks are tied to review sessions, not to raw captures. Freezes are spent
+lazily, whenever the app asks (`apply_streak_freezes`, which `stats_summary` and
+`on_session_completed` run first): the missed days after the last completed or
+frozen day, up to yesterday, are frozen — all of them or none, when the
+inventory does not cover the gap; never today, and never before the first
+completed day. A frozen day counts toward the streak length but is no completed
+day (`completed_today` stays false and it earns no bonus). One freeze is earned
+each time the current streak reaches a multiple of `STREAK_FREEZE_INTERVAL` (7),
+capped at `MAX_STREAK_FREEZES`, inventory in `app_state` `STREAK_FREEZES_KEY`. XP reasons
 are the `gamification::reason::*` constants. `Lesson.title` is an English
 fallback; UIs build a localized title from the languages and the lesson's index.
 Lessons use only
 `origin = capture` rows whose `example_source` contains the word (so the cloze
-has something to blank), grouped by language pair in capture order.
+has something to blank) and whose `example_target` is not blank, grouped by
+language pair in capture order.
 
 ## 8. Automator (`src-tauri`, package `vocab-automator`)
 
