@@ -91,22 +91,48 @@ stylesheet, and the curriculum JSON, about 550 KB gzipped). It has no routes
 and needs no rewrites, redirects or headers, so any static host can serve it
 from any folder.
 
-1. **On your own website**, if it is static files: copy the contents of
+### Cloudflare Pages (the chosen host)
+
+Cloudflare Pages builds the demo from this repository (private repositories
+work, on the free plan) and builds it again on every push to the branch it
+deploys. Set it up once in the Cloudflare dashboard:
+
+1. **Workers & Pages** > **Create application** > **Pages** > **Connect to
+   Git**, then **GitHub**. Give Cloudflare's GitHub app access to this
+   repository only (**Install & Authorize**), pick it and choose **Begin
+   setup**.
+2. In **Set up builds and deployments**:
+   - **Project name**: the start of the address, for example
+     `vocabulary-learn` for `https://vocabulary-learn.pages.dev/`.
+   - **Production branch**: the branch with the demo, `wip/live-demo` until
+     it is merged, then `main`.
+   - **Framework preset**: None.
+   - **Build command**: `npm run learn:build:demo`
+   - **Build output directory**: `apps/learn/dist-demo`
+   - **Root directory**: leave it empty (the repository root).
+   - **Environment variables**: `NODE_VERSION` = `22`, and optionally
+     `VITE_DEMO_PROJECT_URL` = the page that presents the project.
+3. **Save and Deploy**. Pages installs the npm dependencies itself; the
+   build takes about a minute.
+
+Then, under the project's **Settings** > **Builds & deployments**:
+
+- Pages also builds every other branch you push, as a preview with an
+  address of its own. Set preview deployments to **None** if you do not want
+  that; branches without the demo (older than it) fail to build.
+- Once the demo is on `main`, make `main` the production branch.
+
+**Custom domains** in the project adds an address of your own, such as
+`demo.your-site.com`.
+
+### Other hosts
+
+1. **Your own website**, if it is static files: copy the contents of
    `apps/learn/dist-demo` into a folder of the site, for example
    `/demos/vocabulary/`. The demo then shares your site's address, and an
    embedded demo keeps its data like any page of the site.
-2. **Cloudflare Pages or Netlify** (free plans; both build from this
-   repository even though it is private, and rebuild on every push): connect
-   the GitHub repository and set
-   - build command: `npm run learn:build:demo`
-   - output (publish) directory: `apps/learn/dist-demo`
-   - environment variable `NODE_VERSION` = `22` (and `VITE_DEMO_PROJECT_URL`
-     if you want the link).
-
-   Both install the npm dependencies from `package-lock.json` themselves. The
-   demo is then at the address the host gives the project (for example
-   `https://<project>.pages.dev/`), which can also be your own domain.
-
+2. **Netlify**: the same settings as Cloudflare Pages (build command,
+   publish directory, `NODE_VERSION`).
 3. **GitHub Pages**, with `.github/workflows/demo.yml`: it needs the
    repository to be public, or a GitHub plan that includes Pages for private
    repositories. Choose **GitHub Actions** as the source under Settings >
@@ -138,6 +164,6 @@ the curriculum JSON all come from its own folder.
   that embeds it, as browsers do with all storage in embedded pages, and some
   browsers clear it sooner (Safari after seven days without a visit). Where a
   browser refuses storage in embedded pages altogether, the demo runs in
-  memory. Hosting the demo on your own site (option 1) avoids all of this.
+  memory. Hosting the demo on your own site avoids all of this.
 - If the host sends a `frame-ancestors` policy or `X-Frame-Options`, it must
   allow your site. The hosts above send neither by default.
