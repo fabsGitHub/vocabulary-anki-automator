@@ -124,6 +124,10 @@ impl HttpResponse {
 /// path (the pre-refactor code interpolated raw words into URLs). A trailing
 /// slash on `base` is ignored. An unusable base URL means no request can be
 /// sent, which is reported as `Network`.
+///
+/// The dot segments `.` and `..` are `Unsupported`: URL syntax resolves them
+/// instead of carrying them (the `url` crate silently drops them), so the
+/// request would go to a different path without the user's text in it.
 pub(crate) fn endpoint(
     provider: &str,
     base: &str,
@@ -131,6 +135,15 @@ pub(crate) fn endpoint(
 ) -> Result<Url, ProviderError> {
     let invalid = |reason: &str| network(provider, format!("invalid base URL {base:?}: {reason}"));
     let mut url = Url::parse(base).map_err(|err| invalid(&err.to_string()))?;
+    if let Some(dots) = segments
+        .iter()
+        .find(|segment| matches!(**segment, "." | ".."))
+    {
+        return Err(ProviderError::Unsupported {
+            provider: provider.to_string(),
+            what: format!("the URL path segment {dots:?}"),
+        });
+    }
     url.path_segments_mut()
         .map_err(|()| invalid("it cannot carry a path"))?
         .pop_if_empty()
@@ -246,6 +259,37 @@ mod tests {
         for (base, segments, expected) in cases {
             let url = endpoint("test", base, segments).unwrap();
             assert_eq!(url.as_str(), expected, "endpoint({base:?}, {segments:?})");
+        }
+    }
+
+    #[test]
+    fn endpoint_refuses_dot_segments_instead_of_dropping_them() {
+        // `Url::path_segments_mut().extend` skips "." and "..", which turned
+        // a capture of ".." into a request for /api/v2/entries/en.
+        for dots in [".", ".."] {
+            assert_eq!(
+                endpoint(
+                    "test",
+                    "https://api.dictionaryapi.dev",
+                    &["api", "v2", "entries", "en", dots]
+                ),
+                Err(ProviderError::Unsupported {
+                    provider: "test".into(),
+                    what: format!("the URL path segment {dots:?}"),
+                }),
+                "{dots:?}"
+            );
+        }
+        // Only the exact dot segments are special; these stay one segment.
+        let cases = [
+            ("...", "/en/..."),
+            (".hidden", "/en/.hidden"),
+            ("a..", "/en/a.."),
+            ("%2e", "/en/%252e"),
+        ];
+        for (segment, path) in cases {
+            let url = endpoint("test", "https://example.com", &["en", segment]).unwrap();
+            assert_eq!(url.path(), path, "{segment:?}");
         }
     }
 

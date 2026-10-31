@@ -221,15 +221,22 @@ fn http_error(status: u16, message: String) -> ProviderError {
 /// `&gt;`, `&quot;`, `&apos;`, and numeric `&#NNN;`/`&#xHH;` references such as
 /// `&#39;`. Single pass, so `&amp;lt;` becomes `&lt;`, not `<`. Anything it
 /// does not recognize, including a bare `&`, is kept as-is.
+///
+/// The `;` of an entity is only looked for as far as the longest entity name
+/// reaches, which keeps decoding linear in the length of the text: the text
+/// comes from the network, and searching all of the rest of it for every `&`
+/// made a long run of `&` quadratic.
 pub fn decode_html_entities(text: &str) -> String {
     let mut decoded = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(amp) = rest.find('&') {
         decoded.push_str(&rest[..amp]);
         rest = &rest[amp..];
+        // `;` is ASCII, so its byte position is a char boundary.
         let entity = rest
-            .find(';')
-            .filter(|end| *end <= MAX_ENTITY_NAME + 1)
+            .bytes()
+            .take(MAX_ENTITY_NAME + 2)
+            .position(|byte| byte == b';')
             .and_then(|end| decode_entity(&rest[1..end]).map(|c| (c, end)));
         match entity {
             Some((c, end)) => {
@@ -507,6 +514,37 @@ mod tests {
         for (input, expected) in cases {
             assert_eq!(decode_html_entities(input), expected, "decode({input:?})");
         }
+    }
+
+    #[test]
+    fn decoding_stays_linear_on_long_runs_of_ampersands() {
+        // Searching the whole rest of the text for a `;` after every `&` grew
+        // with the square of the length: about 28 s for this input in a debug
+        // build. Bounded to the entity-name window it takes well under 0.5 s,
+        // so the limit leaves room for slow CI machines either way.
+        let input = format!("{};", "&".repeat(1_000_000));
+        let started = std::time::Instant::now();
+        let decoded = decode_html_entities(&input);
+        let elapsed = started.elapsed();
+        assert!(
+            decoded == input,
+            "a run of bare `&` must come back unchanged"
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(3),
+            "decoding 1 MB took {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn new_uses_the_production_endpoint() {
+        let url = MyMemoryProvider::new(None)
+            .request_url("Haus", "de", "en")
+            .unwrap();
+        assert_eq!(
+            url.as_str(),
+            "https://api.mymemory.translated.net/get?q=Haus&langpair=de%7Cen"
+        );
     }
 
     #[test]

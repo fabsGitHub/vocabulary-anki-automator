@@ -8,7 +8,8 @@
 //! carry no example at all.
 //!
 //! The word is a path segment of the URL; it is percent-encoded as one segment
-//! (`and/or` stays one word) instead of being interpolated raw.
+//! (`and/or` stays one word) instead of being interpolated raw. `.` and `..`
+//! cannot be carried in a path at all and are refused as `Unsupported`.
 
 use async_trait::async_trait;
 use reqwest::Url;
@@ -201,5 +202,25 @@ mod tests {
             assert_eq!(url.path(), path, "entry_url({word:?})");
             assert_eq!(url.query(), None);
         }
+        for dots in [".", ".."] {
+            assert!(
+                matches!(
+                    provider.entry_url(dots),
+                    Err(ProviderError::Unsupported { provider: ref name, .. }) if name == "dictionary_api"
+                ),
+                "entry_url({dots:?})"
+            );
+        }
+    }
+
+    #[test]
+    fn new_uses_the_production_endpoint() {
+        assert_eq!(
+            DictionaryApiProvider::new()
+                .entry_url("hello")
+                .unwrap()
+                .as_str(),
+            "https://api.dictionaryapi.dev/api/v2/entries/en/hello"
+        );
     }
 }

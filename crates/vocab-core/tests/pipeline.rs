@@ -724,6 +724,21 @@ async fn blank_text_is_rejected_before_any_provider_runs() {
     assert!(fakes.log.calls().is_empty());
 }
 
+/// src-tauri keeps the pipeline in Tauri's managed state (`Send + Sync`) and
+/// awaits `run` in async commands on a multi-threaded runtime (`Send`
+/// futures). Holding a non-`Send` value across an `.await` in `run` would
+/// break that integration without failing any other test in this crate.
+#[test]
+fn pipeline_and_its_future_can_cross_threads() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    fn assert_send<T: Send>(_: &T) {}
+    assert_send_sync::<CapturePipeline>();
+    let fakes = Fakes::default();
+    let pipeline = fakes.english_pipeline(fakes.full_set());
+    let capture = pipeline.run(request("serendipity", "en", "de"));
+    assert_send(&capture);
+}
+
 #[tokio::test]
 async fn length_limit_counts_characters_not_bytes() {
     let fakes = Fakes::default();

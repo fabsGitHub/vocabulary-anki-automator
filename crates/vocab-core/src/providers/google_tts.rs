@@ -187,4 +187,13 @@ mod tests {
             Some("ie=UTF-8&tl=en&client=tw-ob&q=rock%27n%27roll+%26+C%2B%2B")
         );
     }
+
+    #[test]
+    fn new_uses_the_production_endpoint() {
+        let url = GoogleTtsProvider::new().tts_url("hello", "en").unwrap();
+        assert_eq!(
+            url.as_str(),
+            "https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=hello"
+        );
+    }
 }

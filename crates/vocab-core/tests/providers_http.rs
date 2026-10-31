@@ -531,6 +531,28 @@ mod dictionary_api {
     }
 
     #[tokio::test]
+    async fn dot_segments_are_unsupported_and_send_nothing() {
+        // URL syntax would resolve "." and ".." away, and the request would
+        // ask for /api/v2/entries/en without the word.
+        let server = MockServer::start().await;
+        Mock::given(any())
+            .respond_with(json(200, DICTIONARY_HELLO))
+            .expect(0)
+            .mount(&server)
+            .await;
+        let provider = DictionaryApiProvider::with_base_url(server.uri());
+        for word in [".", " .. "] {
+            assert!(
+                matches!(
+                    provider.fetch_example(word).await,
+                    Err(ProviderError::Unsupported { .. })
+                ),
+                "{word:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn server_errors_and_unreachable_servers_are_typed() {
         let server = MockServer::start().await;
         Mock::given(any())

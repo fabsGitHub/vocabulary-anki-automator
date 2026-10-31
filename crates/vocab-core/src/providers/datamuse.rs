@@ -330,4 +330,15 @@ mod tests {
             "http://127.0.0.1:9/words?rel_syn=na%C3%AFve&max=1"
         );
     }
+
+    #[test]
+    fn new_uses_the_production_endpoint() {
+        let url = DatamuseProvider::new()
+            .words_url(&[("sp", "house"), ("md", "f"), ("max", "1")])
+            .unwrap();
+        assert_eq!(
+            url.as_str(),
+            "https://api.datamuse.com/words?sp=house&md=f&max=1"
+        );
+    }
 }
