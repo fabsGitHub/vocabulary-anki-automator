@@ -14,7 +14,16 @@ const { t, te, locale } = useI18n()
 const history = useHistory()
 const { items, loading, loadError, confirmingId, deletingId, syncing, syncReport, notice } = history
 
-const pendingCount = computed(() => items.value.filter((item) => !item.synced_to_anki).length)
+/**
+ * What "Sync pending to Anki" will push: `sync_pending_captures` takes
+ * `origin = capture` rows only (docs/architecture.md § 8.2). The words Learn
+ * added to the shared history (curriculum words, Anki imports) are listed
+ * too, but Learn's own export sends them, so counting them here would show
+ * a number that syncing never brings down.
+ */
+const pendingCount = computed(
+  () => items.value.filter((item) => item.origin === 'capture' && !item.synced_to_anki).length,
+)
 
 function formatDate(value: string): string {
   const date = new Date(value)
