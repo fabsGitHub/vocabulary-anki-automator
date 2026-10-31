@@ -1,6 +1,6 @@
 # Implementation Plan — vocabulary-anki-automator
 
-Status (2026-10-31): Milestones B–H, J–N are implemented and tested on branch `claude/implement-open-todos`; Milestone I (the Learn app) is in progress there. Unchecked items say why they are open: an operator step (accounts, certificates, keys, global tool installs, a manual test with real Anki), an unapproved dependency, or a platform limit. This is the master TODO list for the app and the development workspace, derived from the architecture/vision session on 2026-07-27; `docs/architecture.md` records how it was built and every deviation.
+Status (2026-10-31): Milestones B–N are implemented and tested on branch `claude/implement-open-todos`, including the Learn app (desktop + web). Unchecked items say why they are open: an operator step (accounts, certificates, keys, global tool installs, a manual test with real Anki), an unapproved dependency, or a platform limit. This is the master TODO list for the app and the development workspace, derived from the architecture/vision session on 2026-07-27; `docs/architecture.md` records how it was built and every deviation.
 
 ## Guiding Architecture Decisions (locked in)
 
@@ -216,12 +216,12 @@ _Per decision 10 (2026-07-28): no longer "not scheduled." The cross-platform req
 _Note: Milestones L and M below pull the SRS-scheduler and gamified-quiz items of this milestone forward, scoped concretely to the Chinese/HSK use case. Treat those two milestones as the first real installment of what this milestone describes, not a separate track._
 
 - [x] `crates/vocab-core` extraction — moved into Milestone B directly, see B1
-- [ ] Second Tauri app (`apps/learn/`) consuming `vocab-core` — own review-session UI, FSRS-based scheduler instead of relying on Anki's. Targets macOS/Windows/Linux/iOS/Android via Tauri 2, plus a standalone web build (see decision 10) — this app is where the six-platform requirement actually gets satisfied, not the automator.
+- [x] Second Tauri app (`apps/learn/`) consuming `vocab-core` — own review-session UI, FSRS-based scheduler instead of relying on Anki's. Targets macOS/Windows/Linux/iOS/Android via Tauri 2, plus a standalone web build (see decision 10) — this app is where the six-platform requirement actually gets satisfied, not the automator. — `apps/learn`: Tauri crate `vocab-learn` (22 commands over vocab-core, tested through the IPC layer) + Vue UI on a `PlatformAdapter`, and a standalone web build (`npm run learn:build:web`) whose adapter is a TypeScript port of the core over IndexedDB, held to the Rust core by golden vectors. Desktop macOS/Windows/Linux and Web are built; iOS/Android see below.
 - [ ] `ArgosTranslateProvider` — fully offline translation (implements the same `TranslationProvider` trait), likely via bundled ONNX-exported Argos models rather than shelling out to Python — **Not done:** needs an ONNX runtime crate and Argos models (hundreds of MB): new dependencies and a design of their own.
-- [ ] FSRS scheduler integration operating over the local SQLite store from Milestone F
-- [ ] Duolingo-style mechanics: XP tally, streak + streak-freeze, tied to completed review sessions (not raw captures)
-- [ ] Babbel-style contextual lesson cards built from the user's own captured `example_source`/`example_target` pairs, not a generic curriculum
-- [ ] Anki export/import (`.apkg` read/write or AnkiConnect bulk sync) so the native app never locks users out of their existing Anki collection
+- [x] FSRS scheduler integration operating over the local SQLite store from Milestone F — `vocab_core::srs` over the shared SQLite store; Learn's review session uses it (`submit_review_rating`).
+- [x] Duolingo-style mechanics: XP tally, streak + streak-freeze, tied to completed review sessions (not raw captures) — `vocab_core::gamification` (XP ledger, streak, freezes) + Learn's Stats view.
+- [x] Babbel-style contextual lesson cards built from the user's own captured `example_source`/`example_target` pairs, not a generic curriculum — `vocab_core::lessons` + Learn's Lessons view (cloze cards from your own captured sentence pairs).
+- [x] Anki export/import (`.apkg` read/write or AnkiConnect bulk sync) so the native app never locks users out of their existing Anki collection — AnkiConnect bulk sync: Learn's `anki_export` / `anki_import` (desktop; the web build has no Anki access).
 - [ ] Mobile targets via Tauri 2's mobile support (iOS/Android) for the learning app specifically — the automator stays desktop-only since global-hotkey capture is inherently a desktop concept — **Not done:** iOS/Android need rustup targets and `tauri ios/android init` (toolchain changes the operator did not approve). Learn's crate is mobile-ready (lib crate types, `mobile_entry_point`).
 
 ---
@@ -348,7 +348,7 @@ _Builds on Milestone K. This is the first concrete installment of Milestone I's 
 ### L2. Daily onboarding prompt
 
 - [x] Persist `last_prompted_date` (new `AppConfig` field or its own small state row) — `app_state` row `last_prompted_date`.
-- [ ] On main-window mount, compare `last_prompted_date` to today's local date; if different or unset, show a modal — _"How many new characters do you want to learn today?"_ — before the normal UI renders
+- [x] On main-window mount, compare `last_prompted_date` to today's local date; if different or unset, show a modal — _"How many new characters do you want to learn today?"_ — before the normal UI renders — Learn's main window shows the daily prompt modal on mount (`DailyPromptModal`, `useDailyPrompt`).
 - [x] **Decide and document the dismiss-without-answering behavior** (proposed default: treat as quota = 0 / reviews-only for that day, but let the user reopen the prompt later the same day from a menu action) — this is a UX detail that needs an explicit decision, not a silent assumption — **Decided:** dismiss = quota 0 / reviews only for the day; a menu action reopens the prompt and a later answer keeps the progress (`srs/daily.rs`, `docs/architecture.md` § 7.1).
 - [x] On submit, write a `daily_sessions` row and update `last_prompted_date`
 
@@ -379,7 +379,7 @@ fn build_daily_queue(new_quota: u32) -> Vec<QueueItem> {
 - [x] Priority 1 (mandatory): all `srs_state` rows with `due_date <= today`, ordered by `due_date` ascending
 - [x] Priority 2 (optional): if `new_quota > 0`, append the next N unlearned `hsk_curriculum` rows in strict `curriculum_order` — skipping _learned_ hanzi (§ 12 item 9).
 - [x] Low-time mode (`new_quota = 0`) is just the zero-length branch of the same function, not a separate code path — avoid over-engineering a distinct "mode"
-- [ ] New Tauri commands: `get_daily_queue`, `submit_review_rating(card_id, rating)`
+- [x] New Tauri commands: `get_daily_queue`, `submit_review_rating(card_id, rating)` — Learn: `get_daily_queue`, `submit_review_rating` (plus `start_new_item`, `preview_ratings`, ...).
 
 ---
 
@@ -394,13 +394,13 @@ _Builds on Milestone L's queue. Needs its own UI surface — see the open decisi
 
 ### M2. Exercise types
 
-- [ ] **Multiple Choice**: character ↔ pinyin/meaning (German or English), correct answer plus N-1 distractors drawn from `LearnedVocabularyPool` excluding the correct answer. MVP: uniform-random distractor selection. Stretch: weight distractors toward same-HSK-level or pinyin-similar items for a real difficulty curve
-- [ ] **Sentence Builder (word bank)**: tokenize a sentence into tiles — prefer splitting on known-vocabulary word boundaries from `hsk_curriculum`/`captures`, falling back to per-character tiles for anything not recognized as a known unit; shuffle tile order; drag-and-drop or tap-to-place UI; check ordering on submit
-- [ ] **Audio Listening Comprehension**: reuse the TTS audio already generated for the card (Milestone J4); two variants — (a) play audio → multiple-choice identify the character, (b) play audio → sentence-builder using the heard sentence's tiles
+- [x] **Multiple Choice**: character ↔ pinyin/meaning (German or English), correct answer plus N-1 distractors drawn from `LearnedVocabularyPool` excluding the correct answer. MVP: uniform-random distractor selection. Stretch: weight distractors toward same-HSK-level or pinyin-similar items for a real difficulty curve — core generator (uniform random, options in one language) + Learn's multiple-choice UI; the stretch weighting is not done.
+- [x] **Sentence Builder (word bank)**: tokenize a sentence into tiles — prefer splitting on known-vocabulary word boundaries from `hsk_curriculum`/`captures`, falling back to per-character tiles for anything not recognized as a known unit; shuffle tile order; drag-and-drop or tap-to-place UI; check ordering on submit — pool-only segmentation (§ 12 item 9 / § 7.2) + Learn's tap-to-place tile board.
+- [x] **Audio Listening Comprehension**: reuse the TTS audio already generated for the card (Milestone J4); two variants — (a) play audio → multiple-choice identify the character, (b) play audio → sentence-builder using the heard sentence's tiles — both variants in the core + Learn's listening UIs (stored audio, else TTS on desktop).
 
 ### M3. UI surface — resolved by decision 10 (2026-07-28)
 
-- [ ] Build the quiz/review session as its own view in the `Learn` app (`apps/learn/`, Milestone I), **not** inside the automator. This reverses the milestone's original recommendation (build it as a view in the existing single Tauri app) — that made sense before the six-platform requirement existed, but the automator is permanently desktop-only (global-hotkey capture), so anything that needs to reach iOS/Android/Web cannot live there regardless of how early or validated it is. All scheduling/quiz logic still lives in `crates/vocab-core` (Milestone B) so both apps consume the same implementation — only the UI shell differs per app.
+- [x] Build the quiz/review session as its own view in the `Learn` app (`apps/learn/`, Milestone I), **not** inside the automator. This reverses the milestone's original recommendation (build it as a view in the existing single Tauri app) — that made sense before the six-platform requirement existed, but the automator is permanently desktop-only (global-hotkey capture), so anything that needs to reach iOS/Android/Web cannot live there regardless of how early or validated it is. All scheduling/quiz logic still lives in `crates/vocab-core` (Milestone B) so both apps consume the same implementation — only the UI shell differs per app. — Learn's Review, Practice and Lessons views; all scheduling/quiz logic stays in `crates/vocab-core`.
 
 ---
 
