@@ -25,6 +25,17 @@ license = "MIT"
 vocab-core = { path = "crates/vocab-core" }
 anki-bridge = { path = "crates/anki-bridge" }
 
+# Tauri. The CLI refuses to build when a crate and its npm package differ in
+# major.minor, so these use `~` (patch updates only) and must move in lockstep
+# with the matching `@tauri-apps/*` entries in package.json.
+tauri = "~2.12"
+tauri-build = "~2.7"
+tauri-plugin-clipboard-manager = "~2.3"
+tauri-plugin-global-shortcut = "~2.3"
+tauri-plugin-log = "~2.8"
+tauri-plugin-opener = "~2.5"
+tauri-plugin-updater = "~2.14"
+
 # Already-present dependencies (versions match what src-tauri used before the split).
 async-trait = "0.1"
 base64 = "0.22"

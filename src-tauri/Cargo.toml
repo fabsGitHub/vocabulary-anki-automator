@@ -10,16 +10,16 @@ name = "vocab_automator_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build.workspace = true
 
 [dependencies]
 # Tauri Core Framework & Core Engine Plugins
-tauri = { version = "2.0", features = ["tray-icon"] }
-tauri-plugin-opener = "2.0"
-tauri-plugin-log = "2.0.0-rc"
-tauri-plugin-global-shortcut = "2.0"
-tauri-plugin-clipboard-manager = "2.0"
-tauri-plugin-updater = "2.0"
+tauri = { workspace = true, features = ["tray-icon"] }
+tauri-plugin-opener.workspace = true
+tauri-plugin-log.workspace = true
+tauri-plugin-global-shortcut.workspace = true
+tauri-plugin-clipboard-manager.workspace = true
+tauri-plugin-updater.workspace = true
 
 # Networking & Modern Async Subsystems (Consolidated Duplicates)
 reqwest = { version = "0.12", features = ["json", "multipart", "blocking"] }
