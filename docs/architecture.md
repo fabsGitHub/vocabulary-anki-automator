@@ -971,7 +971,9 @@ type QueueItem =
    review/quiz surface to Learn); L2's "main-window mount" is Learn's main window.
 7. Learn's web build uses a TypeScript port of the scheduling/quiz logic
    (golden-vector parity tests against the Rust core) because compiling the
-   core to WASM needed a toolchain change the operator did not approve.
+   core to WASM needed a toolchain change the operator did not approve. The web
+   build has no captures (no Automator, no Anki), so its lessons, which are built
+   from captures, stay empty and the Lessons view says why.
 8. HSK data (Milestone J2): the plan's "take the first `forms[]` entry" would
    teach wrong readings (吧 bā "bar" instead of the particle ba), so the ETL picks
    the form matching the official HSK 3.0 reading (`ivankra/hsk30`), then the

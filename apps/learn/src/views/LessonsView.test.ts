@@ -88,6 +88,13 @@ describe('the lesson list', () => {
     expect(find('[data-test="lessons-empty"]').text()).toContain('example sentence')
   })
 
+  it('says the web version has no lessons, since captures stay in the desktop app', async () => {
+    await mountLessons(fakePlatform({ kind: 'web', tts: false, anki: false }))
+    const empty = find('[data-test="lessons-empty"]').text()
+    expect(empty).toContain('web version')
+    expect(empty).not.toContain('turn into lessons here')
+  })
+
   it('shows why the lessons could not be loaded', async () => {
     const platform = fakePlatform()
     platform.listLessons.mockRejectedValueOnce('database is locked')

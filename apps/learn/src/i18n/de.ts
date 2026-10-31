@@ -153,6 +153,8 @@ export const de: MessageSchema = {
     loadFailed: 'Deine Lektionen konnten nicht geladen werden: {error}',
     empty:
       'Noch keine Lektionen. Erfasse im Automator Wörter mit einem Beispielsatz und seiner Übersetzung, dann werden daraus hier Lektionen.',
+    emptyWeb:
+      'Keine Lektionen in der Web-Version: Lektionen entstehen aus den Wörtern, die du im Automator erfasst, und die bleiben in der Desktop-App.',
     lessonTitle: '{source} → {target} · Lektion {number}',
     cardCount: 'Wörter: {count}',
     start: 'Starten',

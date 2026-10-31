@@ -154,7 +154,7 @@ watch(
       </p>
       <p v-if="!loaded && loading" class="input-hint spinner">{{ t('lessons.loading') }}</p>
       <p v-else-if="loaded && lessons.length === 0" class="empty-state" data-test="lessons-empty">
-        {{ t('lessons.empty') }}
+        {{ t(platform.capabilities.kind === 'web' ? 'lessons.emptyWeb' : 'lessons.empty') }}
       </p>
       <ul v-else class="lesson-list">
         <li

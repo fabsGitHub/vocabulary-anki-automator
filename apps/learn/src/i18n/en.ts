@@ -156,6 +156,8 @@ export const en = {
     loadFailed: 'Your lessons could not be loaded: {error}',
     empty:
       'No lessons yet. Capture words in the Automator together with an example sentence and its translation, and they turn into lessons here.',
+    emptyWeb:
+      'No lessons in the web version: lessons are built from the words you capture with the Automator, and those stay in the desktop app.',
     lessonTitle: '{source} → {target} · Lesson {number}',
     cardCount: 'Words: {count}',
     start: 'Start',
