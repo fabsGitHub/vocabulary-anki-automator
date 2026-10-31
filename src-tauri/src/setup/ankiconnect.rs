@@ -8,6 +8,12 @@
 //! pinned commit, every file is verified before it is written, the folder
 //! appears in one rename (Anki never sees half an add-on), an existing add-on
 //! is never overwritten, and only this app's own webview origin is allowed.
+//!
+//! The one folder that is replaced is that broken stub: the old app wrote it
+//! on every start, so every upgrading user has it, it never loaded, and
+//! refusing it would leave them with "AnkiConnect is missing" and an install
+//! button that always fails. It is recognized strictly (see
+//! [`is_legacy_stub`]); anything else in the add-on folder is left alone.
 
 use std::{
     fs,
@@ -63,6 +69,23 @@ const MAX_FILE_BYTES: u64 = 1024 * 1024;
 /// (the code it imports was a 404 page), so it does not count as installed.
 const LEGACY_STUB: &str = "from . import ankiconnect\n";
 
+/// Everything that can be in the pre-refactor stub's folder: the three files
+/// the old app wrote, and what Anki (bytecode, add-on metadata) or the Finder
+/// adds next to them.
+const LEGACY_ENTRIES: &[&str] = &[
+    "__init__.py",
+    "ankiconnect.py",
+    "config.json",
+    "meta.json",
+    "__pycache__",
+    ".DS_Store",
+];
+
+/// The old app saved whatever `master/ankiconnect.py` returned, which was
+/// GitHub's 14-byte "404: Not Found". Anything this big or bigger could be
+/// real code, so it is not treated as the stub.
+const LEGACY_MODULE_MAX_BYTES: u64 = 4 * 1024;
+
 /// Where `name` is downloaded from: the raw file at the pinned commit.
 pub fn file_url(name: &str) -> String {
     format!("https://raw.githubusercontent.com/FooSoft/anki-connect/{COMMIT}/plugin/{name}")
@@ -115,8 +138,58 @@ pub fn is_installed(dir: &Path) -> bool {
     }
 }
 
+/// Whether `dir` is exactly the broken add-on the pre-refactor app left
+/// behind: a real directory (not a symlink) whose `__init__.py` is the stub,
+/// which holds nothing but [`LEGACY_ENTRIES`], and whose `ankiconnect.py`, if
+/// any, is too small to be code. Only such a folder may be replaced.
+fn is_legacy_stub(dir: &Path) -> bool {
+    if !fs::symlink_metadata(dir).is_ok_and(|meta| meta.is_dir()) {
+        return false;
+    }
+    let Ok(entries) = fs::read_dir(dir) else {
+        return false;
+    };
+    for entry in entries {
+        let Ok(entry) = entry else {
+            return false;
+        };
+        let name = entry.file_name();
+        if !name
+            .to_str()
+            .is_some_and(|name| LEGACY_ENTRIES.contains(&name))
+        {
+            return false;
+        }
+        // `DirEntry::metadata` does not follow symlinks.
+        let Ok(meta) = entry.metadata() else {
+            return false;
+        };
+        if meta.file_type().is_symlink() {
+            return false;
+        }
+        if name == "ankiconnect.py" && !(meta.is_file() && meta.len() < LEGACY_MODULE_MAX_BYTES) {
+            return false;
+        }
+    }
+    let init = dir.join("__init__.py");
+    fs::symlink_metadata(&init).is_ok_and(|meta| meta.is_file())
+        && fs::read(&init).is_ok_and(|bytes| bytes == LEGACY_STUB.as_bytes())
+}
+
+/// `Ok(false)` when nothing is at `target`, `Ok(true)` when it is the
+/// pre-refactor stub (which provisioning replaces), [`SetupError::AlreadyExists`]
+/// for anything else.
+fn stub_to_replace(target: &Path) -> Result<bool, SetupError> {
+    match ensure_absent(target) {
+        Ok(()) => Ok(false),
+        Err(SetupError::AlreadyExists(_)) if is_legacy_stub(target) => Ok(true),
+        Err(err) => Err(err),
+    }
+}
+
 /// Installs the pinned AnkiConnect into `paths.ankiconnect_dir()` and returns
-/// that folder. Needs consent; refuses when anything is already there.
+/// that folder. Needs consent; refuses when anything but the pre-refactor
+/// stub is already there.
 pub async fn provision(
     consent: &ConsentState,
     paths: &AnkiPaths,
@@ -126,11 +199,13 @@ pub async fn provision(
 }
 
 /// [`provision`] with the file list as a parameter, so tests can pin fake
-/// contents. Steps: consent, refuse an existing folder, download every file
-/// into a private temp dir and verify it, copy the verified bytes plus our
-/// `config.json` into a staging folder next to `addons21` (same file system,
-/// so the final rename is atomic), check once more that the target is free,
-/// rename. Any failure leaves `addons21` exactly as it was.
+/// contents. Steps: consent, refuse an existing folder (except the
+/// pre-refactor stub), download every file into a private temp dir and
+/// verify it, copy the verified bytes plus our `config.json` into a staging
+/// folder next to `addons21` (same file system, so the final rename is
+/// atomic), check the target once more, then rename (moving the stub into the
+/// staging folder first, where it is deleted with it). Any failure leaves
+/// `addons21` exactly as it was.
 pub(crate) async fn provision_files(
     consent: &ConsentState,
     paths: &AnkiPaths,
@@ -139,7 +214,7 @@ pub(crate) async fn provision_files(
 ) -> Result<PathBuf, SetupError> {
     require_consent(consent, ConsentAction::AnkiconnectProvision)?;
     let target = paths.ankiconnect_dir();
-    ensure_absent(&target)?;
+    stub_to_replace(&target)?;
 
     let downloads = ScratchDir::new_in(&paths.temp_dir, "vocab-automator-ankiconnect-")?;
     for file in files {
@@ -181,8 +256,26 @@ pub(crate) async fn provision_files(
         .map_err(|err| SetupError::Unavailable(format!("could not encode config.json: {err}")))?;
     write_new(&staged.join("config.json"), &config)?;
 
-    ensure_absent(&target)?;
-    fs::rename(&staged, &target).map_err(SetupError::io("move AnkiConnect into", &target))?;
+    if stub_to_replace(&target)? {
+        let stub = staging.path().join("pre-refactor-stub");
+        fs::rename(&target, &stub).map_err(SetupError::io("move aside", &target))?;
+        if let Err(err) = fs::rename(&staged, &target) {
+            if let Err(restore) = fs::rename(&stub, &target) {
+                log::error!(
+                    "Could not put the old add-on folder back to {}: {restore}",
+                    target.display()
+                );
+                let _ = staging.keep();
+            }
+            return Err(SetupError::io("move AnkiConnect into", &target)(err));
+        }
+        log::info!(
+            "Replaced the broken AnkiConnect stub an earlier version left in {}.",
+            target.display()
+        );
+    } else {
+        fs::rename(&staged, &target).map_err(SetupError::io("move AnkiConnect into", &target))?;
+    }
     log::info!("AnkiConnect installed into {}.", target.display());
     Ok(target)
 }
@@ -447,6 +540,149 @@ mod tests {
         ));
         assert!(fake.requests().is_empty());
         assert!(!paths.anki_base.exists());
+    }
+
+    /// What the pre-refactor app left in `addons21/2055492159`, plus the
+    /// bytecode Anki wrote when it tried (and failed) to load it.
+    fn write_legacy_stub(dir: &Path) {
+        fs::create_dir_all(dir.join("__pycache__")).unwrap();
+        fs::write(dir.join("__init__.py"), LEGACY_STUB).unwrap();
+        fs::write(
+            dir.join("config.json"),
+            r#"{"apiKey": null, "webBindAddress": "127.0.0.1", "webBindPort": 8765, "webCorsOriginList": ["*"]}"#,
+        )
+        .unwrap();
+        fs::write(dir.join("ankiconnect.py"), "404: Not Found").unwrap();
+        fs::write(dir.join("__pycache__/__init__.cpython-39.pyc"), [0u8; 64]).unwrap();
+    }
+
+    fn snapshot(dir: &Path) -> Vec<(String, Vec<u8>)> {
+        let mut files = Vec::new();
+        for name in entries(dir) {
+            let path = dir.join(&name);
+            if path.is_dir() {
+                files.push((format!("{name}/"), Vec::new()));
+            } else {
+                files.push((name, fs::read(path).unwrap()));
+            }
+        }
+        files
+    }
+
+    #[test]
+    fn the_broken_stub_an_earlier_version_left_is_replaced() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = temp_paths(root.path());
+        write_legacy_stub(&paths.ankiconnect_dir());
+        assert!(!is_installed(&paths.ankiconnect_dir()), "precondition");
+        let fake = FakeDownloader::default();
+        let files = fake_addon(&fake);
+
+        let installed = block_on(provision_files(&consented(), &paths, &fake, &files)).unwrap();
+
+        assert_eq!(
+            entries(&installed),
+            ["__init__.py", "config.json", "edit.py", "util.py", "web.py"]
+        );
+        assert!(!fs::read_to_string(installed.join("config.json"))
+            .unwrap()
+            .contains('*'));
+        assert!(is_installed(&installed));
+        assert_eq!(entries(&paths.addons_dir()), [ADDON_ID]);
+        assert_eq!(
+            entries(&paths.anki_base),
+            ["addons21"],
+            "the stub went with the staging folder"
+        );
+        assert_eq!(entries(&paths.temp_dir), Vec::<String>::new());
+    }
+
+    #[test]
+    fn only_the_exact_stub_is_replaced() {
+        type Change = fn(&Path);
+        let cases: [(&str, Change); 5] = [
+            ("a file of the user's", |dir| {
+                fs::write(dir.join("notes.txt"), "mine").unwrap()
+            }),
+            ("a different __init__.py", |dir| {
+                fs::write(dir.join("__init__.py"), "from . import web\n").unwrap()
+            }),
+            ("a module big enough to be code", |dir| {
+                fs::write(dir.join("ankiconnect.py"), "x".repeat(4096)).unwrap()
+            }),
+            ("no __init__.py", |dir| {
+                fs::remove_file(dir.join("__init__.py")).unwrap()
+            }),
+            ("a symlinked module", |dir| {
+                fs::remove_file(dir.join("ankiconnect.py")).unwrap();
+                #[cfg(unix)]
+                std::os::unix::fs::symlink(dir.join("config.json"), dir.join("ankiconnect.py"))
+                    .unwrap();
+                #[cfg(not(unix))]
+                fs::write(dir.join("extra.py"), "").unwrap();
+            }),
+        ];
+        for (name, change) in cases {
+            let root = tempfile::tempdir().unwrap();
+            let paths = temp_paths(root.path());
+            let dir = paths.ankiconnect_dir();
+            write_legacy_stub(&dir);
+            change(&dir);
+            let before = snapshot(&dir);
+            let fake = FakeDownloader::default();
+            let files = fake_addon(&fake);
+
+            let err = block_on(provision_files(&consented(), &paths, &fake, &files)).unwrap_err();
+
+            assert!(
+                matches!(err, SetupError::AlreadyExists(_)),
+                "{name}: {err:?}"
+            );
+            assert!(fake.requests().is_empty(), "{name}: nothing downloaded");
+            assert_eq!(snapshot(&dir), before, "{name}: untouched");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_add_on_folder_is_never_replaced() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = temp_paths(root.path());
+        let elsewhere = root.path().join("checkout");
+        write_legacy_stub(&elsewhere);
+        fs::create_dir_all(paths.addons_dir()).unwrap();
+        std::os::unix::fs::symlink(&elsewhere, paths.ankiconnect_dir()).unwrap();
+        let fake = FakeDownloader::default();
+        let files = fake_addon(&fake);
+
+        let err = block_on(provision_files(&consented(), &paths, &fake, &files)).unwrap_err();
+
+        assert!(matches!(err, SetupError::AlreadyExists(_)), "{err:?}");
+        assert!(fake.requests().is_empty());
+        assert_eq!(
+            fs::read_to_string(elsewhere.join("__init__.py")).unwrap(),
+            LEGACY_STUB
+        );
+    }
+
+    #[test]
+    fn a_failed_install_leaves_the_stub_where_it_was() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = temp_paths(root.path());
+        let dir = paths.ankiconnect_dir();
+        write_legacy_stub(&dir);
+        let before = snapshot(&dir);
+        let fake = FakeDownloader::default();
+        let files = fake_addon(&fake);
+        fake.serve(file_url("web.py"), "tampered");
+
+        let err = block_on(provision_files(&consented(), &paths, &fake, &files)).unwrap_err();
+
+        assert!(
+            matches!(err, SetupError::ChecksumMismatch { .. }),
+            "{err:?}"
+        );
+        assert_eq!(snapshot(&dir), before);
     }
 
     #[test]

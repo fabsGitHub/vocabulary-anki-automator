@@ -80,6 +80,7 @@ pub struct AppState {
     pending: PendingPayload,
     capturing: AtomicBool,
     submitting: AtomicBool,
+    installing: AtomicBool,
     sync_lock: tokio::sync::Mutex<()>,
     providers: Arc<dyn ProviderFactory>,
     clock: Arc<dyn Clock>,
@@ -109,6 +110,7 @@ impl AppState {
             pending: PendingPayload::default(),
             capturing: AtomicBool::new(false),
             submitting: AtomicBool::new(false),
+            installing: AtomicBool::new(false),
             sync_lock: tokio::sync::Mutex::new(()),
             providers: services.providers,
             clock: services.clock,
@@ -177,6 +179,13 @@ impl AppState {
     /// one already is (a double-clicked Approve must not save the card twice).
     pub fn begin_submit(&self) -> Option<FlagGuard<'_>> {
         FlagGuard::acquire(&self.submitting)
+    }
+
+    /// Marks an Anki or AnkiConnect install as running until the guard drops;
+    /// `None` when one already is. Two installs side by side would race for
+    /// the same target folder and the same installer.
+    pub fn begin_install(&self) -> Option<FlagGuard<'_>> {
+        FlagGuard::acquire(&self.installing)
     }
 
     /// Held for the whole of `sync_pending_captures`, so two retries never

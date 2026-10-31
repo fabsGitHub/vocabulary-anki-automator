@@ -7,13 +7,19 @@
 
 mod common;
 
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+
 use common::{b64, fake_audio, Harness, Options, UNREACHABLE_ANKI};
 use serde_json::{json, Value};
 use tauri::async_runtime::block_on;
 use vocab_automator_lib::{config::HotkeyProfile, push::deck_key};
+use vocab_core::store::Store;
 use wiremock::{
     matchers::{body_json, method},
-    Match, Mock, MockServer, Request, ResponseTemplate,
+    Match, Mock, MockServer, Request, Respond, ResponseTemplate,
 };
 
 /// 2026-10-31T12:00:00.123Z in milliseconds: the fixed clock's audio stamp.
@@ -169,6 +175,86 @@ fn approving_sends_the_exact_notes_and_marks_the_capture_synced() {
     assert_eq!(row.card.audio_front, Some(fake_audio("en", "serendipity")));
     assert_eq!(harness.call("get_pending_payload", json!({})), Value::Null);
     assert_eq!(harness.events("captures-changed").len(), 1);
+}
+
+/// What the database held for capture 1 when one AnkiConnect request came
+/// in: the action, the row's `synced_to_anki` and its remembered deck.
+type Seen = (String, Option<bool>, Option<String>);
+
+/// Answers every AnkiConnect request with success and records what the
+/// shared database holds at that moment, through a second connection as
+/// Learn would see it.
+#[derive(Clone)]
+struct Inspector {
+    db: PathBuf,
+    seen: Arc<Mutex<Vec<Seen>>>,
+}
+
+impl Respond for Inspector {
+    fn respond(&self, request: &Request) -> ResponseTemplate {
+        let body: Value = request.body_json().expect("requests are JSON");
+        let store = Store::open(&self.db).expect("second connection");
+        let synced = store
+            .get_capture(1)
+            .expect("readable")
+            .map(|row| row.synced_to_anki);
+        let deck = store.get_state(&deck_key(1)).expect("readable");
+        let action = body["action"].as_str().unwrap_or_default().to_string();
+        self.seen.lock().unwrap().push((action, synced, deck));
+        ok(json!(1))
+    }
+}
+
+/// § 8.2 step 1, and the deck a retry needs: both are committed before
+/// AnkiConnect hears about the card, so a crash or quit in the middle of the
+/// push, or a `sync_pending_captures` running alongside it, never loses the
+/// card or sends it to the default deck.
+#[test]
+fn the_card_and_its_deck_are_saved_before_anki_is_asked() {
+    let server = start();
+    let mut options = Options::default();
+    options.config.anki.connect_url = server.uri();
+    options.config.hotkey_profiles.push(HotkeyProfile {
+        id: "zh-de".into(),
+        label: "Chinese → German".into(),
+        shortcut: "CommandOrControl+Shift+H".into(),
+        source_lang: "zh-CN".into(),
+        target_lang: "de".into(),
+        deck_name: Some("Chinese::HSK".into()),
+    });
+    let harness = Harness::with(options);
+    let inspector = Inspector {
+        db: harness.db_path(),
+        seen: Arc::default(),
+    };
+    block_on(
+        Mock::given(method("POST"))
+            .respond_with(inspector.clone())
+            .mount(&server),
+    );
+    let card = capture(&harness, "学习", Some("zh-de"));
+
+    let result = approve(&harness, card);
+
+    assert_eq!(result["synced_to_anki"], true);
+    let seen = inspector.seen.lock().unwrap().clone();
+    let actions: Vec<&str> = seen.iter().map(|(action, _, _)| action.as_str()).collect();
+    assert_eq!(actions, ["createDeck", "addNote", "addNote"]);
+    for (action, synced, deck) in &seen {
+        assert_eq!(*synced, Some(false), "{action}: stored, unsynced, first");
+        assert_eq!(
+            deck.as_deref(),
+            Some("Chinese::HSK"),
+            "{action}: deck known"
+        );
+    }
+    let store = harness.open_store();
+    assert!(store.get_capture(1).unwrap().unwrap().synced_to_anki);
+    assert_eq!(
+        store.get_state(&deck_key(1)).unwrap(),
+        None,
+        "forgotten once synced"
+    );
 }
 
 #[test]

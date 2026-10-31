@@ -29,13 +29,16 @@ pub mod state;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    Builder, Manager, Runtime, Window, WindowEvent,
+    AppHandle, Builder, Manager, Runtime, WebviewWindowBuilder, Window, WindowEvent,
 };
 
 use crate::{
     capture::PREVIEW_LABEL,
     state::{AppServices, AppState},
 };
+
+/// Label of the settings window (docs/architecture.md § 8.3).
+pub const MAIN_LABEL: &str = "main";
 
 /// What the real app and the `tauri::test` mock app share: the invoke handler
 /// with every command of § 8.2, and the approval window's close behaviour.
@@ -140,11 +143,14 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         .menu(&menu)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "settings" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    if let Err(err) = window.show().and_then(|()| window.set_focus()) {
-                        log::warn!("Could not show the settings window: {err}");
+                // Building a window inside an event handler deadlocks on
+                // Windows (WebView2), so it happens on the async runtime.
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(err) = show_settings(&app) {
+                        log::warn!("{err}");
                     }
-                }
+                });
             }
             "quit" => {
                 log::info!("Quit chosen from the tray menu.");
@@ -157,6 +163,33 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     }
     tray.build(app)?;
     Ok(())
+}
+
+/// Shows and focuses the settings window, building it again from
+/// `tauri.conf.json` when the user closed it. Closing destroys a window, and
+/// once the approval window exists (hidden, never destroyed) the app keeps
+/// running without the settings window, so the tray must be able to bring it
+/// back.
+pub fn show_settings<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let window = match app.get_webview_window(MAIN_LABEL) {
+        Some(window) => window,
+        None => {
+            let config = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|window| window.label == MAIN_LABEL)
+                .ok_or("The settings window is not configured.")?;
+            WebviewWindowBuilder::from_config(app, config)
+                .and_then(|builder| builder.build())
+                .map_err(|err| format!("Could not reopen the settings window: {err}"))?
+        }
+    };
+    window
+        .show()
+        .and_then(|()| window.set_focus())
+        .map_err(|err| format!("Could not show the settings window: {err}"))
 }
 
 fn yes_no(value: bool) -> &'static str {

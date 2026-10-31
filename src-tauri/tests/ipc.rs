@@ -439,6 +439,28 @@ fn deleting_a_capture() {
 }
 
 #[test]
+fn deleting_a_capture_also_forgets_its_deck() {
+    let mut options = Options::default();
+    options.config.hotkey_profiles.push(chinese_profile());
+    let harness = Harness::with(options);
+    capture(&harness, "学习", Some("zh-de"));
+    approve(&harness, pending_card(&harness));
+    let key = vocab_automator_lib::push::deck_key(1);
+    assert_eq!(
+        harness.open_store().get_state(&key).unwrap().as_deref(),
+        Some("Chinese::HSK"),
+        "precondition: the unsynced capture remembers its deck"
+    );
+
+    assert_eq!(
+        harness.call("delete_capture", json!({ "id": 1 })),
+        json!(true)
+    );
+
+    assert_eq!(harness.open_store().get_state(&key).unwrap(), None);
+}
+
+#[test]
 fn sync_stops_at_the_first_unreachable_anki() {
     let harness = Harness::new();
     for word in ["serendipity", "house"] {
@@ -630,6 +652,70 @@ fn a_tampered_anki_installer_is_never_run() {
 }
 
 #[test]
+fn only_one_install_runs_at_a_time() {
+    let harness = Harness::new();
+    harness.call("grant_consent", json!({ "action": "anki_install" }));
+    harness.call(
+        "grant_consent",
+        json!({ "action": "ankiconnect_provision" }),
+    );
+    let state = harness.state();
+    let running = state.begin_install().expect("no install yet");
+
+    for command in ["download_and_install_anki", "auto_provision_ankiconnect"] {
+        let err = harness.call_err(command, json!({}));
+        assert_eq!(
+            err, "Another installation is still running. Wait for it to finish.",
+            "{command}"
+        );
+    }
+    assert!(harness.downloader.requests().is_empty());
+
+    drop(running);
+    let err = harness.call_err("auto_provision_ankiconnect", json!({}));
+    assert!(err.contains("HTTP 404 Not Found"), "runs again: {err}");
+}
+
+/// Every user of the pre-refactor app has its broken AnkiConnect stub in
+/// `addons21/2055492159`. It reads as "not installed", so the install the
+/// UI then offers must not trip over it.
+#[test]
+fn the_old_versions_broken_stub_does_not_block_the_install() {
+    let harness = Harness::new();
+    let addon = harness.anki_paths().ankiconnect_dir();
+    fs::create_dir_all(&addon).unwrap();
+    fs::write(addon.join("__init__.py"), "from . import ankiconnect\n").unwrap();
+    fs::write(addon.join("ankiconnect.py"), "404: Not Found").unwrap();
+    assert_eq!(
+        harness.call("get_setup_status", json!({}))["ankiconnect_installed"],
+        false
+    );
+    harness.call(
+        "grant_consent",
+        json!({ "action": "ankiconnect_provision" }),
+    );
+    for file in ankiconnect::FILES {
+        harness
+            .downloader
+            .serve(ankiconnect::file_url(file.name), "not the pinned bytes");
+    }
+
+    let err = harness.call_err("auto_provision_ankiconnect", json!({}));
+
+    // It got as far as verifying the download, and that failure left the
+    // stub exactly as it was.
+    assert!(err.contains("does not match its pinned SHA-256"), "{err}");
+    assert_eq!(
+        fs::read_to_string(addon.join("__init__.py")).unwrap(),
+        "from . import ankiconnect\n"
+    );
+    assert_eq!(
+        fs::read_to_string(addon.join("ankiconnect.py")).unwrap(),
+        "404: Not Found"
+    );
+}
+
+#[test]
 fn setup_status_and_the_ankiconnect_check_read_the_injected_folders() {
     let harness = Harness::new();
     let status = harness.call("get_setup_status", json!({}));
@@ -683,6 +769,34 @@ fn launching_anki_goes_through_the_injected_runner() {
             );
         }
     }
+}
+
+/// After the first capture the hidden approval window keeps the app alive
+/// when the user closes the settings window, so the tray's "Settings" has to
+/// rebuild it from the app config.
+#[test]
+fn the_tray_brings_back_a_closed_settings_window() {
+    let mut context = tauri::test::mock_context(tauri::test::noop_assets());
+    context
+        .config_mut()
+        .app
+        .windows
+        .push(tauri::utils::config::WindowConfig {
+            label: "main".into(),
+            // Not created at startup: as if the user had closed it.
+            create: false,
+            ..Default::default()
+        });
+    let app = vocab_automator_lib::configure(tauri::test::mock_builder())
+        .build(context)
+        .expect("mock app");
+    assert!(tauri::Manager::get_webview_window(&app, "main").is_none());
+
+    vocab_automator_lib::show_settings(app.handle()).unwrap();
+    assert!(tauri::Manager::get_webview_window(&app, "main").is_some());
+    // An open window is reused.
+    vocab_automator_lib::show_settings(app.handle()).unwrap();
+    assert_eq!(tauri::Manager::webview_windows(&app).len(), 1);
 }
 
 #[test]

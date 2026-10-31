@@ -9,9 +9,11 @@
 //! temp dir and checked against the SHA-256 from the release's signed
 //! checksum file. On macOS it is attached read-only, without showing up in
 //! the Finder, at a mount point inside that private dir; `Anki.app` is
-//! copied with `ditto` (which keeps the code signature intact); and the image
-//! is detached whatever happened. On Windows the verified installer runs
-//! silently. Linux users install Anki from their distribution.
+//! copied with `ditto` (which keeps the code signature intact) under a
+//! temporary name and renamed into place, so a failed copy never leaves a
+//! broken app that looks installed; and the image is detached whatever
+//! happened. On Windows the verified installer runs silently. Linux users
+//! install Anki from their distribution.
 
 use std::{
     ffi::OsString,
@@ -185,6 +187,10 @@ async fn install_from_disk_image(
     ))
 }
 
+/// Copies `Anki.app` under a temporary name next to its destination, then
+/// renames it into place. A copy that fails half-way (a full disk) must not
+/// leave a partial `Anki.app` behind: it would count as installed from then
+/// on, and the install would never be offered again.
 async fn copy_app(
     mount_point: &Path,
     applications_dir: &Path,
@@ -198,13 +204,32 @@ async fn copy_app(
     }
     let target = applications_dir.join("Anki.app");
     ensure_absent(&target)?;
-    runner
-        .run(
-            Path::new(DITTO),
-            &os_args([source.as_os_str(), target.as_os_str()]),
-        )
-        .await?;
-    Ok(target)
+    let staging = applications_dir.join(format!(
+        ".Anki.app.vocab-automator-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    let installed = async {
+        runner
+            .run(
+                Path::new(DITTO),
+                &os_args([source.as_os_str(), staging.as_os_str()]),
+            )
+            .await?;
+        ensure_absent(&target)?;
+        fs::rename(&staging, &target).map_err(SetupError::io("move Anki.app into", &target))
+    }
+    .await;
+    if installed.is_err() {
+        if let Err(err) = fs::remove_dir_all(&staging) {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                log::warn!(
+                    "Could not remove the partial copy {}: {err}",
+                    staging.display()
+                );
+            }
+        }
+    }
+    installed.map(|()| target)
 }
 
 /// `hdiutil detach`, forced on a second attempt (e.g. when Spotlight still
@@ -253,11 +278,22 @@ fn powershell() -> PathBuf {
         .join("powershell.exe")
 }
 
+/// PowerShell ends a single-quoted string at any of these, not only at `'`
+/// (a user folder named with a typographic apostrophe, "O’Brien", is
+/// enough); inside the literal each is written twice.
+const POWERSHELL_QUOTES: [char; 5] = ['\'', '\u{2018}', '\u{2019}', '\u{201A}', '\u{201B}'];
+
 /// `Start-Process` for `installer` with `/S`, waiting for it and passing its
 /// exit code on. The path is a PowerShell single-quoted literal (no variable
-/// expansion; a `'` is written twice).
+/// expansion; every single-quote character is doubled).
 fn elevated_install_args(installer: &Path) -> Vec<OsString> {
-    let path = installer.to_string_lossy().replace('\'', "''");
+    let mut path = String::new();
+    for c in installer.to_string_lossy().chars() {
+        if POWERSHELL_QUOTES.contains(&c) {
+            path.push(c);
+        }
+        path.push(c);
+    }
     os_args([
         "-NoProfile".to_string(),
         "-NonInteractive".to_string(),
@@ -418,15 +454,23 @@ mod tests {
         let mount_point = PathBuf::from(&attach[4]);
         assert!(mount_point.starts_with(&paths.temp_dir), "{mount_point:?}");
         assert!(attach[5].ends_with("anki-test.dmg"));
+        let (program, copy) = &calls[1];
+        assert_eq!(program, DITTO);
         assert_eq!(
-            calls[1],
-            (
-                DITTO.to_string(),
-                vec![
-                    mount_point.join("Anki.app").to_string_lossy().into_owned(),
-                    target.to_string_lossy().into_owned()
-                ]
-            )
+            copy[0],
+            mount_point.join("Anki.app").to_string_lossy().into_owned()
+        );
+        // Copied under a temporary name next to the target, then renamed.
+        let staging = Path::new(&copy[1]);
+        assert_eq!(staging.parent(), Some(paths.applications_dir.as_path()));
+        assert_ne!(staging, target);
+        assert_eq!(
+            fs::read_dir(&paths.applications_dir)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name())
+                .collect::<Vec<_>>(),
+            ["Anki.app"],
+            "only the finished app is left"
         );
         assert_eq!(
             calls[2],
@@ -469,6 +513,50 @@ mod tests {
         assert_eq!(actions.first().map(String::as_str), Some("attach"));
         assert_eq!(actions.last().map(String::as_str), Some("detach"));
         assert_eq!(fs::read_dir(&paths.temp_dir).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn a_copy_that_fails_half_way_leaves_no_anki_app_behind() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = temp_paths(root.path());
+        fs::create_dir_all(&paths.applications_dir).unwrap();
+        // ditto writes part of the bundle, then the disk is full.
+        let runner = FakeRunner::new(|program, args| {
+            match args.first().map(String::as_str) {
+                Some("attach") => fs::create_dir_all(Path::new(&args[4]).join("Anki.app")).unwrap(),
+                Some("detach") => {
+                    let _ = fs::remove_dir_all(Path::new(&args[1]).join("Anki.app"));
+                }
+                _ => {
+                    let contents = Path::new(&args[1]).join("Contents");
+                    fs::create_dir_all(&contents).unwrap();
+                    fs::write(contents.join("Info.plist"), "half").unwrap();
+                    return Err(SetupError::Command {
+                        program: program.to_string(),
+                        message: "No space left on device".into(),
+                    });
+                }
+            }
+            Ok(())
+        });
+
+        let err = block_on(install_pinned(
+            &paths,
+            &serving_image(),
+            &runner,
+            &fake_pin(InstallerKind::MacDiskImage),
+        ))
+        .unwrap_err();
+
+        assert!(err.to_string().contains("No space left"), "{err}");
+        assert_eq!(
+            fs::read_dir(&paths.applications_dir).unwrap().count(),
+            0,
+            "neither Anki.app nor the partial copy"
+        );
+        assert!(!check_anki_installed(&paths));
+        let last = runner.calls().last().cloned().unwrap();
+        assert_eq!(last.1.first().map(String::as_str), Some("detach"));
     }
 
     #[test]
@@ -620,6 +708,18 @@ mod tests {
             command.contains(r"-FilePath 'C:\Users\O''Brien\anki.exe'"),
             "{command}"
         );
+        // PowerShell also ends a single-quoted string at typographic quotes.
+        for (user, quoted) in [
+            ("O\u{2019}Brien", "O\u{2019}\u{2019}Brien"),
+            (
+                "\u{2018}x\u{201A}y\u{201B}",
+                "\u{2018}\u{2018}x\u{201A}\u{201A}y\u{201B}\u{201B}",
+            ),
+        ] {
+            let args = elevated_install_args(&Path::new(r"C:\Users").join(user).join("anki.exe"));
+            let command = args.last().unwrap().to_string_lossy().into_owned();
+            assert!(command.contains(quoted), "{command}");
+        }
     }
 
     #[test]

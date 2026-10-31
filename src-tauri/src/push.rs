@@ -14,12 +14,18 @@
 //!
 //! A card approved into a profile's deck remembers that deck in the store's
 //! `app_state` table until it is synced, so a retry after a restart still
-//! goes to the right deck instead of the default one.
+//! goes to the right deck instead of the default one. The deck is written in
+//! the same transaction as the card, before Anki is asked: a retry that runs
+//! while the approval is still talking to Anki, or after the app quit in the
+//! middle of it, must already know it.
 
 use anki_bridge::{push_card, AnkiClient, AnkiTarget, PushOptions};
 use serde::{Deserialize, Serialize};
 use vocab_core::{
-    language::normalize_lang, providers::ProviderRegistry, CaptureOrigin, Card, ScriptMetadata,
+    language::normalize_lang,
+    providers::ProviderRegistry,
+    store::{Store, StoreResult},
+    CaptureOrigin, Card, ScriptMetadata,
 };
 
 use crate::{capture::PendingCapture, config::AppConfig, state::AppState};
@@ -83,11 +89,20 @@ pub async fn submit_card(
         .profile(profile_id)
         .unwrap_or_else(|| config.default_profile())
         .deck_name;
+    let profile_deck = (deck != config.anki.deck_name).then_some(deck.as_str());
 
-    // 1. Save first, always.
+    // 1. Save first, always, together with a profile deck.
     let capture_id = if state.has_store() {
         let id = state
-            .with_store(|store| store.insert_capture(&card, CaptureOrigin::Capture, false))
+            .with_store(|store| {
+                store.with_transaction(|store| {
+                    let id = store.insert_capture(&card, CaptureOrigin::Capture, false)?;
+                    if let Some(deck) = profile_deck {
+                        store.set_state(&deck_key(id), deck)?;
+                    }
+                    Ok(id)
+                })
+            })
             .map_err(|err| format!("The card was not saved: {err}"))?;
         log::info!("Saved capture {id}.");
         Some(id)
@@ -137,10 +152,10 @@ pub async fn submit_card(
     )
     .await;
 
-    // 4. Mark synced, or remember the deck for the retry.
+    // 4. Mark synced, or leave the capture (and its deck) for the retry.
     match (pushed, capture_id) {
         (Ok(outcome), Some(id)) => {
-            if let Err(err) = state.with_store(|store| store.set_synced_to_anki(id, true)) {
+            if let Err(err) = state.with_store(|store| mark_synced(store, id)) {
                 log::error!("Capture {id} is in Anki but could not be marked synced: {err}");
             }
             log::info!(
@@ -163,13 +178,6 @@ pub async fn submit_card(
         }),
         (Err(err), Some(id)) => {
             log::warn!("Capture {id} is saved but not in Anki yet: {err}");
-            if deck != config.anki.deck_name {
-                if let Err(store_err) =
-                    state.with_store(|store| store.set_state(&deck_key(id), &deck))
-                {
-                    log::warn!("Could not remember the deck of capture {id}: {store_err}");
-                }
-            }
             Ok(SubmitResult {
                 capture_id: id,
                 synced_to_anki: false,
@@ -217,12 +225,7 @@ pub async fn sync_pending(state: &AppState, config: &AppConfig) -> Result<SyncRe
         .await
         {
             Ok(_) => {
-                let marked = state.with_store(|store| {
-                    store.with_transaction(|store| {
-                        store.set_synced_to_anki(id, true)?;
-                        store.delete_state(&deck_key(id))
-                    })
-                });
+                let marked = state.with_store(|store| mark_synced(store, id));
                 match marked {
                     Ok(()) => report.synced += 1,
                     Err(error) => report.failed.push(SyncFailure { id, error }),
@@ -246,6 +249,14 @@ pub async fn sync_pending(state: &AppState, config: &AppConfig) -> Result<SyncRe
         report.attempted
     );
     Ok(report)
+}
+
+/// Marks capture `id` synced and forgets its remembered deck, atomically.
+fn mark_synced(store: &Store, id: i64) -> StoreResult<()> {
+    store.with_transaction(|store| {
+        store.set_synced_to_anki(id, true)?;
+        store.delete_state(&deck_key(id))
+    })
 }
 
 /// The reverse note's settings: on when configured, with TTS of the back in

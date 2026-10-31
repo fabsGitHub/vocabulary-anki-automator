@@ -13,6 +13,9 @@ use crate::{
     state::AppState,
 };
 
+/// Why an install command refused to start.
+const INSTALL_RUNNING: &str = "Another installation is still running. Wait for it to finish.";
+
 /// Whether Anki and AnkiConnect are installed, whether this platform has a
 /// pinned installer, and the recorded consents.
 #[tauri::command]
@@ -38,9 +41,13 @@ pub fn grant_consent(
     Ok(consent)
 }
 
-/// Downloads, verifies and installs the pinned Anki; refuses without consent.
+/// Downloads, verifies and installs the pinned Anki; refuses without consent
+/// and while another install is running.
 #[tauri::command]
 pub async fn download_and_install_anki(state: State<'_, AppState>) -> Result<String, String> {
+    let Some(_installing) = state.begin_install() else {
+        return Err(INSTALL_RUNNING.to_string());
+    };
     let consent = state.config().consent;
     let env = state.setup();
     let paths = env.paths().map_err(|err| err.to_string())?;
@@ -55,9 +62,13 @@ pub async fn download_and_install_anki(state: State<'_, AppState>) -> Result<Str
 }
 
 /// Downloads, verifies and installs the pinned AnkiConnect; refuses without
-/// consent and never overwrites an existing add-on.
+/// consent and while another install is running, and never overwrites an
+/// existing add-on.
 #[tauri::command]
 pub async fn auto_provision_ankiconnect(state: State<'_, AppState>) -> Result<String, String> {
+    let Some(_installing) = state.begin_install() else {
+        return Err(INSTALL_RUNNING.to_string());
+    };
     let consent = state.config().consent;
     let env = state.setup();
     let paths = env.paths().map_err(|err| err.to_string())?;

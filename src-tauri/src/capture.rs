@@ -237,21 +237,53 @@ pub fn pipeline_error_message(err: &PipelineError) -> String {
 /// copied is an error with a hint at the usual cause.
 async fn copy_selection<R: Runtime>(app: &AppHandle<R>) -> Result<String, String> {
     tokio::time::sleep(RELEASE_DELAY).await;
-    let clipboard = app.clipboard();
+    copy_through(app.clipboard(), press_copy_shortcut, COPY_DELAY).await
+}
+
+/// Plain-text access to the clipboard, the only part [`copy_through`] needs.
+trait TextClipboard {
+    fn read(&self) -> Option<String>;
+    fn write(&self, text: String) -> Result<(), String>;
+}
+
+impl<R: Runtime> TextClipboard for tauri_plugin_clipboard_manager::Clipboard<R> {
+    fn read(&self) -> Option<String> {
+        self.read_text().ok()
+    }
+
+    fn write(&self, text: String) -> Result<(), String> {
+        self.write_text(text).map_err(|err| err.to_string())
+    }
+}
+
+/// The clipboard steps around the copy keystroke: remember the user's text,
+/// clear the clipboard (so "nothing was copied" can be told apart from an old
+/// value), press copy, wait `copy_delay`, read, and put the user's text back,
+/// also when the keystroke could not be sent.
+async fn copy_through(
+    clipboard: &impl TextClipboard,
+    press_copy: impl FnOnce() -> Result<(), String>,
+    copy_delay: Duration,
+) -> Result<String, String> {
     // Only text can be put back; other content (an image) is replaced by the
     // copied text, exactly as a manual copy would do.
-    let previous = clipboard.read_text().ok().filter(|text| !text.is_empty());
-    if let Err(err) = clipboard.write_text(String::new()) {
+    let previous = clipboard.read().filter(|text| !text.is_empty());
+    if let Err(err) = clipboard.write(String::new()) {
         log::warn!("Could not clear the clipboard before copying: {err}");
     }
-    press_copy_shortcut()?;
-    tokio::time::sleep(COPY_DELAY).await;
-    let copied = clipboard.read_text().unwrap_or_default();
+    let copied = match press_copy() {
+        Ok(()) => {
+            tokio::time::sleep(copy_delay).await;
+            Ok(clipboard.read().unwrap_or_default())
+        }
+        Err(message) => Err(message),
+    };
     if let Some(previous) = previous {
-        if let Err(err) = clipboard.write_text(previous) {
+        if let Err(err) = clipboard.write(previous) {
             log::warn!("Could not restore the previous clipboard text: {err}");
         }
     }
+    let copied = copied?;
     if copied.trim().is_empty() {
         return Err(nothing_copied_message());
     }
@@ -306,7 +338,99 @@ fn nothing_copied_message() -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::*;
+
+    /// A clipboard holding `text`; every write is recorded.
+    struct FakeClipboard {
+        text: Mutex<Option<String>>,
+        writes: Mutex<Vec<String>>,
+    }
+
+    impl FakeClipboard {
+        fn holding(text: Option<&str>) -> Self {
+            Self {
+                text: Mutex::new(text.map(str::to_string)),
+                writes: Mutex::default(),
+            }
+        }
+
+        /// What another app's Cmd/Ctrl+C would do.
+        fn copy_into(&self, text: &str) {
+            *self.text.lock().unwrap() = Some(text.to_string());
+        }
+
+        fn current(&self) -> Option<String> {
+            self.text.lock().unwrap().clone()
+        }
+    }
+
+    impl TextClipboard for FakeClipboard {
+        fn read(&self) -> Option<String> {
+            self.current()
+        }
+
+        fn write(&self, text: String) -> Result<(), String> {
+            self.writes.lock().unwrap().push(text.clone());
+            *self.text.lock().unwrap() = Some(text);
+            Ok(())
+        }
+    }
+
+    fn copy(
+        clipboard: &FakeClipboard,
+        press: impl FnOnce() -> Result<(), String>,
+    ) -> Result<String, String> {
+        tauri::async_runtime::block_on(copy_through(clipboard, press, Duration::ZERO))
+    }
+
+    #[test]
+    fn the_selection_is_returned_and_the_users_text_put_back() {
+        let clipboard = FakeClipboard::holding(Some("the user's text"));
+
+        let copied = copy(&clipboard, || {
+            clipboard.copy_into("serendipity");
+            Ok(())
+        });
+
+        assert_eq!(copied.as_deref(), Ok("serendipity"));
+        assert_eq!(clipboard.current().as_deref(), Some("the user's text"));
+        assert_eq!(*clipboard.writes.lock().unwrap(), ["", "the user's text"]);
+    }
+
+    #[test]
+    fn nothing_copied_is_an_error_and_the_users_text_is_put_back() {
+        let clipboard = FakeClipboard::holding(Some("the user's text"));
+
+        let err = copy(&clipboard, || Ok(())).unwrap_err();
+
+        assert_eq!(err, nothing_copied_message());
+        assert_eq!(clipboard.current().as_deref(), Some("the user's text"));
+    }
+
+    #[test]
+    fn a_failed_keystroke_still_puts_the_users_text_back() {
+        let clipboard = FakeClipboard::holding(Some("the user's text"));
+
+        let err = copy(&clipboard, || Err("no keyboard simulator".to_string())).unwrap_err();
+
+        assert_eq!(err, "no keyboard simulator");
+        assert_eq!(clipboard.current().as_deref(), Some("the user's text"));
+    }
+
+    #[test]
+    fn without_text_to_restore_the_selection_stays_on_the_clipboard() {
+        let clipboard = FakeClipboard::holding(None);
+
+        let copied = copy(&clipboard, || {
+            clipboard.copy_into("Haus");
+            Ok(())
+        });
+
+        assert_eq!(copied.as_deref(), Ok("Haus"));
+        assert_eq!(clipboard.current().as_deref(), Some("Haus"));
+    }
 
     #[test]
     fn pending_capture_has_the_contract_shape() {
