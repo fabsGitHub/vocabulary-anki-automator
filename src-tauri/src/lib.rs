@@ -1,18 +1,18 @@
-mod config;
-mod api_client;
 mod anki;
+mod api_client;
+mod config;
 
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Emitter};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
-use tauri_plugin_clipboard_manager::ClipboardExt;
 use enigo::{Enigo, Key, Keyboard, Settings};
-use std::time::Duration;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Mutex;
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
-/// Safe thread-bound global memory repository holding the current window payload state 
+/// Safe thread-bound global memory repository holding the current window payload state
 #[derive(Default)]
 pub struct PendingPayload(pub Mutex<Option<serde_json::Value>>);
 
@@ -20,7 +20,9 @@ pub struct PendingPayload(pub Mutex<Option<serde_json::Value>>);
 fn get_anki_dir() -> Option<PathBuf> {
     match std::env::consts::OS {
         "macos" => dirs::home_dir().map(|p| p.join("Library/Application Support/Anki2")),
-        "windows" => std::env::var("APPDATA").ok().map(|p| PathBuf::from(p).join("Anki2")),
+        "windows" => std::env::var("APPDATA")
+            .ok()
+            .map(|p| PathBuf::from(p).join("Anki2")),
         _ => dirs::home_dir().map(|p| p.join(".local/share/Anki2")),
     }
 }
@@ -30,8 +32,8 @@ fn check_anki_installed() -> bool {
     match std::env::consts::OS {
         "macos" => PathBuf::from("/Applications/Anki.app").exists(),
         "windows" => {
-            PathBuf::from(r"C:\Program Files\Anki\Anki.exe").exists() || 
-            PathBuf::from(r"C:\Program Files (x86)\Anki\Anki.exe").exists()
+            PathBuf::from(r"C:\Program Files\Anki\Anki.exe").exists()
+                || PathBuf::from(r"C:\Program Files (x86)\Anki\Anki.exe").exists()
         }
         _ => false,
     }
@@ -46,14 +48,18 @@ async fn download_and_install_anki(_app_handle: &AppHandle) -> Result<(), String
 
     log::warn!("Anki Desktop binary environment target missing. Initializing automated background provisioning setup.");
     let temp_dir = std::env::temp_dir();
-    
+
     match std::env::consts::OS {
         "windows" => {
             let installer_url = "https://github.com/ankitects/anki/releases/download/24.06.3/anki-24.06.3-windows-qt6.exe";
             let installer_path = temp_dir.join("anki_installer.exe");
-            
-            log::info!("Downloading automated Windows package payload installer from upstream sources...");
-            let response = reqwest::get(installer_url).await.map_err(|e| e.to_string())?;
+
+            log::info!(
+                "Downloading automated Windows package payload installer from upstream sources..."
+            );
+            let response = reqwest::get(installer_url)
+                .await
+                .map_err(|e| e.to_string())?;
             let bytes = response.bytes().await.map_err(|e| e.to_string())?;
             fs::write(&installer_path, bytes).map_err(|e| e.to_string())?;
 
@@ -66,20 +72,42 @@ async fn download_and_install_anki(_app_handle: &AppHandle) -> Result<(), String
         "macos" => {
             let installer_url = "https://github.com/ankitects/anki/releases/download/24.06.3/anki-24.06.3-mac-apple-qt6.dmg";
             let dmg_path = temp_dir.join("anki_installer.dmg");
-            
-            log::info!("Downloading automated Apple Silicon DMG container from upstream sources...");
-            let response = reqwest::get(installer_url).await.map_err(|e| e.to_string())?;
+
+            log::info!(
+                "Downloading automated Apple Silicon DMG container from upstream sources..."
+            );
+            let response = reqwest::get(installer_url)
+                .await
+                .map_err(|e| e.to_string())?;
             let bytes = response.bytes().await.map_err(|e| e.to_string())?;
             fs::write(&dmg_path, bytes).map_err(|e| e.to_string())?;
 
-            log::info!("Mounting and cloning system image definitions directly into Applications root...");
-            Command::new("hdiutil").arg("attach").arg(&dmg_path).status().map_err(|e| e.to_string())?;
-            Command::new("cp").arg("-R").arg("/Volumes/Anki/Anki.app").arg("/Applications/").status().map_err(|e| e.to_string())?;
-            Command::new("hdiutil").arg("detach").arg("/Volumes/Anki").status().map_err(|e| e.to_string())?;
+            log::info!(
+                "Mounting and cloning system image definitions directly into Applications root..."
+            );
+            Command::new("hdiutil")
+                .arg("attach")
+                .arg(&dmg_path)
+                .status()
+                .map_err(|e| e.to_string())?;
+            Command::new("cp")
+                .arg("-R")
+                .arg("/Volumes/Anki/Anki.app")
+                .arg("/Applications/")
+                .status()
+                .map_err(|e| e.to_string())?;
+            Command::new("hdiutil")
+                .arg("detach")
+                .arg("/Volumes/Anki")
+                .status()
+                .map_err(|e| e.to_string())?;
         }
-        _ => return Err("Unsupported OS deployment target architecture verified for auto extraction standard.".into()),
+        _ => return Err(
+            "Unsupported OS deployment target architecture verified for auto extraction standard."
+                .into(),
+        ),
     }
-    
+
     tokio::time::sleep(Duration::from_secs(3)).await;
     log::info!("Anki background installation sequences completed successfully.");
     Ok(())
@@ -90,11 +118,18 @@ fn launch_anki_desktop() -> Result<String, String> {
     log::info!("Received execution trigger to launch localized Anki Desktop window pipeline.");
     match std::env::consts::OS {
         "macos" => {
-            Command::new("open").arg("-a").arg("Anki").spawn().map_err(|e| e.to_string())?;
+            Command::new("open")
+                .arg("-a")
+                .arg("Anki")
+                .spawn()
+                .map_err(|e| e.to_string())?;
             Ok("Launching macOS Anki execution framework context...".to_string())
         }
         "windows" => {
-            let win_paths = [r"C:\Program Files\Anki\Anki.exe", r"C:\Program Files (x86)\Anki\Anki.exe"];
+            let win_paths = [
+                r"C:\Program Files\Anki\Anki.exe",
+                r"C:\Program Files (x86)\Anki\Anki.exe",
+            ];
             for path in win_paths.iter() {
                 if PathBuf::from(path).exists() {
                     Command::new(path).spawn().map_err(|e| e.to_string())?;
@@ -104,23 +139,30 @@ fn launch_anki_desktop() -> Result<String, String> {
             log::error!("Anki workspace binary targeting paths completely empty.");
             Err("Anki.exe target binary not located inside default paths.".to_string())
         }
-        _ => Err("Unsupported runtime target OS profile configuration layout.".to_string())
+        _ => Err("Unsupported runtime target OS profile configuration layout.".to_string()),
     }
 }
 
 #[tauri::command]
 fn check_ankiconnect_installed() -> bool {
-    let check_status = get_anki_dir().map(|p| p.join("addons21").join("2055492159").exists()).unwrap_or(false);
-    log::info!("Diagnosing local disk volumes for target addon validation: {}", check_status);
+    let check_status = get_anki_dir()
+        .map(|p| p.join("addons21").join("2055492159").exists())
+        .unwrap_or(false);
+    log::info!(
+        "Diagnosing local disk volumes for target addon validation: {}",
+        check_status
+    );
     check_status
 }
 
 #[tauri::command]
 async fn auto_provision_ankiconnect() -> Result<String, String> {
-    log::info!("Initializing safe write-layer workspace directories for AnkiConnect configurations.");
+    log::info!(
+        "Initializing safe write-layer workspace directories for AnkiConnect configurations."
+    );
     let anki_path = get_anki_dir().ok_or("Could not locate native Anki storage data path.")?;
     let plugin_dir = anki_path.join("addons21").join("2055492159");
-    
+
     fs::create_dir_all(&plugin_dir).map_err(|e| e.to_string())?;
 
     let init_content = "from . import ankiconnect\n";
@@ -129,7 +171,9 @@ async fn auto_provision_ankiconnect() -> Result<String, String> {
     fs::write(plugin_dir.join("__init__.py"), init_content).map_err(|e| e.to_string())?;
     fs::write(plugin_dir.join("config.json"), config_content).map_err(|e| e.to_string())?;
 
-    log::info!("Streaming python network mapping routines straight from master code source endpoints...");
+    log::info!(
+        "Streaming python network mapping routines straight from master code source endpoints..."
+    );
     let script_url = "https://raw.githubusercontent.com/FooSoft/anki-connect/master/ankiconnect.py";
     let response = reqwest::get(script_url).await.map_err(|e| e.to_string())?;
     let script_bytes = response.bytes().await.map_err(|e| e.to_string())?;
@@ -150,15 +194,20 @@ fn apply_settings(app: AppHandle, new_cfg: config::AppConfig) -> Result<(), Stri
     log::info!("Writing new execution tracking adjustments to user runtime configurations.");
     let old_cfg = config::load_config(&app);
     config::save_config(&app, &new_cfg)?;
-    
+
     if old_cfg.hotkeys != new_cfg.hotkeys {
         log::info!("Hotkey modification map vector variance traced. Recycling key binding hooks.");
         if let Ok(old_sc) = old_cfg.hotkeys.parse::<Shortcut>() {
             let _ = app.global_shortcut().unregister(old_sc);
         }
         if let Ok(new_sc) = new_cfg.hotkeys.parse::<Shortcut>() {
-            app.global_shortcut().register(new_sc).map_err(|e| e.to_string())?;
-            log::info!("Successfully registered and tracked mapping shortcut: {}", new_cfg.hotkeys);
+            app.global_shortcut()
+                .register(new_sc)
+                .map_err(|e| e.to_string())?;
+            log::info!(
+                "Successfully registered and tracked mapping shortcut: {}",
+                new_cfg.hotkeys
+            );
         }
     }
     Ok(())
@@ -170,43 +219,55 @@ fn get_pending_payload(state: tauri::State<'_, PendingPayload>) -> Option<serde_
 }
 
 #[tauri::command]
-async fn execute_card_generation(app: AppHandle, front: String, back: String, example: String, note: String) -> Result<String, String> {
+async fn execute_card_generation(
+    app: AppHandle,
+    front: String,
+    back: String,
+    example: String,
+    note: String,
+) -> Result<String, String> {
     log::info!("Executing secure forward/reversed pairwise flashcard injection sequences.");
     let cfg = config::load_config(&app);
     let anki_client = anki::AnkiClient::new(cfg.anki.connect_url);
-    
+
     // 1. Forward generation (Source -> Target) (Supplying 8 arguments)
-    anki_client.add_vocab_card(
-        &cfg.anki.deck_name, 
-        &cfg.anki.model_name, 
-        &front, 
-        &back, 
-        &example, 
-        &note,
-        &cfg.deepl.source_lang,
-        &cfg.deepl.target_lang,
-    ).await?;
-    
+    anki_client
+        .add_vocab_card(
+            &cfg.anki.deck_name,
+            &cfg.anki.model_name,
+            &front,
+            &back,
+            &example,
+            &note,
+            &cfg.deepl.source_lang,
+            &cfg.deepl.target_lang,
+        )
+        .await?;
+
     // 2. Reversed generation (Target -> Source) (Supplying 8 arguments)
-    anki_client.add_vocab_card(
-        &cfg.anki.deck_name, 
-        &cfg.anki.model_name, 
-        &back, 
-        &front, 
-        &example, 
-        &note,
-        &cfg.deepl.target_lang,
-        &cfg.deepl.source_lang,
-    ).await?;
-    
+    anki_client
+        .add_vocab_card(
+            &cfg.anki.deck_name,
+            &cfg.anki.model_name,
+            &back,
+            &front,
+            &example,
+            &note,
+            &cfg.deepl.target_lang,
+            &cfg.deepl.source_lang,
+        )
+        .await?;
+
     log::info!("Pairwise injection sequences executed without connection tracking faults.");
     Ok("Pairwise flashcards securely synchronized!".to_string())
 }
 
 fn trigger_clipboard_sequence(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        log::info!("Global shortcut activation trigger localized. Pausing to clear hardware keys...");
-        
+        log::info!(
+            "Global shortcut activation trigger localized. Pausing to clear hardware keys..."
+        );
+
         // 1. Boosted delay buffer (No enigo instance exists here yet)
         tokio::time::sleep(Duration::from_millis(350)).await;
 
@@ -216,19 +277,19 @@ fn trigger_clipboard_sequence(app: AppHandle) {
         {
             if let Ok(mut enigo) = Enigo::new(&Settings::default()) {
                 log::debug!("Virtual system driver interface linked successfully.");
-                
+
                 #[cfg(target_os = "macos")]
                 {
                     let _ = enigo.key(Key::Shift, enigo::Direction::Release);
                     let _ = enigo.key(Key::Meta, enigo::Direction::Release);
                     std::thread::sleep(std::time::Duration::from_millis(25));
-                    
+
                     let _ = enigo.key(Key::Meta, enigo::Direction::Press);
                     std::thread::sleep(std::time::Duration::from_millis(25));
-                    
-                    let _ = enigo.key(Key::Unicode('c'), enigo::Direction::Click); 
+
+                    let _ = enigo.key(Key::Unicode('c'), enigo::Direction::Click);
                     std::thread::sleep(std::time::Duration::from_millis(25));
-                    
+
                     let _ = enigo.key(Key::Meta, enigo::Direction::Release);
                 }
                 #[cfg(not(target_os = "macos"))]
@@ -236,7 +297,7 @@ fn trigger_clipboard_sequence(app: AppHandle) {
                     let _ = enigo.key(Key::Shift, enigo::Direction::Release);
                     let _ = enigo.key(Key::Control, enigo::Direction::Release);
                     std::thread::sleep(std::time::Duration::from_millis(25));
-                    
+
                     let _ = enigo.key(Key::Control, enigo::Direction::Press);
                     std::thread::sleep(std::time::Duration::from_millis(25));
                     let _ = enigo.key(Key::Unicode('c'), enigo::Direction::Click);
@@ -253,29 +314,45 @@ fn trigger_clipboard_sequence(app: AppHandle) {
 
         if let Ok(copied_text) = app.clipboard().read_text() {
             let copied_text = copied_text.trim().to_string();
-            log::info!("Clipboard polling operation completed. String length evaluated: {}", copied_text);
-            
-            if copied_text.is_empty() { 
+            log::info!(
+                "Clipboard polling operation completed. String length evaluated: {}",
+                copied_text
+            );
+
+            if copied_text.is_empty() {
                 log::warn!("Clipboard interface buffer contains empty data vectors. Dropping execution pipeline sequence.");
-                return; 
+                return;
             }
 
             let cfg = config::load_config(&app);
-            if copied_text.len() > cfg.deepl.max_chars { 
-                log::warn!("Traced layout text content length exceeds maximum permitted parameters.");
-                return; 
+            if copied_text.len() > cfg.deepl.max_chars {
+                log::warn!(
+                    "Traced layout text content length exceeds maximum permitted parameters."
+                );
+                return;
             }
 
             log::info!("Contacting DeepL language engine APIs for processing...");
             let api = api_client::ApiClient::new();
-            let translated = api.translate(&copied_text, &cfg.deepl.source_lang, &cfg.deepl.target_lang).await;
+            let translated = api
+                .translate(&copied_text, &cfg.deepl.source_lang, &cfg.deepl.target_lang)
+                .await;
             let (is_rare, synonym) = api.analyze_rarity(&copied_text).await;
-            
+
             let sample_src = api.fetch_example(&copied_text).await;
-            let sample_tgt = api.translate(&sample_src, &cfg.deepl.source_lang, &cfg.deepl.target_lang).await;
+            let sample_tgt = api
+                .translate(&sample_src, &cfg.deepl.source_lang, &cfg.deepl.target_lang)
+                .await;
             let combined_example = format!("{}\n{}", sample_src, sample_tgt);
 
-            let note_meta = if is_rare { format!("Rare context word. Synonym alternative: {}", synonym.unwrap_or_default()) } else { String::new() };
+            let note_meta = if is_rare {
+                format!(
+                    "Rare context word. Synonym alternative: {}",
+                    synonym.unwrap_or_default()
+                )
+            } else {
+                String::new()
+            };
 
             let payload = serde_json::json!({
                 "front": copied_text,
@@ -290,21 +367,31 @@ fn trigger_clipboard_sequence(app: AppHandle) {
             }
 
             if let Some(win) = app.get_webview_window("preview") {
-                log::info!("Updating properties inside existing foreground window context view target.");
+                log::info!(
+                    "Updating properties inside existing foreground window context view target."
+                );
                 let _ = win.emit("translation-payload", &payload);
                 let _ = win.show();
                 let _ = win.set_focus();
             } else {
-                log::info!("Constructing safe application focus presentation screen wrapper elements.");
-                let _ = WebviewWindowBuilder::new(&app, "preview", WebviewUrl::App("index.html".into()))
-                    .title("Anki Card Approval")
-                    .inner_size(480.0, 360.0)
-                    .resizable(false)
-                    .always_on_top(true)
-                    .build();
+                log::info!(
+                    "Constructing safe application focus presentation screen wrapper elements."
+                );
+                let _ = WebviewWindowBuilder::new(
+                    &app,
+                    "preview",
+                    WebviewUrl::App("index.html".into()),
+                )
+                .title("Anki Card Approval")
+                .inner_size(480.0, 360.0)
+                .resizable(false)
+                .always_on_top(true)
+                .build();
             }
         } else {
-            log::error!("System failed to pull textual contents out of OS core tracking buffers safely.");
+            log::error!(
+                "System failed to pull textual contents out of OS core tracking buffers safely."
+            );
         }
     });
 }

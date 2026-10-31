@@ -1,5 +1,5 @@
 {
-  "name": "anki-clipboard-deepl-automator",
+  "name": "vocab-automator",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -14,10 +14,11 @@
     "test:e2e": "echo 'no E2E harness yet (Milestone G wires tauri-driver + WebdriverIO here); see docs/test-harness-strategy.md' && exit 0"
   },
   "dependencies": {
-    "vue": "^3.5.13",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-updater": "^2"
+    "@tauri-apps/plugin-updater": "^2",
+    "vue": "^3.5.13",
+    "vue-i18n": "11.4.13"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

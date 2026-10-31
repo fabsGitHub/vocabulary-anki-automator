@@ -1,12 +1,12 @@
 [package]
-name = "anki-clipboard-deepl-automator"
+name = "vocab-automator"
 version = "0.1.0"
 description = "Streamlined background vocabulary automation for Anki"
-authors = ["you"]
+authors = ["Fabian Hensel"]
 edition = "2021"
 
 [lib]
-name = "anki_clipboard_deepl_automator_lib"
+name = "vocab_automator_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Cargo workspace build output (Milestone B moved it to the repo root)
+/target

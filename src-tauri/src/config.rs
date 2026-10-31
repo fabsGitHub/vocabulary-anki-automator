@@ -1,7 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::fs::{create_dir_all, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
 use tauri::AppHandle;
 use tauri::Manager;
 
@@ -22,8 +22,8 @@ pub struct AnkiConfig {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppConfig {
-    pub ui_lang: String,      // ✨ FIXED: Added to persist frontend language choices
-    pub hotkeys: String,      // ✨ FIXED: Changed from struct to plain String to match JS payload
+    pub ui_lang: String, // ✨ FIXED: Added to persist frontend language choices
+    pub hotkeys: String, // ✨ FIXED: Changed from struct to plain String to match JS payload
     pub deepl: DeepLConfig,
     pub anki: AnkiConfig,
 }
@@ -78,6 +78,7 @@ pub fn save_config(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
     let path = get_config_path(app)?;
     let mut file = File::create(path).map_err(|e| e.to_string())?;
     let json_str = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
-    file.write_all(json_str.as_bytes()).map_err(|e| e.to_string())?;
+    file.write_all(json_str.as_bytes())
+        .map_err(|e| e.to_string())?;
     Ok(())
 }

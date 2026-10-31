@@ -1,5 +1,11 @@
 dist
 node_modules
+target
 src-tauri/target
+src-tauri/gen
 crates/**/target
+apps/**/dist
+apps/**/src-tauri/gen
+crates/vocab-core/data
+.claude/worktrees
 package-lock.json

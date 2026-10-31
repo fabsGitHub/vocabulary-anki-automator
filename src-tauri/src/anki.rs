@@ -1,5 +1,5 @@
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde_json::json;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 pub struct AnkiClient {
     client: reqwest::Client,
@@ -14,14 +14,20 @@ impl AnkiClient {
         }
     }
 
-    async fn invoke(&self, action: &str, params: serde_json::Value) -> Result<serde_json::Value, String> {
+    async fn invoke(
+        &self,
+        action: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
         let payload = json!({
             "action": action,
             "version": 6,
             "params": params
         });
 
-        let resp = self.client.post(&self.url)
+        let resp = self
+            .client
+            .post(&self.url)
             .json(&payload)
             .send()
             .await
@@ -31,7 +37,10 @@ impl AnkiClient {
         if let Some(error) = body.get("error").and_then(|e| e.as_str()) {
             return Err(error.to_string());
         }
-        Ok(body.get("result").cloned().unwrap_or(serde_json::Value::Null))
+        Ok(body
+            .get("result")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null))
     }
 
     // ✨ FIXED: Updated signature to accept 8 parameters
@@ -54,9 +63,15 @@ impl AnkiClient {
             source_lang.to_lowercase(),
             urlencoding::encode(front)
         );
-        
+
         let mut audio_file_payload = json!({});
-        if let Ok(tts_resp) = self.client.get(&tts_url).header("User-Agent", "Mozilla/5.0").send().await {
+        if let Ok(tts_resp) = self
+            .client
+            .get(&tts_url)
+            .header("User-Agent", "Mozilla/5.0")
+            .send()
+            .await
+        {
             if let Ok(bytes) = tts_resp.bytes().await {
                 let b64_encoded = STANDARD.encode(bytes);
                 let filename = format!("automator_{}.mp3", uuid::Uuid::new_v4());
@@ -65,11 +80,16 @@ impl AnkiClient {
                     "filename": filename,
                     "fields": ["Front Audio"]
                 });
-                
-                let _ = self.invoke("storeMediaFile", json!({
-                    "filename": filename,
-                    "data": b64_encoded
-                })).await;
+
+                let _ = self
+                    .invoke(
+                        "storeMediaFile",
+                        json!({
+                            "filename": filename,
+                            "data": b64_encoded
+                        }),
+                    )
+                    .await;
             }
         }
 

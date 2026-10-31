@@ -25,7 +25,7 @@ impl ApiClient {
     pub async fn translate(&self, text: &str, source_lang: &str, target_lang: &str) -> String {
         let sl = source_lang.to_lowercase();
         let tl = target_lang.to_lowercase();
-        
+
         // Construct the keyless query string array payload
         let params = [
             ("client", "gtx"),
@@ -35,7 +35,10 @@ impl ApiClient {
             ("q", text),
         ];
 
-        let url = match reqwest::Url::parse_with_params("https://translate.googleapis.com/translate_a/single", &params) {
+        let url = match reqwest::Url::parse_with_params(
+            "https://translate.googleapis.com/translate_a/single",
+            &params,
+        ) {
             Ok(u) => u,
             Err(_) => return String::new(),
         };
@@ -66,7 +69,10 @@ impl ApiClient {
             return (false, None);
         }
 
-        let url = format!("https://api.datamuse.com/words?sp={}&md=f&max=1", clean_word);
+        let url = format!(
+            "https://api.datamuse.com/words?sp={}&md=f&max=1",
+            clean_word
+        );
         if let Ok(res) = self.client.get(&url).send().await {
             if let Ok(words) = res.json::<Vec<DatamuseWord>>().await {
                 if let Some(first_word) = words.first() {
@@ -82,7 +88,10 @@ impl ApiClient {
                     }
 
                     if freq < 5.0 {
-                        let syn_url = format!("https://api.datamuse.com/words?rel_syn={}&max=1", clean_word);
+                        let syn_url = format!(
+                            "https://api.datamuse.com/words?rel_syn={}&max=1",
+                            clean_word
+                        );
                         if let Ok(syn_res) = self.client.get(&syn_url).send().await {
                             if let Ok(syns) = syn_res.json::<Vec<DatamuseSynonym>>().await {
                                 if let Some(syn) = syns.first() {
@@ -101,15 +110,26 @@ impl ApiClient {
     /// Public Dictionary Example Context Sentence Parsing Engine (Always Free)
     pub async fn fetch_example(&self, word: &str) -> String {
         let clean_word = word.trim().to_lowercase();
-        let url = format!("https://api.dictionaryapi.dev/api/v2/entries/en/{}", clean_word);
-        
+        let url = format!(
+            "https://api.dictionaryapi.dev/api/v2/entries/en/{}",
+            clean_word
+        );
+
         if let Ok(res) = self.client.get(&url).send().await {
             if let Ok(json) = res.json::<serde_json::Value>().await {
-                if let Some(meanings) = json.get(0).and_then(|v| v.get("meanings")).and_then(|v| v.as_array()) {
+                if let Some(meanings) = json
+                    .get(0)
+                    .and_then(|v| v.get("meanings"))
+                    .and_then(|v| v.as_array())
+                {
                     for meaning in meanings {
-                        if let Some(definitions) = meaning.get("definitions").and_then(|v| v.as_array()) {
+                        if let Some(definitions) =
+                            meaning.get("definitions").and_then(|v| v.as_array())
+                        {
                             for definition in definitions {
-                                if let Some(example) = definition.get("example").and_then(|v| v.as_str()) {
+                                if let Some(example) =
+                                    definition.get("example").and_then(|v| v.as_str())
+                                {
                                     return example.to_string();
                                 }
                             }

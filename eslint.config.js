@@ -44,6 +44,16 @@ export default [
   },
   prettierConfig,
   {
-    ignores: ['dist/**', 'node_modules/**', 'src-tauri/target/**', 'crates/**/target/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'target/**',
+      'src-tauri/target/**',
+      'src-tauri/gen/**',
+      'crates/**/target/**',
+      'apps/**/dist/**',
+      'apps/**/src-tauri/gen/**',
+      '.claude/**',
+    ],
   },
 ]

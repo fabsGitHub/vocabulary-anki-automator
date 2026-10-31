@@ -40,9 +40,6 @@
     "windows": {
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com"
-    },
-    "linux": {
-      "targets": ["deb", "rpm", "appimage"]
     }
   },
   "plugins": {
