@@ -26,12 +26,13 @@ Two Tauri 2 desktop apps sharing one Rust core:
 just lint          # rustfmt, clippy -D warnings, vue-tsc, ESLint, Prettier
 just check-all     # unit + integration tiers (scripts/run-all-checks.sh; CI runs the same)
 npm run tauri dev  # Automator
-npm run learn:tauri dev   # Learn (desktop); npm run learn:dev for the browser build
+npm run learn:tauri dev   # Learn (desktop); npm run learn:dev:web for the browser build
 ```
 
-In a sandbox where `~/.cargo` is read-only, prefix cargo with
-`CARGO_HOME="$TMPDIR/cargo-home"`; give npm `--cache "$TMPDIR/npm-cache"`. HTTP-mock tests
-(wiremock) need local port binding.
+In a sandbox where `~/.cargo` is read-only, prefix cargo with an absolute `CARGO_HOME` such as
+`/tmp/claude-501/cargo-home` (`$TMPDIR` differs inside and outside the sandbox, see
+docs/architecture.md § 2); give npm `--cache "$TMPDIR/npm-cache"`. HTTP-mock tests (wiremock)
+need local port binding.
 
 ## Rules that are easy to break
 
