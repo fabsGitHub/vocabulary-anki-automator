@@ -118,6 +118,21 @@ describe('workflows', () => {
     }
   })
 
+  it('install the Rust version rust-toolchain.toml pins', () => {
+    const pinned = /^channel = "(\d+\.\d+\.\d+)"$/m.exec(read('rust-toolchain.toml'))?.[1]
+    expect(pinned).toBeDefined()
+    for (const workflow of [release, ci]) {
+      const steps = workflow.match(/uses: dtolnay\/rust-toolchain@/g) ?? []
+      const toolchains = [
+        ...workflow.matchAll(
+          /uses: dtolnay\/rust-toolchain@\S+[^\n]*\n\s+with:\n\s+toolchain: (\S+)\n/g,
+        ),
+      ].map((m) => m[1])
+      expect(steps.length).toBeGreaterThan(0)
+      expect(toolchains).toEqual(steps.map(() => pinned))
+    }
+  })
+
   it('never store the token in the checkout', () => {
     for (const workflow of [release, ci]) {
       const checkouts = [...workflow.matchAll(/uses: actions\/checkout@\S+[^\n]*\n(.*)\n(.*)/g)]

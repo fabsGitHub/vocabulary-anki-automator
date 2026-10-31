@@ -23,10 +23,21 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 command -v brew >/dev/null 2>&1 || fail "Homebrew is required but not installed (https://brew.sh)"
-command -v cargo >/dev/null 2>&1 || fail "Rust/cargo is required but not installed (https://rustup.rs)"
+command -v rustup >/dev/null 2>&1 || fail "Rust via rustup is required but not installed (https://rustup.rs)"
 command -v npm >/dev/null 2>&1 || fail "Node/npm is required but not installed"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# --- Rust: the version rust-toolchain.toml pins ------------------------------
+# rustup would install it on the first cargo command in the repo anyway; doing
+# it here keeps that download out of the first build. `rustup show
+# active-toolchain` installs it wherever rustup auto-installs and only reads
+# local state once it is there; the fallback covers rustup 1.28.0 and
+# auto-install turned off. (A bare `rustup toolchain install` would also update
+# rustup itself, and needs rustup 1.28 or newer.)
+log "installing the Rust version rust-toolchain.toml pins (if missing)"
+(cd "$REPO_ROOT" && { rustup show active-toolchain >/dev/null || rustup toolchain install --no-self-update; }) \
+  || fail "could not install the Rust version rust-toolchain.toml pins"
 
 # --- cargo-watch: Rust watch loop -------------------------------------------
 if cargo watch --version >/dev/null 2>&1; then
