@@ -724,7 +724,7 @@ Two limits: where no tray icon is shown (GNOME without an AppIndicator extension
 the running app has no visible way back to its settings or to Quit, though its
 hotkeys work; and with no single-instance guard, launching the app again starts a
 second process whose hotkeys collide with the first's (`tauri-plugin-single-instance`
-would fix that; it needs the operator's approval as a new dependency).
+would fix that; it is a new dependency, not added yet).
 
 Capabilities (`src-tauri/capabilities/`) grant each window exactly the core and
 plugin commands its code calls, never a `*:default` set: `main` gets

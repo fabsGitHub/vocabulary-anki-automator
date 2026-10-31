@@ -1,6 +1,6 @@
 # Milestone N5: build, sign and publish Automator for macOS, Windows and Linux
-# when an operator pushes a `v*` tag. The tag push is the deliberate, human
-# release gate (Tier 2/3); nothing in this workflow runs on a plain merge.
+# when the operator pushes a `v*` tag. The tag push is the deliberate, human
+# release gate (CLAUDE.md); nothing in this workflow runs on a plain merge.
 #
 # Secrets (repo Settings -> Secrets and variables -> Actions), see
 # docs/signing-key-custody.md. They are referenced by name only, never
