@@ -69,6 +69,9 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     ])
 }
 
+/// Runs the app: the desktop binary's `main`, and the entry point the iOS
+/// and Android shells call. Startup itself cannot fail (see
+/// [`state`](crate::state)); only Tauri giving up ends the process.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let result = configure(tauri::Builder::default())

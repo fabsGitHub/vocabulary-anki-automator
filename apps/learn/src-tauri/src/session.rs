@@ -26,6 +26,8 @@
 //!   moves it from the new part of the queue to the review part instead of
 //!   pulling in one word more. Before today's prompt is answered there is no
 //!   session, and the queue holds reviews only, as after a dismissed prompt.
+//!   This rule is Learn's, not the core's, so the web build's adapter has to
+//!   apply the same one for both platforms to show the same queue.
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -56,6 +58,7 @@ pub struct ReviewResult {
     pub session: Option<DailySessionRow>,
     /// True only for the rating that completed today's session.
     pub session_completed: bool,
+    /// The streak after this rating, a freeze it earned included.
     pub streak: StreakSummary,
 }
 

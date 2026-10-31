@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "title": "Vocabulary Learn", "width": 960, "height": 720 }],
+    "windows": [{ "label": "main", "title": "Vocabulary Learn", "width": 960, "height": 720 }],
     "security": { "csp": null }
   },
   "bundle": {

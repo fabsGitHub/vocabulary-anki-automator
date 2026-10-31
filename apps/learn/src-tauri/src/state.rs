@@ -56,6 +56,7 @@ use crate::{
 pub struct AppServices {
     /// The shared database, or why it could not be opened.
     pub store: Result<Store, String>,
+    /// "Now" and the learner's local date for every command.
     pub clock: Arc<dyn Clock>,
     /// Speaks cards that have no stored recording, and example sentences.
     pub tts: Arc<dyn TtsProvider>,
@@ -199,10 +200,13 @@ impl AppState {
         ClockSnapshot::read(self.clock.as_ref())
     }
 
+    /// FSRS with the default parameters, shared by every card.
     pub fn scheduler(&self) -> &SrsScheduler {
         &self.scheduler
     }
 
+    /// Text-to-speech, for card audio and Anki export; a network request, so
+    /// never call it with the store locked.
     pub fn tts(&self) -> &dyn TtsProvider {
         self.tts.as_ref()
     }
@@ -262,6 +266,7 @@ pub struct ClockSnapshot {
 }
 
 impl ClockSnapshot {
+    /// Reads `clock`'s instant and local offset now.
     pub fn read(clock: &dyn Clock) -> Self {
         Self {
             now: clock.now(),

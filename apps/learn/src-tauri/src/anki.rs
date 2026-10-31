@@ -65,9 +65,11 @@ const CHINESE: &str = "zh-CN";
 pub struct AnkiSyncReport {
     /// Cards pushed (export) or notes read (import).
     pub attempted: usize,
+    /// Cards Anki got a new note for (export) or cards stored (import).
     pub succeeded: usize,
     /// Notes Anki already had (export) or fronts already captured (import).
     pub skipped: usize,
+    /// Everything else, in the order it was tried.
     pub failed: Vec<AnkiSyncFailure>,
 }
 
@@ -76,7 +78,10 @@ pub struct AnkiSyncReport {
 pub struct AnkiSyncFailure {
     /// The card's id; `None` for an import, which stores nothing it fails.
     pub card_id: Option<i64>,
+    /// The word, so the learner can find the card or note; empty when the
+    /// note had none.
     pub front: String,
+    /// What went wrong, as a sentence.
     pub error: String,
 }
 

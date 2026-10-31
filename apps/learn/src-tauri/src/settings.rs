@@ -52,6 +52,7 @@ impl MeaningLang {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LearnSettings {
+    /// The language of new curriculum words' meanings.
     pub meaning_lang: MeaningLang,
     pub anki: AnkiSettings,
 }
@@ -60,7 +61,9 @@ pub struct LearnSettings {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AnkiSettings {
+    /// The AnkiConnect endpoint, normally on this machine.
     pub connect_url: String,
+    /// The deck export writes to; import asks for its deck each time.
     pub deck_name: String,
     /// The Anki note type ("model").
     pub model_name: String,

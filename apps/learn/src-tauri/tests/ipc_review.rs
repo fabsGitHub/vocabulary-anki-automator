@@ -260,6 +260,41 @@ fn starting_a_word_twice_gives_the_same_card_and_counts_nothing() {
     assert_eq!(store.count_srs_states().unwrap(), 2);
 }
 
+/// § 7.1: the queue skips only *learned* hanzi. A word Automator captured
+/// but never scheduled is still offered when its curriculum turn comes, and
+/// starting it adopts that capture instead of adding a second card.
+#[test]
+fn a_captured_word_that_was_never_scheduled_is_offered_and_adopted() {
+    let harness = Harness::with(Options {
+        before_start: Some(Box::new(|store| {
+            learned(
+                store,
+                &chinese_capture("我", "ich", "wǒ", ("", "")),
+                start_time() - Duration::days(1),
+            );
+            capture(
+                store,
+                &chinese_capture("你", "du", "nǐ", ("你好吗？", "Wie geht's?")),
+            );
+        })),
+        ..Options::default()
+    });
+    harness.call("submit_daily_quota", json!({ "newCount": 2 }));
+
+    assert_eq!(new_words(&queue(&harness)), ["你", "好"]);
+
+    let ni = start(&harness, "你");
+    assert_eq!(ni, 2, "the Automator capture");
+    let adopted = stored(&harness, ni);
+    assert_eq!(adopted.origin, CaptureOrigin::Capture);
+    assert_eq!(adopted.card.back, "du", "the learner's own meaning stays");
+    let result = rate(&harness, ni, 3);
+    assert_eq!(result["xp_awarded"], 15, "its first review counts as new");
+    assert_eq!(result["session"]["new_items_completed"], 1);
+    assert_eq!(new_words(&queue(&harness)), ["好"]);
+    assert_eq!(harness.open_store().list_captures(None).unwrap().len(), 2);
+}
+
 #[test]
 fn mistakes_are_refused_with_a_readable_message() {
     let harness = Harness::new();
