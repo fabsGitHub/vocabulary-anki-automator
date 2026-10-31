@@ -99,6 +99,67 @@ describe('sentence builder', () => {
     expect(wrapper!.emitted('answered')).toEqual([[false]])
   })
 
+  it('keeps keyboard focus on the board while words are placed and taken back', async () => {
+    // Attached, because only a connected element can hold focus.
+    wrapper = mountWith(
+      SentenceBuilder,
+      { platform: fakePlatform() },
+      { props: { exercise: fx.sentenceBuilder() }, attachTo: document.body },
+    )
+    await flushPromises()
+    const bank = (id: number) => find(`[data-test="tile-${id}"]`)
+    const answer = (id: number) => find(`[data-test="placed-${id}"]`)
+    const focused = () => document.activeElement
+    // Enter or Space on a focused button is a click on it.
+    async function press(tile: ReturnType<typeof bank>): Promise<void> {
+      ;(tile.element as HTMLElement).focus()
+      await tile.trigger('click')
+      await flushPromises()
+    }
+
+    // Tiles 在 中文 我 学习 老师 (ids 0-4): placing moves on to the next tile left.
+    await press(bank(2))
+    expect(focused()).toBe(bank(3).element)
+    await press(bank(3))
+    expect(focused()).toBe(bank(4).element)
+    await press(bank(4))
+    expect(focused()).toBe(bank(0).element)
+    await press(bank(0))
+    expect(focused()).toBe(bank(1).element)
+    expect(placed()).toEqual(['我', '学习', '老师', '在'])
+
+    // Taking a word back moves to the word that took its place, else to the last one.
+    await press(answer(3))
+    expect(focused()).toBe(answer(4).element)
+    await press(answer(0))
+    expect(focused()).toBe(answer(4).element)
+    await press(answer(4))
+    expect(focused()).toBe(answer(2).element)
+    // The answer is empty: focus goes to the word that went back to the bank.
+    await press(answer(2))
+    expect(focused()).toBe(bank(2).element)
+
+    // With every tile placed, focus stays on the last one placed.
+    for (const id of [2, 0, 3, 1]) await press(bank(id))
+    await press(bank(4))
+    expect(placed()).toEqual(['我', '在', '学习', '中文', '老师'])
+    expect(focused()).toBe(answer(4).element)
+  })
+
+  it('moves no focus for a tap that did not focus the tile', async () => {
+    wrapper = mountWith(
+      SentenceBuilder,
+      { platform: fakePlatform() },
+      { props: { exercise: fx.sentenceBuilder() }, attachTo: document.body },
+    )
+    await flushPromises()
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    await tap(2)
+    await flushPromises()
+    expect(placed()).toEqual(['我'])
+    expect(document.activeElement).toBe(document.body)
+  })
+
   it('freezes the tiles once answered', async () => {
     const platform = fakePlatform()
     await mountExercise(platform)

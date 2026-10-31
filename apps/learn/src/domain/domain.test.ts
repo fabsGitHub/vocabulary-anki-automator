@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { RatingPreview } from '../platform/types'
 import { lesson, lessonCard, NOW } from '../test/fixtures'
 import { nextInterval, previewsByRating } from './intervals'
-import { lessonNumbers, lessonSteps, splitCloze } from './lessons'
+import { clozeParts, lessonNumbers, lessonSteps, splitCloze } from './lessons'
 
 const preview = (interval_days: number, dueInMs: number): RatingPreview => ({
   rating: 3,
@@ -81,5 +81,33 @@ describe('lessons', () => {
     })
     expect(splitCloze('____ and ____')).toEqual({ before: '', after: ' and ____' })
     expect(splitCloze('no gap')).toBeNull()
+  })
+
+  it('fills a cloze’s gap with the word as its sentence spells it', () => {
+    const capitalized = lessonCard({
+      word: 'serendipity',
+      sentence_source: 'Serendipity is rare.',
+      cloze: '____ is rare.',
+    })
+    expect(clozeParts(capitalized)).toEqual({ before: '', gap: 'Serendipity', after: ' is rare.' })
+    expect(clozeParts(lessonCard())).toEqual({
+      before: 'Finding it was pure ',
+      gap: 'serendipity',
+      after: '.',
+    })
+    const hanzi = lessonCard({
+      word: '学习',
+      sentence_source: '我在学习中文。',
+      cloze: '我在____中文。',
+    })
+    expect(clozeParts(hanzi)?.gap).toBe('学习')
+    // A cloze that does not frame its sentence falls back to the word: a
+    // different start, a different end, or both ends overlapping.
+    const unframed = (cloze: string, sentence_source = 'Finding it was pure serendipity.') =>
+      clozeParts(lessonCard({ cloze, sentence_source }))?.gap
+    expect(unframed('Something else: ____.')).toBe('serendipity')
+    expect(unframed('Finding it was ____ serendipity!')).toBe('serendipity')
+    expect(unframed('ab____ab', 'ab')).toBe('serendipity')
+    expect(clozeParts(lessonCard({ cloze: 'no gap' }))).toBeNull()
   })
 })

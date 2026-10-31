@@ -227,6 +227,66 @@ describe('a review session', () => {
     expect(front()).toBe('serendipity')
   })
 
+  it('keeps keyboard focus with the card from "Show answer" to the summary', async () => {
+    const platform = reviewPlatform()
+    platform.getDailyQueue.mockResolvedValue([QUEUE[0], QUEUE[1]])
+    const pending = deferred<ReturnType<typeof fx.reviewResult>>()
+    platform.submitReviewRating.mockReturnValueOnce(pending.promise)
+    await mountReview(platform)
+    const focused = () => document.activeElement
+    // Enter or Space on a focused button is a click on it.
+    async function press(selector: string): Promise<void> {
+      ;(find(selector).element as HTMLElement).focus()
+      await click(selector)
+    }
+
+    await press('[data-test="reveal"]')
+    // The group, not a rating button: a second Space must not rate.
+    expect(focused()).toBe(find('[data-test="rating-group"]').element)
+    await key(' ')
+    expect(platform.submitReviewRating).not.toHaveBeenCalled()
+
+    await press('[data-test="rate-3"]')
+    // Saving: the buttons say so but keep their focus.
+    expect(find('[data-test="rate-3"]').attributes('aria-disabled')).toBe('true')
+    expect(find('[data-test="rate-3"]').attributes('disabled')).toBeUndefined()
+    expect(focused()).toBe(find('[data-test="rate-3"]').element)
+    pending.resolve(fx.reviewResult())
+    await flushPromises()
+    expect(front()).toBe('serendipity')
+    expect(focused()).toBe(find('[data-test="reveal"]').element)
+
+    await press('[data-test="reveal"]')
+    // A rating key pressed in the group moves focus on as well.
+    await key('4')
+    expect(find('[data-test="review-complete"]').exists()).toBe(true)
+    expect(focused()).toBe(find('[data-test="more"]').element)
+  })
+
+  it('leaves focus alone for the shortcuts and for a learner who moved it', async () => {
+    const platform = reviewPlatform()
+    await mountReview(platform)
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    await key(' ')
+    await key('3')
+    expect(front()).toBe('serendipity')
+    expect(document.activeElement).toBe(document.body)
+
+    const elsewhere = document.createElement('button')
+    document.body.appendChild(elsewhere)
+    const pending = deferred<ReturnType<typeof fx.reviewResult>>()
+    platform.submitReviewRating.mockReturnValueOnce(pending.promise)
+    ;(find('[data-test="reveal"]').element as HTMLElement).focus()
+    await click('[data-test="reveal"]')
+    ;(find('[data-test="rate-2"]').element as HTMLElement).focus()
+    await click('[data-test="rate-2"]')
+    elsewhere.focus()
+    pending.resolve(fx.reviewResult())
+    await flushPromises()
+    expect(front()).toBe('学')
+    expect(document.activeElement).toBe(elsewhere)
+  })
+
   it('moves the progress bar card by card', async () => {
     await mountReview(reviewPlatform())
     const bar = () => find('[data-test="progress"]')
@@ -456,13 +516,33 @@ describe('the card', () => {
     )
   })
 
-  it('says so when there is nothing to play', async () => {
+  it('offers no play button where nothing could be played', async () => {
     const platform = reviewPlatform()
     platform.capabilities.tts = false
+    platform.getDailyQueue.mockResolvedValue([QUEUE[0], QUEUE[1]])
+    platform.getCard
+      .mockResolvedValueOnce(CARDS[1])
+      .mockResolvedValueOnce(fx.capture({ id: 2, card: { audio_front: 'SUQz' } }))
     await mountReview(platform)
+    await key(' ')
+    // No recording and no text-to-speech: the button could only ever fail.
+    expect(find('[data-test="back"]').exists()).toBe(true)
+    expect(find('[data-test="play-audio"]').exists()).toBe(false)
+
+    await key('3')
     await key(' ')
     await click('[data-test="play-audio"]')
     expect(platform.synthesizeAudio).not.toHaveBeenCalled()
+    expect(platform.getCardAudio).not.toHaveBeenCalled()
+  })
+
+  it('says so when a recording turns out to be missing', async () => {
+    const platform = reviewPlatform()
+    platform.synthesizeAudio.mockResolvedValue(null)
+    await mountReview(platform)
+    await key(' ')
+    await click('[data-test="play-audio"]')
+    expect(platform.getCardAudio).toHaveBeenCalledWith(1)
     expect(find('[data-test="audio-status"]').text()).toBe('No audio is available for this.')
   })
 })

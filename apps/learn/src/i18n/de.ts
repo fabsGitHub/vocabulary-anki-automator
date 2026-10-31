@@ -156,6 +156,7 @@ export const de: MessageSchema = {
     lessonTitle: '{source} → {target} · Lektion {number}',
     cardCount: 'Wörter: {count}',
     start: 'Starten',
+    startLesson: '{title} starten',
     back: 'Alle Lektionen',
     step: 'Schritt {current} von {total}',
     progressLabel: 'Fortschritt der Lektion',

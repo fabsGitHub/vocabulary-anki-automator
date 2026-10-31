@@ -9,8 +9,15 @@
  * texts the adapter generated, nothing looked up on the side. When the pool
  * cannot make an exercise of the chosen type for a word (too few learned
  * words, no learned sentence using it), the adapter's reason is shown.
+ *
+ * An exercise that arrives after the word or the type was changed is
+ * dropped, so the exercise on screen is always one for the current choice.
+ * Keyboard focus is kept on the generate button: it is not disabled while an
+ * exercise is prepared, and once an exercise is answered (which disables its
+ * controls, and the browser drops their focus) focus moves to it, the
+ * "Next exercise" a keyboard user goes on with.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ListeningChoice from '../components/exercises/ListeningChoice.vue'
@@ -41,6 +48,10 @@ const exerciseKey = ref(0)
 const generating = ref(false)
 const generateError = ref<string | null>(null)
 const answered = ref(false)
+const generateButton = ref<HTMLButtonElement | null>(null)
+const exerciseFrame = ref<HTMLElement | null>(null)
+/** Numbers the exercise requests; only the latest one may show its answer. */
+let request = 0
 
 const selectedCard = computed(
   () => cards.value.find((card) => card.card_id === cardId.value) ?? null,
@@ -86,22 +97,37 @@ async function loadCards(): Promise<void> {
 
 async function generate(): Promise<void> {
   if (generating.value || cardId.value === null || !kindAvailable.value) return
+  const asked = ++request
   generating.value = true
   generateError.value = null
   try {
     const next = await platform.nextExercise(cardId.value, kind.value, seeds.next())
+    if (asked !== request) return
     exercise.value = next
     answered.value = false
     exerciseKey.value += 1
   } catch (err) {
+    if (asked !== request) return
     exercise.value = null
     generateError.value = errorMessage(err)
   } finally {
-    generating.value = false
+    if (asked === request) generating.value = false
   }
 }
 
+function onAnswered(): void {
+  answered.value = true
+  const focused = document.activeElement
+  const focusLost = focused === null || focused === document.body
+  if (focusLost || exerciseFrame.value?.contains(focused)) {
+    void nextTick(() => generateButton.value?.focus())
+  }
+}
+
+// A new word or type makes the exercise on screen (or on its way) a stale one.
 watch([cardId, kind], () => {
+  request += 1
+  generating.value = false
   exercise.value = null
   generateError.value = null
   answered.value = false
@@ -174,11 +200,14 @@ watch(
 
       <div class="action-row">
         <button
+          ref="generateButton"
           type="button"
           class="btn"
           :class="skipping ? 'btn-secondary' : 'btn-primary'"
           data-test="generate"
-          :disabled="generating || cardId === null || !kindAvailable"
+          :disabled="cardId === null || !kindAvailable"
+          :aria-disabled="generating || undefined"
+          :aria-busy="generating || undefined"
           @click="generate"
         >
           {{ generateLabel }}
@@ -189,31 +218,26 @@ watch(
         {{ t('practice.generateFailed', { error: generateError }) }}
       </p>
 
-      <div v-if="exercise" class="exercise-frame" data-test="exercise">
+      <div v-if="exercise" ref="exerciseFrame" class="exercise-frame" data-test="exercise">
         <MultipleChoice
           v-if="exercise.kind === 'multiple_choice'"
           :key="exerciseKey"
           :exercise="exercise"
-          @answered="answered = true"
+          @answered="onAnswered"
         />
         <SentenceBuilder
           v-else-if="exercise.kind === 'sentence_builder'"
           :key="exerciseKey"
           :exercise="exercise"
-          @answered="answered = true"
+          @answered="onAnswered"
         />
         <ListeningChoice
           v-else-if="exercise.kind === 'listening_choice'"
           :key="exerciseKey"
           :exercise="exercise"
-          @answered="answered = true"
+          @answered="onAnswered"
         />
-        <ListeningSentence
-          v-else
-          :key="exerciseKey"
-          :exercise="exercise"
-          @answered="answered = true"
-        />
+        <ListeningSentence v-else :key="exerciseKey" :exercise="exercise" @answered="onAnswered" />
       </div>
     </template>
   </section>

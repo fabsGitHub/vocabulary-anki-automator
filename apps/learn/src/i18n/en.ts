@@ -159,6 +159,7 @@ export const en = {
     lessonTitle: '{source} → {target} · Lesson {number}',
     cardCount: 'Words: {count}',
     start: 'Start',
+    startLesson: 'Start {title}',
     back: 'All lessons',
     step: 'Step {current} of {total}',
     progressLabel: 'Lesson progress',

@@ -11,8 +11,16 @@
  * English meanings (docs/architecture.md § 6.4), and the card says so. The
  * learner's meaning language is read again whenever the tab comes back,
  * since the settings tab can change it while a pass is open.
+ *
+ * Without the shortcuts (a screen reader in browse mode takes the number
+ * keys) the card is worked with Tab and Enter, and focus follows the card
+ * instead of dropping to the page as its buttons come and go: from "Show
+ * answer" to the group of rating buttons (the group itself, so a second
+ * Space never rates by accident), and from a rating to the next card's
+ * "Show answer", or to "Check for more cards" at the end. The rating buttons
+ * stay focusable while a rating is saved (`aria-disabled`).
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AudioButton from '../components/AudioButton.vue'
@@ -58,6 +66,13 @@ const {
 } = session
 
 const meaningLang = ref<LearnSettings['meaning_lang'] | null>(null)
+const pane = ref<HTMLElement | null>(null)
+const actions = ref<HTMLElement | null>(null)
+const revealButton = ref<HTMLButtonElement | null>(null)
+const ratingGroup = ref<HTMLElement | null>(null)
+const moreButton = ref<HTMLButtonElement | null>(null)
+/** A rating was given from the card's buttons: focus moves on with the card. */
+let focusFollows = false
 
 const card = computed(() => current.value?.capture.card ?? null)
 const pinyin = computed(() => {
@@ -77,16 +92,21 @@ const meaningFallback = computed(
     meaningLang.value === 'de' &&
     card.value?.target_lang !== 'de',
 )
-const audioSource = computed(() =>
-  current.value && card.value
-    ? {
-        cardId: current.value.cardId,
-        inline: card.value.audio_front,
-        text: card.value.front,
-        lang: card.value.source_lang,
-      }
-    : null,
-)
+/**
+ * What "Play pronunciation" plays: the card's recording, else TTS of its
+ * front. A platform without TTS has nothing to play for a card without a
+ * recording, so it shows no button (views hide what the platform cannot do).
+ */
+const audioSource = computed(() => {
+  if (!current.value || !card.value) return null
+  if (!card.value.audio_front && !platform.capabilities.tts) return null
+  return {
+    cardId: current.value.cardId,
+    inline: card.value.audio_front,
+    text: card.value.front,
+    lang: card.value.source_lang,
+  }
+})
 const progressText = computed(() =>
   t('review.progress', { current: Math.min(index.value + 1, total.value), total: total.value }),
 )
@@ -109,15 +129,37 @@ const ratingButtons = computed(() => {
   })
 })
 
+function focusIn(element: HTMLElement | null): boolean {
+  const focused = document.activeElement
+  return element !== null && focused !== null && element.contains(focused)
+}
+
+function reveal(): void {
+  const fromButtons = focusIn(actions.value)
+  session.reveal()
+  if (fromButtons && revealed.value) void nextTick(() => ratingGroup.value?.focus())
+}
+
 function rate(rating: Rating): void {
+  if (focusIn(actions.value)) focusFollows = true
   void session.rate(rating)
 }
+
+// The rated card's buttons are gone once the next card (or the summary) is
+// shown; focus goes on to it unless the learner moved it elsewhere meanwhile.
+watch([current, phase], ([shown, now]) => {
+  if (!focusFollows || (shown === null && now === 'card')) return
+  focusFollows = false
+  const focused = document.activeElement
+  if (focused !== null && focused !== document.body && !focusIn(pane.value)) return
+  void nextTick(() => (now === 'complete' ? moreButton.value : revealButton.value)?.focus())
+})
 
 useShortcuts((key) => {
   if (phase.value !== 'card' || !current.value) return false
   if (key === ' ') {
     if (revealed.value) return false
-    session.reveal()
+    reveal()
     return true
   }
   if (!revealed.value || busy.value || !/^[1-4]$/.test(key)) return false
@@ -150,7 +192,7 @@ onMounted(() => void session.start())
 </script>
 
 <template>
-  <section class="pane-layout review-pane" data-test="review">
+  <section ref="pane" class="pane-layout review-pane" data-test="review">
     <div class="pane-title-row">
       <h2 class="pane-title">{{ t('review.title') }}</h2>
       <span v-if="xpEarned > 0" class="badge badge-success" data-test="session-xp">
@@ -214,7 +256,13 @@ onMounted(() => void session.start())
           </div>
         </template>
       </dl>
-      <button type="button" class="btn btn-secondary" data-test="more" @click="session.start()">
+      <button
+        ref="moreButton"
+        type="button"
+        class="btn btn-secondary"
+        data-test="more"
+        @click="session.start()"
+      >
         {{ t('review.more') }}
       </button>
     </div>
@@ -304,24 +352,33 @@ onMounted(() => void session.start())
         </span>
       </div>
 
-      <div v-if="current" class="review-actions">
+      <div v-if="current" ref="actions" class="review-actions">
         <button
           v-if="!revealed"
+          ref="revealButton"
           type="button"
           class="btn btn-primary btn-large"
           data-test="reveal"
-          @click="session.reveal()"
+          @click="reveal"
         >
           {{ t('review.showAnswer') }} <kbd aria-hidden="true">{{ t('review.spaceKey') }}</kbd>
         </button>
-        <div v-else class="rating-row" role="group" :aria-label="t('review.rateLabel')">
+        <div
+          v-else
+          ref="ratingGroup"
+          class="rating-row"
+          role="group"
+          tabindex="-1"
+          :aria-label="t('review.rateLabel')"
+          data-test="rating-group"
+        >
           <button
             v-for="button in ratingButtons"
             :key="button.rating"
             type="button"
             class="rating-btn"
             :class="`rating-${button.rating}`"
-            :disabled="busy"
+            :aria-disabled="busy || undefined"
             :aria-label="button.aria"
             :data-test="`rate-${button.rating}`"
             @click="rate(button.rating)"

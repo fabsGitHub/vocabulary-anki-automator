@@ -358,12 +358,18 @@ input[type='number']:focus {
   cursor: not-allowed;
 }
 
+/* Busy or done for now, but kept focusable so keyboard focus does not drop to the page. */
+.btn[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .btn-primary {
   background: var(--primary);
   color: var(--text-inverse);
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn-primary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--primary-hover);
 }
 
@@ -372,7 +378,7 @@ input[type='number']:focus {
   color: var(--text-main);
 }
 
-.btn-secondary:hover:not(:disabled) {
+.btn-secondary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--secondary-btn-hover);
 }
 
@@ -805,7 +811,8 @@ input[type='number']:focus {
   transition: background-color 0.15s ease;
 }
 
-.rating-btn:disabled {
+.rating-btn:disabled,
+.rating-btn[aria-disabled='true'] {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -830,7 +837,7 @@ input[type='number']:focus {
   color: var(--primary);
 }
 
-.rating-btn:hover:not(:disabled) {
+.rating-btn:hover:not(:disabled, [aria-disabled='true']) {
   border-color: currentColor;
 }
 

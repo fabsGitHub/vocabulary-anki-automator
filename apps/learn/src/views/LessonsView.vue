@@ -8,8 +8,14 @@
  *
  * Titles are built here from the lesson's languages and its number within
  * its language pair: `Lesson.title` is only the core's English fallback.
+ *
+ * Stepping through a lesson by keyboard never drops focus to the page: one
+ * forward button turns from "Next" into "Complete lesson" at the last step,
+ * the buttons that are unavailable for the moment are `aria-disabled` rather
+ * than disabled, and revealing a gap hands focus from the reveal button
+ * (which goes away) to the forward button. The revealed sentence is read out.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ProgressBar from '../components/ProgressBar.vue'
@@ -17,7 +23,7 @@ import { usePanelActive } from '../composables/useShortcuts'
 import { usePlatform } from '../context'
 import { errorMessage } from '../domain/errors'
 import { languageName } from '../domain/languages'
-import { lessonNumbers, lessonSteps, splitCloze } from '../domain/lessons'
+import { clozeParts, lessonNumbers, lessonSteps } from '../domain/lessons'
 import type { Lesson } from '../platform/types'
 
 const { t } = useI18n()
@@ -36,6 +42,8 @@ const revealed = ref(false)
 const completing = ref(false)
 const completedXp = ref<number | null>(null)
 const completeError = ref<string | null>(null)
+const revealButton = ref<HTMLButtonElement | null>(null)
+const forwardButton = ref<HTMLButtonElement | null>(null)
 
 const titles = computed(() => {
   const numbers = lessonNumbers(lessons.value)
@@ -47,12 +55,16 @@ const activeTitle = computed(() =>
 const steps = computed(() => (lesson.value ? lessonSteps(lesson.value) : []))
 const step = computed(() => steps.value[stepIndex.value] ?? null)
 const isLast = computed(() => stepIndex.value === steps.value.length - 1)
-const cloze = computed(() =>
-  step.value?.kind === 'cloze' ? splitCloze(step.value.card.cloze) : null,
-)
+const cloze = computed(() => (step.value?.kind === 'cloze' ? clozeParts(step.value.card) : null))
 const progressText = computed(() =>
   t('lessons.step', { current: stepIndex.value + 1, total: steps.value.length }),
 )
+/** The forward button does nothing more for this lesson: it is being, or has been, completed. */
+const forwardDone = computed(() => isLast.value && (completing.value || completedXp.value !== null))
+const forwardLabel = computed(() => {
+  if (!isLast.value) return t('lessons.next')
+  return completing.value ? t('lessons.completing') : t('lessons.complete')
+})
 
 function lessonTitle(entry: Lesson, number: number): string {
   return t('lessons.lessonTitle', {
@@ -94,6 +106,17 @@ function go(delta: number): void {
   if (next < 0 || next >= steps.value.length) return
   stepIndex.value = next
   revealed.value = false
+}
+
+function forward(): void {
+  if (isLast.value) void complete()
+  else go(1)
+}
+
+function reveal(): void {
+  const hadFocus = revealButton.value !== null && document.activeElement === revealButton.value
+  revealed.value = true
+  if (hadFocus) void nextTick(() => forwardButton.value?.focus())
 }
 
 async function complete(): Promise<void> {
@@ -148,7 +171,7 @@ watch(
             type="button"
             class="btn btn-primary btn-mini"
             :data-test="`open-${entry.id}`"
-            :aria-label="`${t('lessons.start')}: ${titles[index]}`"
+            :aria-label="t('lessons.startLesson', { title: titles[index] })"
             @click="open(index)"
           >
             {{ t('lessons.start') }}
@@ -203,11 +226,17 @@ watch(
         <template v-else>
           <span class="field-label">{{ t('lessons.cloze') }}</span>
           <p class="input-hint">{{ t('lessons.clozeHint') }}</p>
-          <p class="lesson-sentence lesson-cloze" :lang="lesson.source_lang" data-test="cloze">
+          <p
+            class="lesson-sentence lesson-cloze"
+            :lang="lesson.source_lang"
+            aria-live="polite"
+            aria-atomic="true"
+            data-test="cloze"
+          >
             <template v-if="cloze">
               {{ cloze.before
               }}<mark v-if="revealed" class="cloze-word" data-test="cloze-word">{{
-                step.card.word
+                cloze.gap
               }}</mark
               ><span v-else class="cloze-gap" role="img" :aria-label="t('lessons.blank')"></span
               >{{ cloze.after }}
@@ -224,10 +253,11 @@ watch(
           </div>
           <button
             v-if="!revealed && cloze"
+            ref="revealButton"
             type="button"
             class="btn btn-secondary"
             data-test="reveal"
-            @click="revealed = true"
+            @click="reveal"
           >
             {{ t('lessons.reveal') }}
           </button>
@@ -239,29 +269,20 @@ watch(
           type="button"
           class="btn btn-secondary"
           data-test="previous"
-          :disabled="stepIndex === 0"
+          :aria-disabled="stepIndex === 0 || undefined"
           @click="go(-1)"
         >
           {{ t('lessons.previous') }}
         </button>
         <button
-          v-if="!isLast"
+          ref="forwardButton"
           type="button"
           class="btn btn-primary"
-          data-test="next"
-          @click="go(1)"
+          :data-test="isLast ? 'complete' : 'next'"
+          :aria-disabled="forwardDone || undefined"
+          @click="forward"
         >
-          {{ t('lessons.next') }}
-        </button>
-        <button
-          v-else
-          type="button"
-          class="btn btn-primary"
-          data-test="complete"
-          :disabled="completing || completedXp !== null"
-          @click="complete"
-        >
-          {{ completing ? t('lessons.completing') : t('lessons.complete') }}
+          {{ forwardLabel }}
         </button>
       </div>
 

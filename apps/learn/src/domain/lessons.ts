@@ -39,3 +39,25 @@ export function splitCloze(cloze: string): { before: string; after: string } | n
   if (at < 0) return null
   return { before: cloze.slice(0, at), after: cloze.slice(at + CLOZE_BLANK.length) }
 }
+
+/**
+ * A lesson card's cloze with what fills its gap: the word as the sentence
+ * spells it, which is not always `card.word`. The core blanks the word
+ * ignoring case outside hanzi, so "Serendipity is rare" for the word
+ * `serendipity` must come back with its capital. When the cloze does not
+ * frame the sentence (it should always), the gap falls back to the word.
+ */
+export function clozeParts(
+  card: LessonCard,
+): { before: string; gap: string; after: string } | null {
+  const parts = splitCloze(card.cloze)
+  if (!parts) return null
+  const { before, after } = parts
+  const sentence = card.sentence_source
+  const framed =
+    sentence.length >= before.length + after.length &&
+    sentence.startsWith(before) &&
+    sentence.endsWith(after)
+  const gap = framed ? sentence.slice(before.length, sentence.length - after.length) : card.word
+  return { before, gap, after }
+}

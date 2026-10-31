@@ -49,6 +49,31 @@ describe('the play button', () => {
     ])
   })
 
+  it('keeps the focus of a keyboard user while the recording loads, and loads it once', async () => {
+    const platform = fakePlatform()
+    const pending = deferred<string | null>()
+    platform.getCardAudio.mockReturnValueOnce(pending.promise)
+    const wrapper = mountWith(
+      AudioButton,
+      { platform },
+      { props: { source: WORD, label: 'Play audio' }, attachTo: document.body },
+    )
+    mounted.push(wrapper)
+    const button = wrapper.find('[data-test="play-audio"]')
+    ;(button.element as HTMLElement).focus()
+    await button.trigger('click')
+    expect(button.attributes('aria-disabled')).toBe('true')
+    expect(button.attributes('disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(button.element)
+    await button.trigger('click')
+    expect(platform.getCardAudio).toHaveBeenCalledTimes(1)
+
+    pending.resolve('SUQz')
+    await flushPromises()
+    expect(button.attributes('aria-disabled')).toBeUndefined()
+    expect(played()).toHaveLength(1)
+  })
+
   it('stops its recording when it goes away', async () => {
     const platform = fakePlatform()
     platform.getCardAudio.mockResolvedValue('SUQz')

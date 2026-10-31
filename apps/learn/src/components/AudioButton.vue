@@ -2,7 +2,9 @@
 /**
  * A "play" button for a word or sentence (see useAudio for where the sound
  * comes from), with its status read out politely: loading, nothing to play,
- * or why playback failed.
+ * or why playback failed. While a recording loads the button is
+ * `aria-disabled`, not disabled, so it keeps the focus of a keyboard user
+ * who pressed it (a disabled button drops focus to the page).
  */
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -42,7 +44,7 @@ onMounted(() => {
       type="button"
       class="btn btn-secondary audio-button"
       data-test="play-audio"
-      :disabled="status === 'loading'"
+      :aria-disabled="status === 'loading' || undefined"
       @click="play"
     >
       <span aria-hidden="true">▶</span> {{ label }}

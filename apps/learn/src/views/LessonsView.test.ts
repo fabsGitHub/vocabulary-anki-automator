@@ -168,6 +168,72 @@ describe('a lesson', () => {
     expect(find('[data-test="lesson-result"]').text()).toContain('+20 XP')
   })
 
+  it('restores the sentence as captured when the gap is revealed', async () => {
+    const platform = fakePlatform()
+    platform.listLessons.mockResolvedValue([
+      fx.lesson({
+        cards: [
+          fx.lessonCard({
+            word: 'serendipity',
+            sentence_source: 'Serendipity is rare.',
+            cloze: '____ is rare.',
+          }),
+        ],
+      }),
+    ])
+    await mountLessons(platform)
+    await click('[data-test="open-lesson-11"]')
+    await click('[data-test="next"]')
+    expect(find('[data-test="cloze"]').attributes('aria-live')).toBe('polite')
+    await click('[data-test="reveal"]')
+    expect(find('[data-test="cloze-word"]').text()).toBe('Serendipity')
+    expect(find('[data-test="cloze"]').text()).toBe('Serendipity is rare.')
+  })
+
+  it('never drops keyboard focus while stepping through a lesson', async () => {
+    wrapper = mountWith(LessonsView, { platform: lessonsPlatform() }, { attachTo: document.body })
+    await flushPromises()
+    await click('[data-test="open-lesson-20"]')
+    const focused = () => document.activeElement
+    const forward = () => find('.action-row .btn-primary')
+    const previous = find('[data-test="previous"]')
+
+    // Back at the first step: unavailable, but still focusable, and inert.
+    expect(previous.attributes('aria-disabled')).toBe('true')
+    expect(previous.attributes('disabled')).toBeUndefined()
+    await click('[data-test="previous"]')
+    expect(find('[data-test="step-context"]').exists()).toBe(true)
+
+    // "Next" turns into "Complete lesson" on the same, still focused, button.
+    const button = forward().element as HTMLElement
+    button.focus()
+    await click('[data-test="next"]')
+    expect(forward().attributes('data-test')).toBe('complete')
+    expect(forward().element).toBe(button)
+    expect(focused()).toBe(button)
+
+    // Revealing hands focus from the reveal button, which goes away, to the forward button.
+    ;(find('[data-test="reveal"]').element as HTMLElement).focus()
+    await click('[data-test="reveal"]')
+    expect(find('[data-test="reveal"]').exists()).toBe(false)
+    expect(focused()).toBe(button)
+
+    button.focus()
+    await click('[data-test="complete"]')
+    expect(forward().attributes('aria-disabled')).toBe('true')
+    expect(forward().attributes('disabled')).toBeUndefined()
+    expect(focused()).toBe(button)
+  })
+
+  it('names the lesson each start button opens, in the UI language', async () => {
+    await mountLessons(lessonsPlatform())
+    const label = () => find('[data-test="open-lesson-20"]').attributes('aria-label')
+    expect(label()).toBe('Start Chinese → English · Lesson 1')
+    setLocale('de')
+    await flushPromises()
+    expect(label()).toBe('Chinesisch → Englisch · Lektion 1 starten')
+  })
+
   it('marks hanzi and pinyin for a Chinese lesson and returns to the list', async () => {
     await mountLessons(lessonsPlatform())
     await click('[data-test="open-lesson-20"]')

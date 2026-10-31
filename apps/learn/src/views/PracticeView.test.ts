@@ -2,7 +2,13 @@ import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { Exercise, ExerciseKind } from '../platform/types'
-import { countingSeeds, fakePlatform, mountWith, type FakePlatform } from '../test/fakePlatform'
+import {
+  countingSeeds,
+  deferred,
+  fakePlatform,
+  mountWith,
+  type FakePlatform,
+} from '../test/fakePlatform'
 import * as fx from '../test/fixtures'
 import PracticeView from './PracticeView.vue'
 
@@ -119,6 +125,62 @@ describe('practice', () => {
     expect(platform.nextExercise).toHaveBeenCalledTimes(2)
     expect(find('[data-test="verdict"]').exists()).toBe(false)
     expect(find('[data-test="option-1"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('drops an exercise that arrives after the word or the type changed', async () => {
+    const platform = practicePlatform()
+    const late = deferred<Exercise>()
+    platform.nextExercise.mockReturnValueOnce(late.promise)
+    await mountPractice(platform)
+    await generate()
+    expect(find('[data-test="generate"]').text()).toBe('Preparing the exercise…')
+
+    await find('[data-test="practice-card"]').setValue('2')
+    late.resolve(EXERCISES.multiple_choice)
+    await flushPromises()
+    expect(find('[data-test="exercise"]').exists()).toBe(false)
+    expect(find('[data-test="generate"]').text()).toBe('Start exercise')
+
+    // A change of type drops it as well, and the next request is the new choice's.
+    const stale = deferred<Exercise>()
+    platform.nextExercise.mockReturnValueOnce(stale.promise)
+    await generate()
+    await find('[data-test="kind-sentence_builder"]').setValue(true)
+    stale.reject('no learned example sentence uses card 2')
+    await flushPromises()
+    expect(find('[data-test="generate-error"]').exists()).toBe(false)
+    await generate()
+    expect(platform.nextExercise).toHaveBeenLastCalledWith(2, 'sentence_builder', 3)
+    expect(find('[data-test="sentence-builder"]').exists()).toBe(true)
+  })
+
+  it('keeps keyboard focus on the generate button, and returns it there after an answer', async () => {
+    const platform = practicePlatform()
+    const pending = deferred<Exercise>()
+    platform.nextExercise.mockReturnValueOnce(pending.promise)
+    wrapper = mountWith(PracticeView, { platform }, { attachTo: document.body })
+    await flushPromises()
+    const button = find('[data-test="generate"]')
+    ;(button.element as HTMLElement).focus()
+    await generate()
+    // Not disabled while busy, so it keeps its focus (and a second press does nothing).
+    expect(button.attributes('disabled')).toBeUndefined()
+    expect(button.attributes('aria-disabled')).toBe('true')
+    await generate()
+    expect(platform.nextExercise).toHaveBeenCalledTimes(1)
+    pending.resolve(EXERCISES.multiple_choice)
+    await flushPromises()
+    expect(button.attributes('aria-disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(button.element)
+
+    // Answering from the keyboard disables the options, which would drop focus to the page.
+    const option = find('[data-test="option-1"]')
+    ;(option.element as HTMLElement).focus()
+    await option.trigger('click')
+    await flushPromises()
+    expect(find('[data-test="verdict"]').exists()).toBe(true)
+    expect(document.activeElement).toBe(button.element)
+    expect(button.text()).toBe('Next exercise')
   })
 
   it('says why there is no exercise of that type for the word', async () => {
