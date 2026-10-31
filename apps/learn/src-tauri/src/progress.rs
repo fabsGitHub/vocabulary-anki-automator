@@ -76,7 +76,7 @@ pub fn complete_lesson(store: &Store, lesson_id: &str, clock: &dyn Clock) -> Res
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, TimeZone, Utc};
+    use chrono::{Duration, FixedOffset, TimeZone, Utc};
     use vocab_core::{srs::SrsScheduler, time::FixedClock, CaptureOrigin, Card};
 
     use super::*;
@@ -135,5 +135,35 @@ mod tests {
             complete_lesson(&store, "lesson-999", &clock),
             Err(Error::NoSuchLesson(_))
         ));
+    }
+
+    /// "Once a day" means the learner's day: in Berlin in winter, 23:30 and
+    /// 00:30 are two days, though both fall on October 31 in UTC.
+    #[test]
+    fn a_lesson_day_is_the_local_day() {
+        let store = Store::open_in_memory().unwrap();
+        let clock = FixedClock::new(
+            Utc.with_ymd_and_hms(2026, 10, 31, 22, 30, 0).unwrap(),
+            FixedOffset::east_opt(3600).unwrap(),
+        );
+        let mut card = Card::new("serendipity", "Zufall", "en", "de", clock.now());
+        card.example_source = "Pure serendipity.".into();
+        card.example_target = "Reiner Zufall.".into();
+        let id = store
+            .insert_capture(&card, CaptureOrigin::Capture, false)
+            .unwrap();
+        let lesson = format!("lesson-{id}");
+
+        assert_eq!(complete_lesson(&store, &lesson, &clock).unwrap(), 20);
+        clock.advance(Duration::hours(1));
+        assert_eq!(
+            complete_lesson(&store, &lesson, &clock).unwrap(),
+            20,
+            "a new local day"
+        );
+        assert_eq!(
+            store.get_state(&lesson_key(&lesson)).unwrap().as_deref(),
+            Some("2026-11-01")
+        );
     }
 }

@@ -136,11 +136,15 @@ fn with_cards_learn_does_not_export() -> Options {
     }
 }
 
+/// A curriculum word that was never played has no recording yet: export
+/// synthesizes one for the forward note, as Automator records every capture,
+/// and keeps it with the card.
 #[test]
 fn export_sends_the_exact_notes_and_marks_learns_cards_synced() {
     let server = start();
+    let forward = add_note(xuexi_note(Some(audio("zh-CN", "学习", "fwd"))));
     answer_exactly(&server, create_deck("Chinese::HSK"), ok(json!(1)));
-    answer_exactly(&server, add_note(xuexi_note(None)), ok(json!(101)));
+    answer_exactly(&server, forward.clone(), ok(json!(101)));
     let harness = Harness::with(with_cards_learn_does_not_export());
     harness.use_anki(&server.uri());
     let xuexi = harness.call("start_new_item", json!({ "hanzi": "学习" }));
@@ -151,10 +155,8 @@ fn export_sends_the_exact_notes_and_marks_learns_cards_synced() {
         report,
         json!({ "attempted": 1, "succeeded": 1, "skipped": 0, "failed": [] })
     );
-    assert_eq!(
-        sent(&server),
-        [create_deck("Chinese::HSK"), add_note(xuexi_note(None))]
-    );
+    assert_eq!(sent(&server), [create_deck("Chinese::HSK"), forward]);
+    assert_eq!(harness.tts.calls(), ["zh-CN 学习"]);
     let store = harness.open_store();
     let unsynced: Vec<i64> = store
         .list_unsynced_captures()
@@ -163,12 +165,12 @@ fn export_sends_the_exact_notes_and_marks_learns_cards_synced() {
         .map(|capture| capture.id)
         .collect();
     assert_eq!(unsynced, [1], "Automator's capture is left to Automator");
-    assert!(
-        store
-            .get_capture(xuexi.as_i64().unwrap())
-            .unwrap()
-            .unwrap()
-            .synced_to_anki
+    let exported = store.get_capture(xuexi.as_i64().unwrap()).unwrap().unwrap();
+    assert!(exported.synced_to_anki);
+    assert_eq!(
+        exported.card.audio_front,
+        Some(fake_audio("zh-CN", "学习")),
+        "the recording is kept"
     );
 
     let again = harness.call("anki_export", json!({}));
@@ -215,6 +217,102 @@ fn export_sends_the_stored_recording_and_a_spoken_reverse_note() {
         [create_deck("Chinese::HSK"), forward, reverse]
     );
     assert_eq!(harness.tts.calls(), ["zh-CN 学习", "en to study"]);
+}
+
+/// The `addNote` bodies the server received.
+fn added_notes(server: &MockServer) -> Vec<Value> {
+    sent(server)
+        .into_iter()
+        .filter(|body| body["action"] == "addNote")
+        .map(|body| body["params"]["note"].clone())
+        .collect()
+}
+
+/// TTS that is down costs one request, not one timeout per card: the rest of
+/// the export goes without audio, and the cards still reach Anki.
+#[test]
+fn export_goes_on_without_audio_once_text_to_speech_fails() {
+    let server = start();
+    answer(&server, "createDeck", ok(json!(1)));
+    answer(&server, "addNote", ok(json!(101)));
+    let harness = Harness::new();
+    let mut settings = harness.call("get_settings", json!({}));
+    settings["anki"]["connect_url"] = json!(server.uri());
+    settings["anki"]["create_reverse"] = json!(true);
+    harness.call("save_settings", json!({ "settings": settings }));
+    let wo = harness.call("start_new_item", json!({ "hanzi": "我" }));
+    harness.call("start_new_item", json!({ "hanzi": "你" }));
+    harness.tts.fail();
+
+    let report = harness.call("anki_export", json!({}));
+
+    assert_eq!(
+        report,
+        json!({ "attempted": 2, "succeeded": 2, "skipped": 0, "failed": [] })
+    );
+    assert_eq!(harness.tts.calls(), ["zh-CN 我"], "asked once");
+    let notes = added_notes(&server);
+    assert_eq!(notes.len(), 4, "forward and reverse notes of both cards");
+    assert!(
+        notes.iter().all(|note| note.get("audio").is_none()),
+        "{notes:?}"
+    );
+    let store = harness.open_store();
+    assert_eq!(
+        store
+            .get_capture(wo.as_i64().unwrap())
+            .unwrap()
+            .unwrap()
+            .card
+            .audio_front,
+        None
+    );
+}
+
+/// A note type without an audio field gets no audio, so none is made.
+#[test]
+fn export_makes_no_audio_for_a_mapping_without_an_audio_field() {
+    let server = start();
+    answer(&server, "createDeck", ok(json!(1)));
+    answer(&server, "addNote", ok(json!(101)));
+    let harness = Harness::new();
+    let mut settings = harness.call("get_settings", json!({}));
+    settings["anki"]["connect_url"] = json!(server.uri());
+    settings["anki"]["create_reverse"] = json!(true);
+    settings["anki"]["field_mapping"]["audio_field"] = Value::Null;
+    harness.call("save_settings", json!({ "settings": settings }));
+    harness.call("start_new_item", json!({ "hanzi": "我" }));
+
+    let report = harness.call("anki_export", json!({}));
+
+    assert_eq!(report["succeeded"], 1);
+    assert_eq!(added_notes(&server).len(), 2);
+    assert!(harness.tts.calls().is_empty(), "{:?}", harness.tts.calls());
+}
+
+/// Two exports (or an export and an import) side by side would push or
+/// insert the same cards twice.
+#[test]
+fn only_one_anki_export_or_import_runs_at_a_time() {
+    let harness = Harness::new();
+    harness.call("start_new_item", json!({ "hanzi": "我" }));
+    let state = harness.state();
+    let running = state.begin_anki_sync().expect("nothing runs yet");
+    let busy = "An Anki export or import is already running.";
+
+    assert_eq!(harness.call_err("anki_export", json!({})), busy);
+    assert_eq!(
+        harness.call_err("anki_import", json!({ "deck": "Chinese::HSK" })),
+        busy
+    );
+    assert!(harness.tts.calls().is_empty(), "refused before any request");
+
+    drop(running);
+    let report = harness.call("anki_export", json!({}));
+    assert_eq!(
+        report["attempted"], 1,
+        "free again; Anki itself is offline here"
+    );
 }
 
 #[test]
@@ -498,13 +596,21 @@ impl Respond for Inspector {
     }
 }
 
-/// § 6.3: no transaction is open while AnkiConnect is asked, so Automator
-/// can keep writing (a held transaction would make its write wait out the
-/// five-second busy timeout and fail).
+/// § 6.3: no transaction is open while AnkiConnect or TTS is asked, so
+/// Automator can keep writing (a held transaction would make its write wait
+/// out the five-second busy timeout and fail).
 #[test]
 fn the_database_stays_writable_while_anki_is_asked() {
     let server = start();
     let harness = Harness::new();
+    let during_tts: Arc<Mutex<Option<bool>>> = Arc::default();
+    let (db, seen) = (harness.db_path(), during_tts.clone());
+    harness.tts.while_speaking(move || {
+        let written = Store::open(db)
+            .and_then(|store| store.set_state("automator.probe", "tts"))
+            .is_ok();
+        *seen.lock().unwrap() = Some(written);
+    });
     let inspector = Inspector {
         db: harness.db_path(),
         writable: Arc::default(),
@@ -536,4 +642,10 @@ fn the_database_stays_writable_while_anki_is_asked() {
     for (action, written) in &seen {
         assert!(written, "{action}: the other app could not write");
     }
+    assert_eq!(harness.tts.calls(), ["zh-CN 我"], "the export spoke 我");
+    assert_eq!(
+        *during_tts.lock().unwrap(),
+        Some(true),
+        "the other app could not write during TTS"
+    );
 }

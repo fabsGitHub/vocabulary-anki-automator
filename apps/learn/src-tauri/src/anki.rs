@@ -3,8 +3,7 @@
 //! endpoint, deck, note type and field mapping from Learn's settings.
 //!
 //! **Export** pushes every unsynced card Learn owns, with
-//! `anki_bridge::push_card` (the sequence both apps share) and a reverse
-//! note whose audio is synthesized the way Automator does it. Clipboard
+//! `anki_bridge::push_card` (the sequence both apps share). Clipboard
 //! captures (`origin = capture`) are left to Automator's own retry
 //! (`sync_pending_captures`, docs/architecture.md § 8.2): only Automator knows
 //! the deck and note type each of them was approved for, and Learn's Chinese
@@ -12,6 +11,16 @@
 //! its push succeeds, duplicates included; a card whose notes Anki all had
 //! already counts as skipped. The first "Anki unreachable" ends the export,
 //! because every later card would wait for the same timeout.
+//!
+//! Notes carry audio the way Automator's do: the forward note the recording
+//! of the front, the reverse note TTS of the back in the card's target
+//! language. Automator records every capture's front when it captures it;
+//! a curriculum word has a recording only once `get_card_audio` made one, so
+//! export synthesizes the missing ones and keeps them with the card, as
+//! `get_card_audio` would. Audio is made only when the field mapping has an
+//! audio field to put it in, and after the first failed TTS request the rest
+//! of the export goes without: TTS that is down would otherwise cost every
+//! card its own timeout.
 //!
 //! **Import** reads the notes of a deck back into cards with
 //! `anki_bridge::card_from_note` and stores the new ones as
@@ -54,7 +63,12 @@ use vocab_core::{
     CaptureOrigin, Card, ScriptMetadata, ScriptVariant, StoredCapture,
 };
 
-use crate::{audio, error::Error, settings::LearnSettings, state::AppState};
+use crate::{
+    audio,
+    error::Error,
+    settings::{AnkiSettings, LearnSettings},
+    state::AppState,
+};
 
 /// The language of every imported front.
 const CHINESE: &str = "zh-CN";
@@ -97,10 +111,11 @@ pub async fn export(state: &AppState) -> Result<AnkiSyncReport, Error> {
         .collect();
     let client = AnkiClient::new(anki.connect_url.clone());
     let target = AnkiTarget::new(anki.deck_name.clone(), anki.model_name.clone());
+    let mut voice = Voice::new(state.tts(), anki.field_mapping.audio_field().is_some());
     let mut report = AnkiSyncReport::default();
-    for capture in cards {
+    for mut capture in cards {
         report.attempted += 1;
-        let options = push_options(state.tts(), &settings, &capture.card).await;
+        let options = with_audio(state, &mut voice, anki, &mut capture).await;
         let failure = |error: String| AnkiSyncFailure {
             card_id: Some(capture.id),
             front: capture.card.front.clone(),
@@ -141,19 +156,69 @@ pub async fn export(state: &AppState) -> Result<AnkiSyncReport, Error> {
     Ok(report)
 }
 
-/// The reverse note, as Automator sends it: on when configured, with TTS of
-/// the back in the card's target language. A blank back gets no reverse note
-/// anyway, so no audio is made for it.
-async fn push_options(tts: &dyn TtsProvider, settings: &LearnSettings, card: &Card) -> PushOptions {
-    let create_reverse = settings.anki.create_reverse;
+/// Gives `capture` the recording of its front when it has none yet
+/// (synthesized, and kept with the card), and returns the push options: the
+/// reverse note when configured, with TTS of the back in the card's target
+/// language. A blank back gets no reverse note anyway, so no audio is made
+/// for it. See the module docs.
+async fn with_audio(
+    state: &AppState,
+    voice: &mut Voice<'_>,
+    anki: &AnkiSettings,
+    capture: &mut StoredCapture,
+) -> PushOptions {
+    let recorded = capture
+        .card
+        .audio_front
+        .as_ref()
+        .is_some_and(|audio| !audio.is_empty());
+    if !recorded {
+        let card = &capture.card;
+        if let Some(audio) = voice.speak(&card.front, &card.source_lang).await {
+            audio::keep(state, capture, &audio);
+            capture.card.audio_front = Some(audio);
+        }
+    }
+    let card = &capture.card;
+    let create_reverse = anki.create_reverse;
     let reverse_audio = if create_reverse && !card.back.trim().is_empty() {
-        audio::synthesize(tts, &card.back, &card.target_lang).await
+        voice.speak(&card.back, &card.target_lang).await
     } else {
         None
     };
     PushOptions {
         create_reverse,
         reverse_audio,
+    }
+}
+
+/// Text-to-speech for one export: silent when the field mapping has no audio
+/// field, and from the first failed request on (see the module docs).
+struct Voice<'a> {
+    tts: &'a dyn TtsProvider,
+    speaking: bool,
+}
+
+impl<'a> Voice<'a> {
+    fn new(tts: &'a dyn TtsProvider, wanted: bool) -> Self {
+        Self {
+            tts,
+            speaking: wanted,
+        }
+    }
+
+    /// `text` spoken in `lang`, or `None` when this export makes no audio
+    /// (any more).
+    async fn speak(&mut self, text: &str, lang: &str) -> Option<Vec<u8>> {
+        if !self.speaking || text.trim().is_empty() {
+            return None;
+        }
+        let audio = audio::synthesize(self.tts, text, lang).await;
+        if audio.is_none() {
+            log::warn!("The rest of this Anki export goes without audio.");
+            self.speaking = false;
+        }
+        audio
     }
 }
 
@@ -495,6 +560,39 @@ mod tests {
                 }
             ])
         );
+    }
+
+    /// A front is skipped when any capture has it: one with Chinese script
+    /// metadata, one stored without (its annotation failed), or one this
+    /// import just inserted.
+    #[test]
+    fn imports_skip_every_front_already_captured() {
+        let store = Store::open_in_memory().unwrap();
+        let unannotated = Card::new("银行", "Bank", CHINESE, "de", captured_at());
+        store
+            .insert_capture(&unannotated, CaptureOrigin::Capture, true)
+            .unwrap();
+        let annotated = |front: &str, back: &str| {
+            let mut card = Card::new(front, back, CHINESE, "de", captured_at());
+            card.script_metadata = ScriptMetadata::Chinese {
+                pinyin: "x".into(),
+                hsk_level: None,
+                script_variant: ScriptVariant::Simplified,
+            };
+            card
+        };
+        let friend = annotated("朋友", "Freund");
+
+        let outcomes =
+            store_imports(&store, &[annotated("银行", "bank"), friend.clone(), friend]).unwrap();
+
+        assert_eq!(outcomes, [Ok(false), Ok(true), Ok(false)]);
+        let imported = store
+            .list_captures(Some(CaptureOrigin::AnkiImport))
+            .unwrap();
+        assert_eq!(imported.len(), 1);
+        assert_eq!(imported[0].card.front, "朋友");
+        assert!(imported[0].synced_to_anki);
     }
 
     #[test]

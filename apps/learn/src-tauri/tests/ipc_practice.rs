@@ -17,6 +17,7 @@ use common::{b64, capture, chinese_capture, fake_audio, learned, start_time, Har
 use serde_json::{json, Value};
 use vocab_core::{
     language::{cjk_chars, is_cjk_char},
+    quiz::{generate_exercise, ExerciseKind, LearnedVocabularyPool},
     store::Store,
     CaptureOrigin, Card,
 };
@@ -121,6 +122,7 @@ fn exercises_only_show_learned_vocabulary() {
                 let Ok(exercise) = exercise(&harness, card_id, kind, seed) else {
                     continue;
                 };
+                assert_eq!(exercise["kind"], kind, "the kind asked for");
                 generated.insert(kind);
                 let (texts, ids) = shown(&exercise);
                 for text in &texts {
@@ -157,6 +159,48 @@ fn exercises_only_show_learned_vocabulary() {
             format!("No exercise: card {unlearned} is not learned vocabulary.")
         );
     }
+}
+
+/// `next_exercise` is the core generator over the learned pool for exactly
+/// the card, kind and seed asked for. The web build reproduces exercises
+/// from the same seed, and a seed lost on the way would show every learner
+/// the same exercise.
+#[test]
+fn exercises_follow_the_kind_and_seed_asked_for() {
+    let harness = Harness::new();
+    harness.call("submit_daily_quota", json!({ "newCount": 5 }));
+    let ids: Vec<i64> = ["我", "你", "好", "学习", "中文"]
+        .iter()
+        .map(|word| harness.learn(word, 3))
+        .collect();
+    let pool = LearnedVocabularyPool::load(&harness.open_store()).unwrap();
+
+    let mut variants = 0;
+    for &card_id in &ids {
+        for kind in ExerciseKind::ALL {
+            let mut seen = HashSet::new();
+            for seed in [0, 1, 2, 3, 4, 5, 6, 7, u32::MAX] {
+                let asked = json!({ "cardId": card_id, "kind": kind, "seed": seed });
+                match generate_exercise(&pool, card_id, kind, seed) {
+                    Ok(expected) => {
+                        let exercise = harness.call("next_exercise", asked);
+                        assert_eq!(
+                            exercise,
+                            serde_json::to_value(&expected).unwrap(),
+                            "{kind:?} for card {card_id}, seed {seed}"
+                        );
+                        seen.insert(exercise.to_string());
+                    }
+                    Err(err) => assert_eq!(
+                        harness.call_err("next_exercise", asked),
+                        format!("No exercise: {err}.")
+                    ),
+                }
+            }
+            variants += seen.len().saturating_sub(1);
+        }
+    }
+    assert!(variants > 0, "some seeds must give different exercises");
 }
 
 #[test]

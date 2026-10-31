@@ -1,5 +1,6 @@
-//! Audio for the review and listening screens (Milestone M2): a card's
-//! stored recording of its front, or text-to-speech.
+//! Audio for the review and listening screens (Milestone M2) and for the
+//! notes of an Anki export: a card's stored recording of its front, or
+//! text-to-speech.
 //!
 //! TTS is a network request, so the store is never locked while it runs
 //! (docs/architecture.md § 6.3). A card whose front had to be synthesized
@@ -37,12 +38,21 @@ pub async fn card_audio(state: &AppState, card_id: i64) -> Result<Option<Vec<u8>
     let Some(audio) = synthesize(state.tts(), &card.front, &card.source_lang).await else {
         return Ok(None);
     };
-    match state.with_store(|store| keep_recording(store, &capture, &audio)) {
+    keep(state, &capture, &audio);
+    Ok(Some(audio))
+}
+
+/// Keeps `audio`, just synthesized from `read`'s front, as that card's
+/// recording in a short transaction of its own (see the module docs). Neither
+/// a card that changed meanwhile nor a failed write is an error: the audio was
+/// made anyway, and the next request synthesizes again.
+pub fn keep(state: &AppState, read: &StoredCapture, audio: &[u8]) {
+    let card_id = read.id;
+    match state.with_store(|store| keep_recording(store, read, audio)) {
         Ok(true) => log::debug!("Kept the synthesized audio of card {card_id}."),
         Ok(false) => log::debug!("Card {card_id} changed while its audio was synthesized."),
         Err(err) => log::warn!("Could not keep the audio of card {card_id}: {err}"),
     }
-    Ok(Some(audio))
 }
 
 /// `text` spoken in `lang`, or `None` when there is nothing to say or TTS

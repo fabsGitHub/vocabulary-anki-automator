@@ -6,7 +6,7 @@
 
 mod common;
 
-use chrono::{Duration, NaiveDate};
+use chrono::{Duration, NaiveDate, TimeZone, Utc};
 use common::{
     capture, chinese_capture, instant, learned, start_time, test_settings, word, Harness, Options,
     UNREACHABLE_ANKI,
@@ -15,6 +15,7 @@ use serde_json::{json, Value};
 use vocab_core::{
     curriculum::bundled_curriculum,
     gamification::STREAK_FREEZES_KEY,
+    srs::SrsScheduler,
     store::{default_db_path, DailySessionRow},
     time::{local_day_bounds, Clock},
     CaptureOrigin, Card, ScriptMetadata, ScriptVariant, StoredCapture,
@@ -196,6 +197,68 @@ fn a_first_day_from_the_prompt_to_a_completed_session() {
     let rest = queue(&harness);
     assert!(new_words(&rest).is_empty(), "{rest}");
     assert_eq!(rest.as_array().unwrap().len(), 2);
+}
+
+/// "Due today" ends at local midnight (§ 7.1), which in Berlin in winter is
+/// 23:00 UTC: a card due then is tomorrow's, although it is still October 31
+/// in UTC. The queue, the session's review target and the stats agree.
+#[test]
+fn the_queue_ends_at_local_midnight() {
+    let last_moment =
+        Utc.with_ymd_and_hms(2026, 10, 31, 22, 59, 59).unwrap() + Duration::milliseconds(999);
+    let midnight = Utc.with_ymd_and_hms(2026, 10, 31, 23, 0, 0).unwrap();
+    let harness = Harness::with(Options {
+        before_start: Some(Box::new(move |store| {
+            learned(
+                store,
+                &Card::new("Haus", "house", "de", "en", start_time()),
+                last_moment,
+            );
+            learned(
+                store,
+                &Card::new("Baum", "tree", "de", "en", start_time()),
+                midnight,
+            );
+        })),
+        ..Options::default()
+    });
+    let tonight = json!({ "kind": "review", "card_id": 1, "due_date": instant(last_moment) });
+
+    let session = harness.call("submit_daily_quota", json!({ "newCount": 0 }));
+    assert_eq!(session["reviews_due_count"], 1);
+    assert_eq!(queue(&harness), json!([tonight]));
+    assert_eq!(harness.call("get_stats", json!({}))["due_today"], 1);
+
+    harness.clock.set(midnight);
+    assert_eq!(
+        harness.call("get_daily_prompt_state", json!({}))["today"],
+        "2026-11-01"
+    );
+    assert_eq!(
+        queue(&harness),
+        json!([
+            tonight,
+            { "kind": "review", "card_id": 2, "due_date": instant(midnight) }
+        ])
+    );
+}
+
+/// The rating buttons' intervals come from the injected clock, like the
+/// review: what a preview shows is what that rating then does.
+#[test]
+fn rating_previews_are_what_the_rating_does() {
+    let harness = Harness::new();
+    harness.call("submit_daily_quota", json!({ "newCount": 1 }));
+    let wo = start(&harness, "我");
+    let scheduler = SrsScheduler::default();
+    let expected = scheduler.preview(&scheduler.initial_state(wo, start_time()), start_time());
+
+    let previews = harness.call("preview_ratings", json!({ "cardId": wo }));
+
+    assert_eq!(previews, serde_json::to_value(&expected).unwrap());
+    let good = rate(&harness, wo, 3);
+    assert_eq!(good["next"]["due_date"], previews[2]["due_date"]);
+    assert_eq!(good["next"]["interval_days"], previews[2]["interval_days"]);
 }
 
 #[test]
