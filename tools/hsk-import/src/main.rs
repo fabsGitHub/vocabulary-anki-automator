@@ -1,7 +1,21 @@
-//! HSK 3.0 curriculum ETL (Milestone J2b). Implemented in a later step; see
-//! docs/architecture.md § "HSK curriculum ETL".
+//! `hsk-import` command line; see `hsk_import::cli::USAGE` and
+//! crates/vocab-core/data/README.md for the regeneration steps.
 
-fn main() {
-    eprintln!("hsk-import: not implemented yet");
-    std::process::exit(2);
+use std::process::ExitCode;
+
+use hsk_import::{cli, Error};
+
+fn main() -> ExitCode {
+    let result = cli::parse_args(std::env::args().skip(1)).and_then(cli::run);
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(Error::Usage(message)) => {
+            eprintln!("hsk-import: {message}\n\n{}", cli::USAGE);
+            ExitCode::from(2)
+        }
+        Err(err) => {
+            eprintln!("hsk-import: {err}");
+            ExitCode::FAILURE
+        }
+    }
 }
