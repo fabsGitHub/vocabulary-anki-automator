@@ -77,14 +77,14 @@ Traits (already in `providers/mod.rs`): `TranslationProvider`,
 `vocab_core::ProviderError` (`network`, `quota_exceeded`, `http`, `malformed`,
 `not_found`, `unsupported`).
 
-| type (module)                        | trait              | notes |
-|--------------------------------------|--------------------|-------|
-| `MyMemoryProvider` (`mymemory`)      | Translation        | `new(contact_email: Option<String>)`, `with_base_url`. GET `{base}/get?q=..&langpair=SRC|TGT[&de=EMAIL]`; base `https://api.mymemory.translated.net`. Reads `responseData.translatedText`. `quotaFinished == true`, `responseStatus == 429` or a `MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS` text → `QuotaExceeded`; other non-200 `responseStatus` → `Http`; missing fields → `Malformed`; transport → `Network`. Empty `q` → `Unsupported`. |
-| `DatamuseProvider` (`datamuse`)      | Rarity             | English only. `{base}/words?sp=WORD&md=f&max=1`, then `rel_syn` for a synonym when `f:` < 5.0 per million. Unknown word → `RarityResult::default()`. |
-| `DictionaryApiProvider` (`dictionary_api`) | Example      | English only. `{base}/api/v2/entries/en/WORD`; first `meanings[].definitions[].example`; 404 or none → `NotFound`. |
-| `GoogleTtsProvider` (`google_tts`)   | Tts                | `{base}/translate_tts?ie=UTF-8&tl=LANG&client=tw-ob&q=TEXT`; base `https://translate.google.com`; `zh-CN` is passed through verbatim. Non-audio or empty body → `Malformed`. |
-| `PinyinAnnotator` (`chinese`)        | ScriptAnnotator    | `new(Arc<dyn CurriculumLookup>)`. Curriculum hit → its pinyin + `hsk_level`; miss → generated with the `pinyin` crate (tone marks, syllables joined by single spaces, non-hanzi chars kept as-is), `hsk_level: None`. Always `ScriptVariant::Simplified`. |
-| `CurriculumExampleProvider` (`chinese`) | Example         | `new(Arc<dyn CurriculumLookup>)`. Curriculum hit with `example_sentence_source` → that sentence; else `NotFound`. |
+| type (module)                              | trait           | notes                                                                                                                                                                                                                                                     |
+| ------------------------------------------ | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MyMemoryProvider` (`mymemory`)            | Translation     | `new(contact_email: Option<String>)`, `with_base_url`. GET `{base}/get?q=..&langpair=SRC                                                                                                                                                                  | TGT[&de=EMAIL]`; base `https://api.mymemory.translated.net`. Reads `responseData.translatedText`. `quotaFinished == true`, `responseStatus == 429` or a `MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS` text → `QuotaExceeded`; other non-200 `responseStatus` → `Http`; missing fields → `Malformed`; transport → `Network`. Empty `q` → `Unsupported`. |
+| `DatamuseProvider` (`datamuse`)            | Rarity          | English only. `{base}/words?sp=WORD&md=f&max=1`, then `rel_syn` for a synonym when `f:` < 5.0 per million. Unknown word → `RarityResult::default()`.                                                                                                      |
+| `DictionaryApiProvider` (`dictionary_api`) | Example         | English only. `{base}/api/v2/entries/en/WORD`; first `meanings[].definitions[].example`; 404 or none → `NotFound`.                                                                                                                                        |
+| `GoogleTtsProvider` (`google_tts`)         | Tts             | `{base}/translate_tts?ie=UTF-8&tl=LANG&client=tw-ob&q=TEXT`; base `https://translate.google.com`; `zh-CN` is passed through verbatim. Non-audio or empty body → `Malformed`.                                                                              |
+| `PinyinAnnotator` (`chinese`)              | ScriptAnnotator | `new(Arc<dyn CurriculumLookup>)`. Curriculum hit → its pinyin + `hsk_level`; miss → generated with the `pinyin` crate (tone marks, syllables joined by single spaces, non-hanzi chars kept as-is), `hsk_level: None`. Always `ScriptVariant::Simplified`. |
+| `CurriculumExampleProvider` (`chinese`)    | Example         | `new(Arc<dyn CurriculumLookup>)`. Curriculum hit with `example_sentence_source` → that sentence; else `NotFound`.                                                                                                                                         |
 
 `registry` (Milestone J4):
 
@@ -111,11 +111,11 @@ pub struct StandardProviders {
 
 `ProviderRegistry::standard` wiring:
 
-| source lang | translation | rarity   | example                  | tts    | annotator        |
-|-------------|-------------|----------|--------------------------|--------|------------------|
-| `en`        | MyMemory    | Datamuse | DictionaryApi            | Google | —                |
+| source lang | translation | rarity                                                  | example           | tts    | annotator       |
+| ----------- | ----------- | ------------------------------------------------------- | ----------------- | ------ | --------------- |
+| `en`        | MyMemory    | Datamuse                                                | DictionaryApi     | Google | —               |
 | `zh-CN`     | MyMemory    | — (no-op by design: HSK level is the difficulty signal) | CurriculumExample | Google | PinyinAnnotator |
-| others      | MyMemory    | —        | —                        | Google | —                |
+| others      | MyMemory    | —                                                       | —                 | Google | —               |
 
 ## 5. Capture pipeline (`vocab_core::pipeline`)
 
@@ -277,7 +277,7 @@ CREATE INDEX idx_xp_ledger_date ON xp_ledger(session_date);
 CREATE TABLE streak_freezes (freeze_date TEXT PRIMARY KEY);
 ```
 
-"Learned" means *has an `srs_state` row* — never "appears in `hsk_curriculum`".
+"Learned" means _has an `srs_state` row_ — never "appears in `hsk_curriculum`".
 
 ### 6.2 Store API
 
@@ -402,7 +402,7 @@ pub fn record_session_progress(store: &Store, kind: SessionProgress, clock: &dyn
   menu action can show the prompt again, and a later submit updates
   `requested_new_count` while keeping the progress counters.
 - A session is complete (`completed_at` set) once `reviews_completed >=
-  reviews_due_count` and `new_items_completed >= requested_new_count`.
+reviews_due_count` and `new_items_completed >= requested_new_count`.
 
 ### 7.2 `vocab_core::quiz` (Milestone M)
 
@@ -475,14 +475,32 @@ has something to blank), grouped by language pair in capture order.
   "ui_lang": "en",
   "hotkeys": "CommandOrControl+Shift+C",
   "hotkey_profiles": [
-    { "id": "zh-de", "label": "Chinese → German", "shortcut": "CommandOrControl+Shift+H",
-      "source_lang": "zh-CN", "target_lang": "de", "deck_name": null }
+    {
+      "id": "zh-de",
+      "label": "Chinese → German",
+      "shortcut": "CommandOrControl+Shift+H",
+      "source_lang": "zh-CN",
+      "target_lang": "de",
+      "deck_name": null
+    }
   ],
-  "translation": { "source_lang": "en", "target_lang": "de", "max_chars": 100,
-                   "provider": "mymemory", "contact_email": null },
-  "anki": { "connect_url": "http://127.0.0.1:8765", "deck_name": "English::AutomatedVocabulary",
-            "model_name": "AppleStyleFinalV3", "create_reverse": true,
-            "field_mapping": { "fields": [ { "anki_field": "Front", "source": "front" } ], "audio_field": "Front Audio" } },
+  "translation": {
+    "source_lang": "en",
+    "target_lang": "de",
+    "max_chars": 100,
+    "provider": "mymemory",
+    "contact_email": null
+  },
+  "anki": {
+    "connect_url": "http://127.0.0.1:8765",
+    "deck_name": "English::AutomatedVocabulary",
+    "model_name": "AppleStyleFinalV3",
+    "create_reverse": true,
+    "field_mapping": {
+      "fields": [{ "anki_field": "Front", "source": "front" }],
+      "audio_field": "Front Audio"
+    }
+  },
   "consent": { "anki_install_granted_at": null, "ankiconnect_provision_granted_at": null }
 }
 ```
@@ -497,27 +515,27 @@ has something to blank), grouped by language pair in capture order.
 
 ### 8.2 Commands (`invoke` names; JS passes args in camelCase)
 
-| command | args | returns |
-|---|---|---|
-| `get_current_settings` | — | `AppConfig` |
-| `apply_settings` | `newCfg: AppConfig` | `null` (re-registers shortcuts; validation errors as `string`) |
-| `get_pending_payload` | — | `PendingCapture \| null` |
-| `discard_pending_payload` | — | `null` (clears state, hides `preview`) |
-| `execute_card_generation` | `card: Card` | `SubmitResult` |
-| `capture_text` | `text: string, profileId: string \| null` | `null` (runs the pipeline as if the hotkey had copied `text`; the internal capture event for tests/E2E) |
-| `anki_status` | — | `AnkiStatus` |
-| `anki_model_field_names` | `model: string` | `string[]` |
-| `launch_anki_desktop` | — | `string` |
-| `get_setup_status` | — | `SetupStatus` |
-| `grant_consent` | `action: "anki_install" \| "ankiconnect_provision"` | `ConsentState` |
-| `download_and_install_anki` | — | `string` (error unless consent granted) |
-| `auto_provision_ankiconnect` | — | `string` (error unless consent granted) |
-| `check_ankiconnect_installed` | — | `boolean` |
-| `list_recent_captures` | `limit: number` | `StoredCapture[]` |
-| `delete_capture` | `id: number` | `boolean` |
-| `sync_pending_captures` | — | `SyncReport` |
-| `capture_in_progress` | — | `boolean` |
-| `restart_app` | — | never returns |
+| command                       | args                                                | returns                                                                                                 |
+| ----------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `get_current_settings`        | —                                                   | `AppConfig`                                                                                             |
+| `apply_settings`              | `newCfg: AppConfig`                                 | `null` (re-registers shortcuts; validation errors as `string`)                                          |
+| `get_pending_payload`         | —                                                   | `PendingCapture \| null`                                                                                |
+| `discard_pending_payload`     | —                                                   | `null` (clears state, hides `preview`)                                                                  |
+| `execute_card_generation`     | `card: Card`                                        | `SubmitResult`                                                                                          |
+| `capture_text`                | `text: string, profileId: string \| null`           | `null` (runs the pipeline as if the hotkey had copied `text`; the internal capture event for tests/E2E) |
+| `anki_status`                 | —                                                   | `AnkiStatus`                                                                                            |
+| `anki_model_field_names`      | `model: string`                                     | `string[]`                                                                                              |
+| `launch_anki_desktop`         | —                                                   | `string`                                                                                                |
+| `get_setup_status`            | —                                                   | `SetupStatus`                                                                                           |
+| `grant_consent`               | `action: "anki_install" \| "ankiconnect_provision"` | `ConsentState`                                                                                          |
+| `download_and_install_anki`   | —                                                   | `string` (error unless consent granted)                                                                 |
+| `auto_provision_ankiconnect`  | —                                                   | `string` (error unless consent granted)                                                                 |
+| `check_ankiconnect_installed` | —                                                   | `boolean`                                                                                               |
+| `list_recent_captures`        | `limit: number`                                     | `StoredCapture[]`                                                                                       |
+| `delete_capture`              | `id: number`                                        | `boolean`                                                                                               |
+| `sync_pending_captures`       | —                                                   | `SyncReport`                                                                                            |
+| `capture_in_progress`         | —                                                   | `boolean`                                                                                               |
+| `restart_app`                 | —                                                   | never returns                                                                                           |
 
 Events: `translation-payload` (`PendingCapture`, emitted to the `preview`
 window), `capture-error` (`{ message: string }`, app-wide),
@@ -542,7 +560,7 @@ has a matching permission in `src-tauri/capabilities/` for the `preview` label.
 
 ### 8.4 Consent & supply chain (Milestone E)
 
-- Startup only *checks* (`check_anki_installed`, `check_ankiconnect_installed`);
+- Startup only _checks_ (`check_anki_installed`, `check_ankiconnect_installed`);
   nothing is downloaded, installed or launched without a user click.
 - Each install action requires a one-time consent recorded in
   `config.consent.*_granted_at` via `grant_consent`; the UI shows a consent
@@ -552,16 +570,17 @@ has a matching permission in `src-tauri/capabilities/` for the `preview` label.
   `4064fa142785975255457abd6a496015f5b71f38` (the repository's final, archived
   commit). Files from `plugin/` with their SHA-256:
 
-  | file | sha256 |
-  |---|---|
+  | file          | sha256                                                             |
+  | ------------- | ------------------------------------------------------------------ |
   | `__init__.py` | `2185b1243b924152cbac7a7668b40c0bf713902619bfc8ede5c42465066d0f05` |
-  | `edit.py` | `4c6659247322be76c3015b8f8944ce20498186782880a3c8ff14a48d2e3f58b2` |
-  | `util.py` | `cc0e12de6f809d57d40b29f3eb5f0db1eadad93e19f35fc63a2cfe250216c3b9` |
-  | `web.py` | `b519b4c6fefa3d2058df926c43ade1cf590d595655ee3b20afdf7ccd2a053a78` |
+  | `edit.py`     | `4c6659247322be76c3015b8f8944ce20498186782880a3c8ff14a48d2e3f58b2` |
+  | `util.py`     | `cc0e12de6f809d57d40b29f3eb5f0db1eadad93e19f35fc63a2cfe250216c3b9` |
+  | `web.py`      | `b519b4c6fefa3d2058df926c43ade1cf590d595655ee3b20afdf7ccd2a053a78` |
 
   All four are downloaded into a temp dir and verified before anything is
   written to `addons21/2055492159/`. (The pre-refactor code fetched
   `master/ankiconnect.py`, which is a 404: it never worked.)
+
 - The `config.json` written for AnkiConnect binds `127.0.0.1:8765` and sets
   `webCorsOriginList` to the app's own webview origin only — `tauri://localhost`
   on macOS/Linux, `http://tauri.localhost` on Windows, plus
@@ -571,11 +590,11 @@ has a matching permission in `src-tauri/capabilities/` for the `preview` label.
 - Anki is pinned to 24.06.3 with the SHA-256 values from the release's signed
   `anki-24.06.3-checksums.txt`:
 
-  | platform | file | sha256 |
-  |---|---|---|
-  | macOS arm64 | `anki-24.06.3-mac-apple-qt6.dmg` | `ce2f728c98ab3711450fbc066b8fbe27e983684e5d6195be5f451475d1a48d35` |
-  | macOS x86_64 | `anki-24.06.3-mac-intel-qt6.dmg` | `51045da7f1a189119fb0117e995ea108aa4440616ffc8f43f4a4ed735a7befaa` |
-  | Windows x86_64 | `anki-24.06.3-windows-qt6.exe` | `e11ade8b94dbb5374102669ea589bc1072ea07b93897f3b36fa045f5192ef0ba` |
+  | platform       | file                             | sha256                                                             |
+  | -------------- | -------------------------------- | ------------------------------------------------------------------ |
+  | macOS arm64    | `anki-24.06.3-mac-apple-qt6.dmg` | `ce2f728c98ab3711450fbc066b8fbe27e983684e5d6195be5f451475d1a48d35` |
+  | macOS x86_64   | `anki-24.06.3-mac-intel-qt6.dmg` | `51045da7f1a189119fb0117e995ea108aa4440616ffc8f43f4a4ed735a7befaa` |
+  | Windows x86_64 | `anki-24.06.3-windows-qt6.exe`   | `e11ade8b94dbb5374102669ea589bc1072ea07b93897f3b36fa045f5192ef0ba` |
 
   The installer is verified before it is mounted or executed; a mismatch
   deletes the download and fails. Linux is unsupported (distribution packages).
@@ -632,36 +651,48 @@ Tauri-specific call sits behind `PlatformAdapter`
 (IPC to the commands below) and `web` (IndexedDB + a TypeScript port of the
 core logic, verified against golden vectors generated from the Rust core).
 
-| command | args | returns |
-|---|---|---|
-| `get_daily_prompt_state` | — | `DailyPromptState` |
-| `submit_daily_quota` | `newCount: number` | `DailySession` |
-| `dismiss_daily_prompt` | — | `DailySession` |
-| `reopen_daily_prompt` | — | `null` |
-| `get_daily_queue` | — | `QueueItem[]` |
-| `start_new_item` | `hanzi: string` | `number` (card id) |
-| `get_card` | `cardId: number` | `StoredCapture` |
-| `preview_ratings` | `cardId: number` | `RatingPreview[]` |
-| `submit_review_rating` | `cardId: number, rating: 1\|2\|3\|4` | `ReviewResult` |
-| `next_exercise` | `cardId: number, kind: ExerciseKind, seed: number` | `Exercise` |
-| `record_exercise_result` | `cardId: number, kind: ExerciseKind, correct: boolean` | `number` (XP awarded) |
-| `get_stats` | — | `StatsSummary` |
-| `list_lessons` | — | `Lesson[]` |
-| `complete_lesson` | `lessonId: string` | `number` (XP awarded) |
-| `get_card_audio` | `cardId: number` | `string \| null` (base64 MP3) |
-| `anki_export` | `deck: string, model: string` | `AnkiSyncReport` |
-| `anki_import` | `deck: string` | `AnkiSyncReport` |
+| command                  | args                                                   | returns                       |
+| ------------------------ | ------------------------------------------------------ | ----------------------------- |
+| `get_daily_prompt_state` | —                                                      | `DailyPromptState`            |
+| `submit_daily_quota`     | `newCount: number`                                     | `DailySession`                |
+| `dismiss_daily_prompt`   | —                                                      | `DailySession`                |
+| `reopen_daily_prompt`    | —                                                      | `null`                        |
+| `get_daily_queue`        | —                                                      | `QueueItem[]`                 |
+| `start_new_item`         | `hanzi: string`                                        | `number` (card id)            |
+| `get_card`               | `cardId: number`                                       | `StoredCapture`               |
+| `preview_ratings`        | `cardId: number`                                       | `RatingPreview[]`             |
+| `submit_review_rating`   | `cardId: number, rating: 1\|2\|3\|4`                   | `ReviewResult`                |
+| `next_exercise`          | `cardId: number, kind: ExerciseKind, seed: number`     | `Exercise`                    |
+| `record_exercise_result` | `cardId: number, kind: ExerciseKind, correct: boolean` | `number` (XP awarded)         |
+| `get_stats`              | —                                                      | `StatsSummary`                |
+| `list_lessons`           | —                                                      | `Lesson[]`                    |
+| `complete_lesson`        | `lessonId: string`                                     | `number` (XP awarded)         |
+| `get_card_audio`         | `cardId: number`                                       | `string \| null` (base64 MP3) |
+| `anki_export`            | `deck: string, model: string`                          | `AnkiSyncReport`              |
+| `anki_import`            | `deck: string`                                         | `AnkiSyncReport`              |
 
 ## 11. Serialized shapes (TypeScript)
 
 ```ts
 type ScriptMetadata =
   | { kind: 'none' }
-  | { kind: 'chinese'; pinyin: string; hsk_level: number | null; script_variant: 'simplified' | 'traditional' }
+  | {
+      kind: 'chinese'
+      pinyin: string
+      hsk_level: number | null
+      script_variant: 'simplified' | 'traditional'
+    }
 interface Card {
-  front: string; back: string; example_source: string; example_target: string; notes: string
-  tags: string[]; source_lang: string; target_lang: string; captured_at: string
-  audio_front: string | null          // base64 MP3
+  front: string
+  back: string
+  example_source: string
+  example_target: string
+  notes: string
+  tags: string[]
+  source_lang: string
+  target_lang: string
+  captured_at: string
+  audio_front: string | null // base64 MP3
   script_metadata: ScriptMetadata
 }
 type ProviderError =
@@ -669,15 +700,53 @@ type ProviderError =
   | { kind: 'http'; provider: string; status: number; message: string }
   | { kind: 'not_found'; provider: string }
   | { kind: 'unsupported'; provider: string; what: string }
-interface PipelineWarning { stage: 'translate' | 'rarity' | 'example' | 'example_translate' | 'tts' | 'annotate'; error: ProviderError }
-interface PendingCapture { card: Card; warnings: PipelineWarning[]; profile_id: string | null }
-interface StoredCapture { id: number; card: Card; origin: 'capture' | 'curriculum' | 'anki_import'; synced_to_anki: boolean }
-interface SubmitResult { capture_id: number; synced_to_anki: boolean; note_ids: number[]; anki_error: string | null }
-interface SyncReport { attempted: number; synced: number; failed: { id: number; error: string }[] }
-interface AnkiStatus { online: boolean; version: number | null; decks: string[]; models: string[]; error: string | null }
-interface ConsentState { anki_install_granted_at: string | null; ankiconnect_provision_granted_at: string | null }
-interface SetupStatus { anki_installed: boolean; ankiconnect_installed: boolean; platform_supported: boolean; anki_version: string; consent: ConsentState }
-type QueueItem = { kind: 'review'; card_id: number; due_date: string } | { kind: 'new'; hanzi: string; curriculum_order: number }
+interface PipelineWarning {
+  stage: 'translate' | 'rarity' | 'example' | 'example_translate' | 'tts' | 'annotate'
+  error: ProviderError
+}
+interface PendingCapture {
+  card: Card
+  warnings: PipelineWarning[]
+  profile_id: string | null
+}
+interface StoredCapture {
+  id: number
+  card: Card
+  origin: 'capture' | 'curriculum' | 'anki_import'
+  synced_to_anki: boolean
+}
+interface SubmitResult {
+  capture_id: number
+  synced_to_anki: boolean
+  note_ids: number[]
+  anki_error: string | null
+}
+interface SyncReport {
+  attempted: number
+  synced: number
+  failed: { id: number; error: string }[]
+}
+interface AnkiStatus {
+  online: boolean
+  version: number | null
+  decks: string[]
+  models: string[]
+  error: string | null
+}
+interface ConsentState {
+  anki_install_granted_at: string | null
+  ankiconnect_provision_granted_at: string | null
+}
+interface SetupStatus {
+  anki_installed: boolean
+  ankiconnect_installed: boolean
+  platform_supported: boolean
+  anki_version: string
+  consent: ConsentState
+}
+type QueueItem =
+  | { kind: 'review'; card_id: number; due_date: string }
+  | { kind: 'new'; hanzi: string; curriculum_order: number }
 ```
 
 ## 12. Deviations from IMPLEMENTATION_PLAN.md (and why)
