@@ -12,11 +12,20 @@ commits and reviewed as a diff; do not edit the generated files by hand.
 | `hsk_meaning_de.json`               | German meanings by hanzi, merged by `build` (written by `backfill-de`)    |
 | `LICENSE-complete-hsk-vocabulary`   | MIT license of drkameleon/complete-hsk-vocabulary                         |
 | `LICENSE-hsk30`                     | MIT license of ivankra/hsk30                                              |
+| `NOTICE-CC-CEDICT`                  | attribution and license of the English meanings (CC BY-SA 4.0)            |
 
 ## Provenance and licenses
 
-Both upstreams are MIT-licensed; their license texts, downloaded from the
-pinned commits and covered by the manifest, are the two `LICENSE-*` files.
+Both upstream repositories are MIT-licensed; their license texts, downloaded
+from the pinned commits and covered by the manifest, are the two `LICENSE-*`
+files. The English meanings are not only theirs, though: complete-hsk-vocabulary
+takes its definitions from [CC-CEDICT](https://www.mdbg.net/chinese/dictionary?page=cc-cedict),
+which is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+Whoever distributes `meaning_en`, in this file or compiled into the apps and
+the web build, must credit CC-CEDICT and offer the adapted meanings under the
+same license; `NOTICE-CC-CEDICT` (written by hand, not by the tool) holds that
+attribution. Neither app nor the web build shows these notices yet, which must
+be settled before the first release (IMPLEMENTATION_PLAN.md, Milestone N).
 
 - **[drkameleon/complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary)**
   at `7ac65bf1a6387d35f1ade478906172a19311c7f9`: `wordlists/exclusive/new/1.json`

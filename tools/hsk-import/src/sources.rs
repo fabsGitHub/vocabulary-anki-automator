@@ -10,7 +10,9 @@
 //!
 //! The LICENSE files are pinned with the data because the MIT license is what
 //! allows shipping the derived curriculum; the copies next to the bundled JSON
-//! are taken from these downloads.
+//! are taken from these downloads. The English meanings are CC-CEDICT's,
+//! under CC BY-SA 4.0, which no download carries: their attribution is the
+//! hand-written `NOTICE-CC-CEDICT` there.
 
 use std::{
     path::{Path, PathBuf},

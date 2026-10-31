@@ -707,6 +707,13 @@ created on demand, `always_on_top`, hidden — not destroyed — after approve o
 discard). Both load the same Vue bundle; `App.vue` branches on the window
 label.
 
+The app lives in the tray: closing the last window (the settings window, before
+the first capture builds `preview`) does not end it (`on_run_event` prevents the
+code-less `ExitRequested`; `src-tauri/tests/lifecycle.rs`), so the hotkeys stay
+active. The tray's Settings item, and on macOS a click on the Dock icon while no
+window is visible, rebuild `main` from `tauri.conf.json`; the tray's Quit
+(`app.exit(0)`), `restart_app` and Cmd+Q still end the app.
+
 Capabilities (`src-tauri/capabilities/`) grant each window exactly the core and
 plugin commands its code calls, never a `*:default` set: `main` gets
 `core:event:allow-listen`/`-unlisten`, `core:resources:allow-close` and

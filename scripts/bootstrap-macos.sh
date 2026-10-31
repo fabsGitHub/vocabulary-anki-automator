@@ -80,15 +80,17 @@ else
   brew install rtk || fail "brew install rtk failed"
 fi
 
-# --- pre-commit hook: install the tracked script into .git/hooks -----------
+# --- pre-commit hook: install the tracked script into git's hooks dir -------
+# `git rev-parse --git-path hooks` names that dir in a plain clone and in a
+# linked worktree, where .git is a file and the hooks live in the common dir.
 HOOK_SRC="$REPO_ROOT/scripts/hooks/pre-commit"
-HOOK_DEST="$REPO_ROOT/.git/hooks/pre-commit"
-if [[ -d "$REPO_ROOT/.git" ]]; then
-  log "installing pre-commit hook"
-  cp "$HOOK_SRC" "$HOOK_DEST" || fail "failed to install pre-commit hook"
-  chmod +x "$HOOK_DEST" || fail "failed to chmod pre-commit hook"
+if HOOKS_DIR="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-path hooks 2>/dev/null)"; then
+  log "installing pre-commit hook into $HOOKS_DIR"
+  mkdir -p "$HOOKS_DIR" || fail "failed to create $HOOKS_DIR"
+  cp "$HOOK_SRC" "$HOOKS_DIR/pre-commit" || fail "failed to install pre-commit hook"
+  chmod +x "$HOOKS_DIR/pre-commit" || fail "failed to chmod pre-commit hook"
 else
-  log "no .git directory found, skipping pre-commit hook install"
+  log "not a git checkout, skipping pre-commit hook install"
 fi
 
 log "bootstrap complete"

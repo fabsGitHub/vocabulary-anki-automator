@@ -29,7 +29,7 @@ pub mod state;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Builder, Manager, Runtime, WebviewWindowBuilder, Window, WindowEvent,
+    AppHandle, Builder, Manager, RunEvent, Runtime, WebviewWindowBuilder, Window, WindowEvent,
 };
 
 use crate::{
@@ -103,11 +103,47 @@ pub fn run() {
             start(app)?;
             Ok(())
         })
-        .run(tauri::generate_context!());
-    if let Err(err) = result {
-        log::error!("Vocabulary Automator stopped with an error: {err}");
-        eprintln!("Vocabulary Automator stopped with an error: {err}");
-        std::process::exit(1);
+        .build(tauri::generate_context!());
+    match result {
+        Ok(app) => app.run(|app, event| on_run_event(app, &event)),
+        Err(err) => {
+            log::error!("Vocabulary Automator stopped with an error: {err}");
+            eprintln!("Vocabulary Automator stopped with an error: {err}");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// The app lives in the tray, so closing its last window must not end it:
+/// the hotkeys and the tray would go with it. Before the first capture builds
+/// the (hidden, never destroyed) approval window, the settings window is the
+/// only one, and closing it asks to exit with no exit code. The tray's Quit
+/// (`app.exit(0)`) and `restart_app` carry a code and still end the app;
+/// Cmd+Q on macOS ends it without asking.
+#[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
+pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: &RunEvent) {
+    match event {
+        RunEvent::ExitRequested {
+            code: None, api, ..
+        } => {
+            log::info!("No window is open; Vocabulary Automator keeps running in the tray.");
+            api.prevent_exit();
+        }
+        // Clicking the Dock icon while no window is visible brings back the
+        // settings window, as the tray's Settings item does.
+        #[cfg(target_os = "macos")]
+        RunEvent::Reopen {
+            has_visible_windows: false,
+            ..
+        } => {
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(err) = show_settings(&app) {
+                    log::warn!("{err}");
+                }
+            });
+        }
+        _ => {}
     }
 }
 
@@ -167,9 +203,8 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
 /// Shows and focuses the settings window, building it again from
 /// `tauri.conf.json` when the user closed it. Closing destroys a window, and
-/// once the approval window exists (hidden, never destroyed) the app keeps
-/// running without the settings window, so the tray must be able to bring it
-/// back.
+/// the app keeps running without it ([`on_run_event`]), so the tray must be
+/// able to bring it back.
 pub fn show_settings<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let window = match app.get_webview_window(MAIN_LABEL) {
         Some(window) => window,
