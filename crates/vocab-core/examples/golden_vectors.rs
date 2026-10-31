@@ -23,8 +23,8 @@
 //! - **Scenarios replay whole call sequences** against an in-memory store:
 //!   the store-backed functions (queue, introducing words, reviews, the daily
 //!   prompt, streaks) are only equal if they read and write the same rows.
-//!   The `adapter` scenarios do the same one level up, for the Learn commands
-//!   composed from the core the way docs/architecture.md § 7 settles it.
+//!   The `adapter` scenarios do the same one level up, for Learn's commands
+//!   composed from the core the way vocab-learn composes them ([`learn`]).
 //! - **Prettier owns the layout.** The repository's lint gate formats JSON
 //!   with Prettier, so [`layout`] writes the file the way Prettier lays it out,
 //!   and `--check` compares parsed values, not bytes: neither a reformat nor
@@ -33,6 +33,7 @@
 
 use std::{error::Error, fmt::Display, fs, path::PathBuf, process::ExitCode};
 
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::{DateTime, Duration, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use rs_fsrs::{Card as FsrsCard, Parameters, Rating, ReviewLog, State, FSRS};
 use serde::Serialize;
@@ -48,17 +49,17 @@ use vocab_core::{
     lessons::{build_lessons, lessons_from_store},
     quiz::{
         check_answer, generate_exercise, Exercise, ExerciseAnswer, ExerciseKind,
-        LearnedVocabularyPool,
+        LearnedVocabularyPool, QuizError,
     },
     rng::Mulberry32,
     srs::{
         build_daily_queue, build_daily_queue_from, daily_prompt_state, dismiss_daily_prompt,
         fsrs_card_from_state, introduce_new_item, record_session_progress, reopen_daily_prompt,
-        submit_daily_quota, submit_review, ReviewRating, SessionProgress, SrsScheduler,
+        submit_daily_quota, submit_review, QueueItem, ReviewRating, SessionProgress, SrsScheduler,
         LAST_PROMPTED_KEY,
     },
     store::{curriculum_fingerprint, DailySessionRow, SrsStateRow, Store, StoreError, StoreResult},
-    time::{format_date, Clock, FixedClock},
+    time::{self, format_date, local_day_bounds, Clock, FixedClock},
     CaptureOrigin, Card, CurriculumItem, ScriptMetadata, ScriptVariant, StoredCapture,
 };
 
@@ -114,6 +115,7 @@ fn golden() -> BoxResult<Value> {
                   regenerate, never edit by hand.",
         "mulberry32": mulberry32(),
         "language": language(),
+        "time": time_vectors(),
         "fsrs": fsrs_reference(),
         "scheduler": scheduler_vectors(),
         "queue": queue_cases(),
@@ -372,7 +374,103 @@ fn language() -> Value {
             json!({ "text": text, "chars": chars })
         })
         .collect();
-    json!({ "normalize_lang": normalize, "cjk_chars": cjk })
+    // `{:?}` of a string, which error messages quote values with.
+    let debug: Vec<Value> = [
+        "没有",
+        " 学习",
+        "",
+        "a\"b\\c",
+        "line\nbreak\ttab\rreturn\0nul",
+        "\u{85}NEL",
+        "\u{3000}ideographic space",
+        "\u{a0}no-break space",
+        "\u{feff}byte-order mark",
+        "\u{200b}zero width",
+        "e\u{301} decomposed",
+        "\u{e9} composed",
+        "it's",
+        "\u{7f}\u{1b}",
+        "\u{1F600} emoji",
+        "\u{2028}line separator",
+        "\u{e000}private use",
+    ]
+    .iter()
+    .map(|text| json!({ "text": text, "debug": format!("{text:?}") }))
+    .collect();
+    json!({ "normalize_lang": normalize, "cjk_chars": cjk, "debug": debug })
+}
+
+// ---------------------------------------------------------------------------
+// vocab_core::time
+
+/// The local calendar: chrono's lenient `%Y-%m-%d` parsing (a stored prompt
+/// date is parsed with it), day bounds and "today" in offsets on both sides
+/// of UTC.
+fn time_vectors() -> Value {
+    let texts = [
+        "2026-10-31",
+        "2026-1-5",
+        " 2026-01-05",
+        "\u{3000}2026-1-5",
+        "\u{85}2026-01-05",
+        "\u{feff}2026-01-05",
+        "2026- 1- 5",
+        "2026 -01-05",
+        "+2026-01-05",
+        "-0001-12-31",
+        "+10000-01-01",
+        "026-01-01",
+        "20261-01-01",
+        "2026-01-005",
+        "2026-01-05 ",
+        "2026-02-29",
+        "2028-02-29",
+        "1900-02-29",
+        "2000-02-29",
+        "2026-13-01",
+        "2026-00-10",
+        "2026-04-31",
+        "31.10.2026",
+        "2026/10/31",
+        "2026-01-0x",
+        "",
+    ];
+    let parse_date: Vec<Value> = texts
+        .iter()
+        .map(|text| json!({ "text": text, "date": time::parse_date(text).map(format_date) }))
+        .collect();
+    let bounds: Vec<Value> = [
+        ("2026-10-31", 3600),
+        ("2026-11-01", -5 * 3600),
+        ("2026-03-29", 19_800),
+        ("1970-01-01", -34_200),
+        ("2028-02-29", 9 * 3600),
+        ("2026-12-31", 14 * 3600),
+        ("2027-01-01", -12 * 3600),
+    ]
+    .iter()
+    .map(|&(day, seconds)| {
+        let (start, end) = local_day_bounds(date(day), offset(seconds));
+        json!({ "date": day, "offset_seconds": seconds, "start": start, "end": end })
+    })
+    .collect();
+    let today: Vec<Value> = [
+        ("2026-10-31T23:30:00Z", 3600),
+        ("2026-10-31T23:30:00Z", 0),
+        ("2026-11-01T04:30:00Z", -5 * 3600),
+        ("2026-11-01T04:59:59.999Z", -5 * 3600),
+        ("2026-11-01T05:00:00Z", -5 * 3600),
+        ("1969-12-31T23:59:59.999Z", 0),
+        ("1970-01-01T00:00:00Z", -1),
+        ("2026-12-31T10:00:00Z", 14 * 3600),
+    ]
+    .iter()
+    .map(|&(now, seconds)| {
+        let today = FixedClock::new(instant(now), offset(seconds)).today();
+        json!({ "now": now, "offset_seconds": seconds, "today": today })
+    })
+    .collect();
+    json!({ "parse_date": parse_date, "local_day_bounds": bounds, "today": today })
 }
 
 // ---------------------------------------------------------------------------
@@ -1532,6 +1630,27 @@ fn exercise_words() -> Vec<Word> {
                 false,
             )
         },
+        // Fronts that are no one-tile word (a pattern, a phrase) must never
+        // become tiles; a dictionary word may start with Latin letters; and a
+        // Latin run inside a Chinese sentence is one tile.
+        word(chinese("一…就…", "sobald", "de", "yī … jiù …"), true),
+        word(chinese("你 好", "hallo", "de", "nǐ hǎo"), true),
+        word(
+            with_example(
+                chinese("AA制", "getrennt zahlen", "de", "AA zhì"),
+                "我们AA制。",
+                "Wir zahlen getrennt.",
+            ),
+            true,
+        ),
+        word(
+            with_example(
+                chinese("用", "benutzen", "de", "yòng"),
+                "我用iPhone学习中文。",
+                "Ich lerne Chinesisch mit dem iPhone.",
+            ),
+            true,
+        ),
     ]
 }
 
@@ -1577,7 +1696,7 @@ fn exercise_vectors() -> BoxResult<Value> {
         .collect();
     hanzi.sort();
 
-    let seeds = [0, 1, 0xDEAD_BEEF, u32::MAX];
+    let seeds = [0, 1, 2, 42, 0xDEAD_BEEF, u32::MAX];
     let mut cases = Vec::new();
     let mut samples: Vec<Exercise> = Vec::new();
     for &card_id in &learned_ids {
@@ -2493,26 +2612,227 @@ fn seeding_scenario() -> Value {
 }
 
 // ---------------------------------------------------------------------------
-// The Learn commands, composed from the core as docs/architecture.md § 7
-// settles it
+// The Learn commands, composed from the core as vocab-learn composes them
 
-/// Cards per lesson in Learn's lesson list.
-const CARDS_PER_LESSON: usize = 5;
+/// vocab-learn's commands (apps/learn/src-tauri: `session`, `progress` and
+/// `commands::*`), replayed here against the real core because vocab-core
+/// cannot depend on the app crate. The web adapter must compose the core the
+/// same way, so these are its golden vectors one level up: the queue offers
+/// what is left of today's quota, a rating is one transaction that counts a
+/// first review as a new item (`XP_NEW_ITEM`) and any other as a review
+/// (`XP_REVIEW`), the write that completes a session runs
+/// `on_session_completed`, and failures read as vocab-learn's sentences.
+mod learn {
+    use super::*;
 
-/// What vocab-learn's commands do with the core, per the decisions recorded
-/// in docs/architecture.md § 7.1 and § 7.3: progress is counted on reviews
-/// (a first review is a new item), a session that has just gained
-/// `completed_at` runs `on_session_completed`, every review earns
-/// `XP_REVIEW` and a first review `XP_NEW_ITEM` on top, and the queue offers
-/// the new words today's session still asks for.
+    /// Cards per lesson (`progress::CARDS_PER_LESSON`).
+    pub const CARDS_PER_LESSON: usize = 5;
+
+    /// `fsrs_state` of a card that has never been reviewed.
+    const NEVER_REVIEWED: &str = "new";
+
+    /// vocab-learn's `Error`, as far as these commands reach it.
+    #[derive(Debug)]
+    pub enum LearnError {
+        Store(StoreError),
+        NoSuchCard(i64),
+        NotScheduled(i64),
+        NotLearned(i64),
+        NotInCurriculum(String),
+        NoSuchLesson(String),
+        Quiz(QuizError),
+    }
+
+    impl Display for LearnError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                LearnError::Store(err) => write!(f, "The vocabulary database failed ({err})."),
+                LearnError::NoSuchCard(id) => write!(f, "There is no card {id}."),
+                LearnError::NotScheduled(id) => {
+                    write!(f, "Card {id} is not scheduled for review.")
+                }
+                LearnError::NotLearned(id) => write!(f, "Card {id} is not learned vocabulary."),
+                LearnError::NotInCurriculum(hanzi) => {
+                    write!(f, "\"{hanzi}\" is not in the HSK curriculum.")
+                }
+                LearnError::NoSuchLesson(id) => write!(f, "There is no lesson \"{id}\"."),
+                LearnError::Quiz(err) => write!(f, "No exercise: {err}."),
+            }
+        }
+    }
+
+    impl From<StoreError> for LearnError {
+        fn from(err: StoreError) -> Self {
+            LearnError::Store(err)
+        }
+    }
+
+    impl From<QuizError> for LearnError {
+        fn from(err: QuizError) -> Self {
+            LearnError::Quiz(err)
+        }
+    }
+
+    pub type LearnResult<T> = Result<T, LearnError>;
+
+    /// `session::daily_queue`: due cards, then what is left of the quota.
+    pub fn daily_queue(store: &Store, clock: &dyn Clock) -> StoreResult<Vec<QueueItem>> {
+        let today = clock.today();
+        let (_, end_of_today) = local_day_bounds(today, clock.local_offset());
+        let due = store.list_srs_due_before(end_of_today)?;
+        let new_quota = remaining_new_quota(store.get_daily_session(today)?.as_ref(), &due);
+        let curriculum = store.curriculum_in_order()?;
+        let learned_hanzi = store.learned_chinese_fronts()?;
+        Ok(build_daily_queue_from(
+            &due,
+            &curriculum,
+            &learned_hanzi,
+            new_quota,
+        ))
+    }
+
+    /// `session::remaining_new_quota`: the quota, minus the new items done,
+    /// minus the cards still waiting for their first review.
+    fn remaining_new_quota(session: Option<&DailySessionRow>, due: &[SrsStateRow]) -> u32 {
+        let Some(session) = session else {
+            return 0;
+        };
+        let waiting = due
+            .iter()
+            .filter(|state| state.fsrs_state == NEVER_REVIEWED)
+            .count();
+        session
+            .requested_new_count
+            .saturating_sub(session.new_items_completed)
+            .saturating_sub(u32::try_from(waiting).unwrap_or(u32::MAX))
+    }
+
+    /// `session::track_completion`.
+    pub fn track_completion(
+        store: &Store,
+        clock: &dyn Clock,
+        write: impl FnOnce(&Store) -> StoreResult<DailySessionRow>,
+    ) -> StoreResult<(DailySessionRow, Option<StreakSummary>)> {
+        store.with_transaction(|store| {
+            let before = store.get_daily_session(clock.today())?;
+            let session = write(store)?;
+            let streak = if just_completed(before.as_ref(), &session) {
+                Some(on_session_completed(store, clock)?)
+            } else {
+                None
+            };
+            Ok((session, streak))
+        })
+    }
+
+    fn just_completed(before: Option<&DailySessionRow>, after: &DailySessionRow) -> bool {
+        let was_completed = before.is_some_and(|before| {
+            before.session_date == after.session_date && before.completed_at.is_some()
+        });
+        after.completed_at.is_some() && !was_completed
+    }
+
+    /// `commands::review::submit_review_rating` and `session::rate`, the
+    /// result as its `ReviewResult` JSON.
+    pub fn submit_review_rating(
+        store: &Store,
+        scheduler: &SrsScheduler,
+        card_id: i64,
+        given: ReviewRating,
+        clock: &dyn Clock,
+    ) -> LearnResult<Value> {
+        if store.get_srs_state(card_id)?.is_none() {
+            return Err(LearnError::NotScheduled(card_id));
+        }
+        Ok(store.with_transaction(|store| {
+            let today = clock.today();
+            let xp_before = store.xp_for_date(today)?;
+            let outcome = submit_review(store, scheduler, card_id, given, clock)?;
+            let (progress, xp, why) = if outcome.log.state_before == NEVER_REVIEWED {
+                (SessionProgress::NewItem, XP_NEW_ITEM, reason::NEW_ITEM)
+            } else {
+                (SessionProgress::Review, XP_REVIEW, reason::REVIEW)
+            };
+            award_xp(store, xp, why, clock)?;
+            let (session, completed) = track_completion(store, clock, |store| {
+                record_session_progress(store, progress, clock)
+            })?;
+            let session_completed = completed.is_some();
+            let streak = match completed {
+                Some(streak) => streak,
+                None => stats_summary(store, clock)?.streak,
+            };
+            Ok(json!({
+                "next": outcome.next,
+                "xp_awarded": store.xp_for_date(today)? - xp_before,
+                "session": session,
+                "session_completed": session_completed,
+                "streak": streak,
+            }))
+        })?)
+    }
+
+    /// `commands::daily::start_new_item`: the word trimmed, a missing one
+    /// reported as not in the curriculum.
+    pub fn start_new_item(
+        store: &Store,
+        scheduler: &SrsScheduler,
+        hanzi: &str,
+        meaning_lang: &str,
+        clock: &dyn Clock,
+    ) -> LearnResult<i64> {
+        let hanzi = hanzi.trim();
+        introduce_new_item(store, scheduler, hanzi, meaning_lang, clock).map_err(|err| match err {
+            StoreError::NotFound(_) => LearnError::NotInCurriculum(hanzi.to_owned()),
+            other => other.into(),
+        })
+    }
+
+    /// `progress::record_exercise`: only a learned card's results count.
+    pub fn record_exercise(
+        store: &Store,
+        card_id: i64,
+        correct: bool,
+        clock: &dyn Clock,
+    ) -> LearnResult<i64> {
+        if store.get_srs_state(card_id)?.is_none() {
+            return Err(LearnError::NotLearned(card_id));
+        }
+        if !correct {
+            return Ok(0);
+        }
+        award_xp(store, XP_EXERCISE_CORRECT, reason::EXERCISE, clock)?;
+        Ok(XP_EXERCISE_CORRECT)
+    }
+
+    /// `progress::complete_lesson`: once per lesson per local day.
+    pub fn complete_lesson(store: &Store, lesson_id: &str, clock: &dyn Clock) -> LearnResult<i64> {
+        let exists = lessons_from_store(store, CARDS_PER_LESSON)?
+            .iter()
+            .any(|lesson| lesson.id == lesson_id);
+        if !exists {
+            return Err(LearnError::NoSuchLesson(lesson_id.to_owned()));
+        }
+        let key = format!("learn.lesson_completed.{lesson_id}");
+        let today = format_date(clock.today());
+        Ok(store.with_transaction(|store| {
+            if store.get_state(&key)?.as_deref() == Some(today.as_str()) {
+                return Ok(0);
+            }
+            award_xp(store, XP_LESSON_COMPLETE, reason::LESSON, clock)?;
+            store.set_state(&key, &today)?;
+            Ok(XP_LESSON_COMPLETE)
+        })?)
+    }
+}
+
+use learn::{LearnError, LearnResult, CARDS_PER_LESSON};
+
+/// Runs Learn's commands against one store and records each with its
+/// arguments and result, for the web adapter to replay.
 struct Learn {
     run: Runner,
     meaning_lang: &'static str,
-}
-
-/// Whether `after` is the write that completed its session.
-fn just_completed(before: Option<&DailySessionRow>, after: &DailySessionRow) -> bool {
-    after.completed_at.is_some() && before.is_none_or(|session| session.completed_at.is_none())
 }
 
 impl Learn {
@@ -2536,9 +2856,9 @@ impl Learn {
         scenario
     }
 
-    fn command(&mut self, command: &str, args: Value, result: Value) {
+    fn command<T: Serialize>(&mut self, command: &str, args: Value, result: LearnResult<T>) {
         self.run
-            .record(json!({ "command": command, "args": args }), result);
+            .record(json!({ "command": command, "args": args }), outcome(result));
     }
 
     fn store(&self) -> &Store {
@@ -2547,49 +2867,43 @@ impl Learn {
 
     fn get_daily_prompt_state(&mut self) {
         let result = daily_prompt_state(self.store(), &self.run.clock);
-        self.command("getDailyPromptState", json!([]), outcome(result));
+        self.command("getDailyPromptState", json!([]), result.map_err(Into::into));
     }
 
     fn submit_daily_quota(&mut self, new_count: u32) {
         let clock = &self.run.clock;
-        let result = self.store().with_transaction(|store| {
-            let before = store.get_daily_session(clock.today())?;
-            let session = submit_daily_quota(store, new_count, clock)?;
-            if just_completed(before.as_ref(), &session) {
-                on_session_completed(store, clock)?;
-            }
-            Ok(session)
-        });
-        self.command("submitDailyQuota", json!([new_count]), outcome(result));
+        let result = learn::track_completion(self.store(), clock, |store| {
+            submit_daily_quota(store, new_count, clock)
+        })
+        .map(|(session, _)| session);
+        self.command(
+            "submitDailyQuota",
+            json!([new_count]),
+            result.map_err(Into::into),
+        );
     }
 
     fn dismiss_daily_prompt(&mut self) {
-        let result = dismiss_daily_prompt(self.store(), &self.run.clock);
-        self.command("dismissDailyPrompt", json!([]), outcome(result));
+        let clock = &self.run.clock;
+        let result = learn::track_completion(self.store(), clock, |store| {
+            dismiss_daily_prompt(store, clock)
+        })
+        .map(|(session, _)| session);
+        self.command("dismissDailyPrompt", json!([]), result.map_err(Into::into));
     }
 
     fn reopen_daily_prompt(&mut self) {
         let result = reopen_daily_prompt(self.store(), &self.run.clock);
-        self.command("reopenDailyPrompt", json!([]), outcome(result));
+        self.command("reopenDailyPrompt", json!([]), result.map_err(Into::into));
     }
 
     fn get_daily_queue(&mut self) {
-        let clock = &self.run.clock;
-        let result = self.store().with_transaction(|store| {
-            let quota = store
-                .get_daily_session(clock.today())?
-                .map_or(0, |session| {
-                    session
-                        .requested_new_count
-                        .saturating_sub(session.new_items_completed)
-                });
-            build_daily_queue(store, quota, clock)
-        });
-        self.command("getDailyQueue", json!([]), outcome(result));
+        let result = learn::daily_queue(self.store(), &self.run.clock);
+        self.command("getDailyQueue", json!([]), result.map_err(Into::into));
     }
 
     fn start_new_item(&mut self, hanzi: &str) -> Option<i64> {
-        let result = introduce_new_item(
+        let result = learn::start_new_item(
             self.store(),
             &self.run.scheduler,
             hanzi,
@@ -2597,150 +2911,95 @@ impl Learn {
             &self.run.clock,
         );
         let id = result.as_ref().ok().copied();
-        self.command("startNewItem", json!([hanzi]), outcome(result));
+        self.command("startNewItem", json!([hanzi]), result);
         id
     }
 
-    fn get_card(&mut self, card_id: i64) {
-        let result = self.store().get_capture(card_id).and_then(|capture| {
-            capture.ok_or_else(|| StoreError::NotFound(format!("capture {card_id}")))
-        });
-        self.command("getCard", json!([card_id]), outcome(result));
+    fn capture(&self, card_id: i64) -> LearnResult<StoredCapture> {
+        self.store()
+            .get_capture(card_id)?
+            .ok_or(LearnError::NoSuchCard(card_id))
     }
 
+    fn get_card(&mut self, card_id: i64) {
+        let result = self.capture(card_id);
+        self.command("getCard", json!([card_id]), result);
+    }
+
+    /// The stored recording; the web build has no TTS to make a missing one.
     fn get_card_audio(&mut self, card_id: i64) {
-        let result = self
-            .store()
-            .get_capture(card_id)
-            .and_then(|capture| {
-                capture.ok_or_else(|| StoreError::NotFound(format!("capture {card_id}")))
-            })
-            .map(|capture| to_json(&capture.card)["audio_front"].clone());
-        self.command("getCardAudio", json!([card_id]), outcome(result));
+        let result = self.capture(card_id).map(|capture| {
+            capture
+                .card
+                .audio_front
+                .filter(|audio| !audio.is_empty())
+                .map(|audio| STANDARD.encode(audio))
+        });
+        self.command("getCardAudio", json!([card_id]), result);
     }
 
     fn preview_ratings(&mut self, card_id: i64) {
-        let result = self.store().get_srs_state(card_id).and_then(|state| {
-            let state = state
-                .ok_or_else(|| StoreError::NotFound(format!("srs_state of card {card_id}")))?;
-            Ok(self.run.scheduler.preview(&state, self.run.clock.now()))
-        });
-        self.command("previewRatings", json!([card_id]), outcome(result));
+        let state = self
+            .store()
+            .get_srs_state(card_id)
+            .map_err(LearnError::from)
+            .and_then(|state| state.ok_or(LearnError::NotScheduled(card_id)));
+        let result = state.map(|state| self.run.scheduler.preview(&state, self.run.clock.now()));
+        self.command("previewRatings", json!([card_id]), result);
     }
 
     fn submit_review_rating(&mut self, card_id: i64, given: u8) {
-        let (scheduler, clock) = (&self.run.scheduler, &self.run.clock);
-        let result: StoreResult<Value> = self.store().with_transaction(|store| {
-            let xp_before = store.xp_total()?;
-            let before = store.get_daily_session(clock.today())?;
-            let reviewed = submit_review(store, scheduler, card_id, rating(given), clock)?;
-            let first_review = reviewed.log.state_before == "new";
-            award_xp(store, XP_REVIEW, reason::REVIEW, clock)?;
-            if first_review {
-                award_xp(store, XP_NEW_ITEM, reason::NEW_ITEM, clock)?;
-            }
-            let kind = if first_review {
-                SessionProgress::NewItem
-            } else {
-                SessionProgress::Review
-            };
-            let session = record_session_progress(store, kind, clock)?;
-            let session_completed = just_completed(before.as_ref(), &session);
-            let streak: StreakSummary = if session_completed {
-                on_session_completed(store, clock)?
-            } else {
-                stats_summary(store, clock)?.streak
-            };
-            Ok(json!({
-                "next": reviewed.next,
-                "xp_awarded": store.xp_total()? - xp_before,
-                "session": session,
-                "session_completed": session_completed,
-                "streak": streak,
-            }))
-        });
-        self.command(
-            "submitReviewRating",
-            json!([card_id, given]),
-            outcome(result),
+        let result = learn::submit_review_rating(
+            self.store(),
+            &self.run.scheduler,
+            card_id,
+            rating(given),
+            &self.run.clock,
         );
+        self.command("submitReviewRating", json!([card_id, given]), result);
     }
 
     fn list_learned_cards(&mut self) {
         let result = LearnedVocabularyPool::load(self.store()).map(|pool| pool.entries().to_vec());
-        self.command("listLearnedCards", json!([]), outcome(result));
+        self.command("listLearnedCards", json!([]), result.map_err(Into::into));
     }
 
     fn next_exercise(&mut self, card_id: i64, kind: ExerciseKind, seed: u32) -> Option<Exercise> {
         let result = LearnedVocabularyPool::load(self.store())
-            .map_err(|err| err.to_string())
-            .and_then(|pool| {
-                generate_exercise(&pool, card_id, kind, seed).map_err(|err| err.to_string())
-            });
+            .map_err(LearnError::from)
+            .and_then(|pool| Ok(generate_exercise(&pool, card_id, kind, seed)?));
         let exercise = result.as_ref().ok().cloned();
-        self.command(
-            "nextExercise",
-            json!([card_id, kind, seed]),
-            outcome(result),
-        );
+        self.command("nextExercise", json!([card_id, kind, seed]), result);
         exercise
     }
 
     fn check_exercise(&mut self, exercise: &Exercise, answer: ExerciseAnswer) {
         let correct = check_answer(exercise, &answer);
-        self.command(
-            "checkExercise",
-            json!([exercise, answer]),
-            json!({ "ok": correct }),
-        );
+        self.command("checkExercise", json!([exercise, answer]), Ok(correct));
     }
 
     fn record_exercise_result(&mut self, card_id: i64, kind: ExerciseKind, correct: bool) {
-        let result = if correct {
-            award_xp(
-                self.store(),
-                XP_EXERCISE_CORRECT,
-                reason::EXERCISE,
-                &self.run.clock,
-            )
-            .map(|_| XP_EXERCISE_CORRECT)
-        } else {
-            Ok(0)
-        };
+        let result = learn::record_exercise(self.store(), card_id, correct, &self.run.clock);
         self.command(
             "recordExerciseResult",
             json!([card_id, kind, correct]),
-            outcome(result),
+            result,
         );
     }
 
     fn get_stats(&mut self) {
         let result = stats_summary(self.store(), &self.run.clock);
-        self.command("getStats", json!([]), outcome(result));
+        self.command("getStats", json!([]), result.map_err(Into::into));
     }
 
     fn list_lessons(&mut self) {
         let result = lessons_from_store(self.store(), CARDS_PER_LESSON);
-        self.command("listLessons", json!([]), outcome(result));
+        self.command("listLessons", json!([]), result.map_err(Into::into));
     }
 
     fn complete_lesson(&mut self, lesson_id: &str) {
-        let clock = &self.run.clock;
-        let result = self.store().with_transaction(|store| {
-            let lessons = lessons_from_store(store, CARDS_PER_LESSON)?;
-            if !lessons.iter().any(|lesson| lesson.id == lesson_id) {
-                return Err(StoreError::NotFound(format!("lesson {lesson_id:?}")));
-            }
-            let key = format!("learn.lesson_completed.{lesson_id}");
-            let today = format_date(clock.today());
-            if store.get_state(&key)?.as_deref() == Some(today.as_str()) {
-                return Ok(0);
-            }
-            award_xp(store, XP_LESSON_COMPLETE, reason::LESSON, clock)?;
-            store.set_state(&key, &today)?;
-            Ok(XP_LESSON_COMPLETE)
-        });
-        self.command("completeLesson", json!([lesson_id]), outcome(result));
+        let result = learn::complete_lesson(self.store(), lesson_id, &self.run.clock);
+        self.command("completeLesson", json!([lesson_id]), result);
     }
 }
 
@@ -2791,6 +3050,7 @@ fn adapter_scenarios() -> Value {
         )),
         CaptureOrigin::Capture,
     );
+    let mut clipboard = Vec::new();
     for (minutes, front, sentence, translation) in [
         (
             0,
@@ -2805,7 +3065,7 @@ fn adapter_scenarios() -> Value {
             with_example(plain(front, "Bedeutung", "en", "de"), sentence, translation),
             &(instant("2026-10-21T10:00:00Z") + Duration::minutes(minutes)).to_rfc3339(),
         );
-        learn.run.insert_capture(&card, CaptureOrigin::Capture);
+        clipboard.push(learn.run.insert_capture(&card, CaptureOrigin::Capture));
     }
 
     // Day 1: three new words.
@@ -2817,6 +3077,8 @@ fn adapter_scenarios() -> Value {
     let first = learn.start_new_item("我");
     let first = first.expect("我 is in the curriculum");
     learn.start_new_item("我");
+    // Introduced, not rated yet: it moves to the reviews, the quota shrinks.
+    learn.get_daily_queue();
     learn.get_card(first);
     learn.get_card_audio(first);
     learn.preview_ratings(first);
@@ -2841,17 +3103,20 @@ fn adapter_scenarios() -> Value {
     learn.submit_review_rating(first, 3);
     learn.get_stats();
     learn.get_daily_prompt_state();
-    learn.start_new_item("学习");
+    learn.start_new_item(" 学习 ");
     learn.start_new_item("没有");
+    learn.start_new_item("  ");
     learn.get_card(9_999);
     learn.get_card_audio(9_999);
     learn.preview_ratings(9_999);
+    learn.preview_ratings(clipboard[0]);
     learn.submit_review_rating(9_999, 3);
+    learn.submit_review_rating(clipboard[0], 3);
 
     learn.list_learned_cards();
     let mut exercises = Vec::new();
     for kind in ExerciseKind::ALL {
-        for card_id in [first, second, adopted, 2, 9_999] {
+        for card_id in [first, second, adopted, clipboard[0], 9_999] {
             if let Some(exercise) = learn.next_exercise(card_id, kind, 17) {
                 exercises.push(exercise);
             }
@@ -2876,6 +3141,8 @@ fn adapter_scenarios() -> Value {
     }
     learn.record_exercise_result(first, ExerciseKind::MultipleChoice, true);
     learn.record_exercise_result(first, ExerciseKind::ListeningChoice, false);
+    learn.record_exercise_result(clipboard[0], ExerciseKind::MultipleChoice, true);
+    learn.record_exercise_result(9_999, ExerciseKind::SentenceBuilder, false);
     learn.list_lessons();
     learn.complete_lesson("lesson-2");
     learn.complete_lesson("lesson-2");
@@ -2910,7 +3177,8 @@ fn adapter_scenarios() -> Value {
     learn.get_daily_queue();
     learn.submit_daily_quota(2);
     learn.get_daily_queue();
-    if let Some(id) = learn.start_new_item("学习") {
+    if let Some(id) = learn.start_new_item("中文") {
+        learn.get_daily_queue();
         learn.get_card(id);
         learn.submit_review_rating(id, 2);
     }

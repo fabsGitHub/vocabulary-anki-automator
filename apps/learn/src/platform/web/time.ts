@@ -25,13 +25,21 @@
 
 import type { IsoDate } from '../types'
 import { StoreError } from './errors'
-import { trim } from './text'
+import { WHITE_SPACE, debugString, trim } from './text'
 
 /** Nanoseconds since 1970-01-01T00:00:00Z. */
 export type EpochNanos = bigint
 
 export const MS_PER_DAY = 86_400_000
 const NANOS_PER_MS = 1_000_000n
+/** The largest year chrono's `NaiveDate` holds. */
+const MAX_YEAR = 262_142
+/** Rust's `trim_start` before each number, as chrono's parser does it. */
+const SPACE = `[${WHITE_SPACE}]*`
+const LENIENT_DATE = new RegExp(
+  `^${SPACE}([+-][0-9]+|[0-9]{1,4})-${SPACE}([0-9]{1,2})-${SPACE}([0-9]{1,2})$`,
+)
+const CANONICAL_DATE = /^([+-]?[0-9]+)-([0-9]{2})-([0-9]{2})$/
 
 /** `vocab_core::time::Clock`. */
 export interface Clock {
@@ -140,19 +148,27 @@ export function numDays(diffMs: number): number {
   return (diffMs - (diffMs % MS_PER_DAY)) / MS_PER_DAY
 }
 
-/** `time::parse_date`: `YYYY-MM-DD` of a real calendar day, else `null`. */
+/**
+ * `time::parse_date`: chrono's `%Y-%m-%d`, which is more lenient than the
+ * format it writes. Each number may follow whitespace, the month and the day
+ * may have one digit, and the year up to four, or any number after a sign.
+ * Returns the date in its canonical form, or `null` when the text is not a
+ * real calendar day.
+ */
 export function parseDate(text: string): IsoDate | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text)
+  const match = LENIENT_DATE.exec(text)
   if (!match) return null
   const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])]
-  if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) return null
-  return text
+  if (Math.abs(year) > MAX_YEAR || month < 1 || month > 12) return null
+  if (day < 1 || day > daysInMonth(year, month)) return null
+  return daysToDate(daysFromCivil(year, month, day))
 }
 
-/** Days since 1970-01-01 of a `YYYY-MM-DD` date. */
+/** Days since 1970-01-01 of a date as {@link daysToDate} writes it. */
 export function dateToDays(date: IsoDate): number {
-  const [year, month, day] = date.split('-').map(Number)
-  return daysFromCivil(year, month, day)
+  const match = CANONICAL_DATE.exec(date)
+  if (!match) throw StoreError.invalid(`not a YYYY-MM-DD date: ${debugString(date)}`)
+  return daysFromCivil(Number(match[1]), Number(match[2]), Number(match[3]))
 }
 
 /** The `YYYY-MM-DD` date of a day number, written like chrono's `NaiveDate` Display. */
@@ -178,9 +194,8 @@ export function formatInstant(ms: number): string {
  * outside 0000–9999, which have no fixed-width form.
  */
 export function formatStoredInstant(ms: number): string {
-  const days = Math.floor(ms / MS_PER_DAY)
-  const year = civilFromDays(days)[0]
-  if (year < 0 || year > 9999) {
+  if (!isStorableYear(yearOf(ms))) {
+    const days = Math.floor(ms / MS_PER_DAY)
     const ofDay = ms - days * MS_PER_DAY
     const millis = ofDay % 1000
     const fraction = millis === 0 ? '' : `.${pad(millis, 3)}`
@@ -188,22 +203,52 @@ export function formatStoredInstant(ms: number): string {
       `${daysToDate(days)} ${clockTime(ofDay)}${fraction} UTC is outside the years 0000 to 9999 that the database can store`,
     )
   }
+  return millisText(ms)
+}
+
+/**
+ * `store::codec::format_exclusive_bound` for a whole-millisecond bound: the
+ * stored form, or `:` (above every stored text) past year 9999. A bound
+ * before year 0 starts with `-`, below every stored text, as in Rust.
+ */
+export function formatExclusiveBound(ms: number): string {
+  return yearOf(ms) > 9999 ? ':' : millisText(ms)
+}
+
+/** Whether the store can write a date or instant of `year`. */
+export function isStorableYear(year: number): boolean {
+  return year >= 0 && year <= 9999
+}
+
+/** The UTC year of the instant `ms`. */
+export function yearOf(ms: number): number {
+  return civilFromDays(Math.floor(ms / MS_PER_DAY))[0]
+}
+
+/** The year of a date as {@link daysToDate} writes it. */
+export function dateYear(date: IsoDate): number {
+  return civilFromDays(dateToDays(date))[0]
+}
+
+/** RFC 3339 with exactly three fractional digits (`to_rfc3339_opts(Millis, true)`). */
+function millisText(ms: number): string {
+  const days = Math.floor(ms / MS_PER_DAY)
   const ofDay = ms - days * MS_PER_DAY
   return `${daysToDate(days)}T${clockTime(ofDay)}.${pad(ofDay % 1000, 3)}Z`
 }
 
 const RFC_3339 =
-  /^(\d{4})-(\d{2})-(\d{2})[Tt ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(?:([Zz])|([+-])(\d{2}):(\d{2}))?$/
+  /^(\d{4})-(\d{2})-(\d{2})[Tt ](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:([Zz])|([+-])(\d{2}):(\d{2}))?$/
 
 /**
- * `store::codec::parse_timestamp`: RFC 3339 with up to nine fractional
- * digits, `T` or a space, any offset, and offset-less text taken as UTC.
- * Throws a `StoreError` for anything else.
+ * `store::codec::parse_timestamp`: RFC 3339 (digits past the ninth
+ * fractional one are ignored, as chrono does), `T` or a space, any offset,
+ * and offset-less text taken as UTC. Throws a `StoreError` for anything else.
  */
 export function parseInstant(text: string): EpochNanos {
   const trimmed = trim(text)
   const match = RFC_3339.exec(trimmed)
-  const invalid = () => StoreError.invalid(`not an RFC 3339 timestamp: ${JSON.stringify(trimmed)}`)
+  const invalid = () => StoreError.invalid(`not an RFC 3339 timestamp: ${debugString(trimmed)}`)
   if (!match) throw invalid()
   const [year, month, day, hour, minute, second] = match.slice(1, 7).map(Number)
   if (
@@ -224,7 +269,7 @@ export function parseInstant(text: string): EpochNanos {
   }
   const seconds =
     daysFromCivil(year, month, day) * 86_400 + hour * 3600 + minute * 60 + second - offsetSeconds
-  const fraction = BigInt((match[7] ?? '').padEnd(9, '0'))
+  const fraction = BigInt((match[7] ?? '').slice(0, 9).padEnd(9, '0'))
   return BigInt(seconds) * 1_000_000_000n + fraction
 }
 
