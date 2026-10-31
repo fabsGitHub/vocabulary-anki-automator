@@ -58,6 +58,18 @@ export default [
       },
     },
   },
+  {
+    // Node scripts (scripts/release-preflight.mjs) run in CI, not the browser.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        Buffer: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+        URL: 'readonly',
+      },
+    },
+  },
   prettierConfig,
   {
     ignores: [

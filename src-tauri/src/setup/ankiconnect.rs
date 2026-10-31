@@ -7,7 +7,8 @@
 //! change their collection while Anki runs. Now the add-on comes from one
 //! pinned commit, every file is verified before it is written, the folder
 //! appears in one rename (Anki never sees half an add-on), an existing add-on
-//! is never overwritten, and only this app's own webview origin is allowed.
+//! is never overwritten, and no web origin at all is allowed: both apps talk
+//! to AnkiConnect from Rust only (see [`addon_config`]).
 //!
 //! The one folder that is replaced is that broken stub: the old app wrote it
 //! on every start, so every upgrading user has it, it never loaded, and
@@ -91,35 +92,25 @@ pub fn file_url(name: &str) -> String {
     format!("https://raw.githubusercontent.com/FooSoft/anki-connect/{COMMIT}/plugin/{name}")
 }
 
-/// The web origins allowed to call AnkiConnect: this app's own webview
-/// (`tauri://localhost` on macOS and Linux, `http://tauri.localhost` on
-/// Windows) and, in debug builds only, the Vite dev server. The Rust backend
-/// sends no `Origin` header and needs no entry.
-pub fn app_origins() -> Vec<&'static str> {
-    app_origins_for(cfg!(windows), cfg!(debug_assertions))
-}
-
-/// [`app_origins`] for a given platform and build type.
-pub fn app_origins_for(windows: bool, debug: bool) -> Vec<&'static str> {
-    let mut origins = vec![if windows {
-        "http://tauri.localhost"
-    } else {
-        "tauri://localhost"
-    }];
-    if debug {
-        origins.push("http://localhost:1420");
-    }
-    origins
-}
-
 /// The add-on's `config.json`: listen on loopback only, on the standard port,
-/// and accept browser requests from `origins` only.
-pub fn addon_config(origins: &[&str]) -> Value {
+/// and accept no request from a web page.
+///
+/// AnkiConnect (pinned `web.py`, `allowOrigin`) serves every request without
+/// an `Origin` header, which is how the Rust clients of both apps call it,
+/// and refuses a request whose `Origin` is not in `webCorsOriginList` (it
+/// also lets chrome/moz extensions and other `127.0.0.1` ports in when the
+/// list holds `http://localhost`). No webview calls AnkiConnect any more, and
+/// the CSP would block it, so the list stays empty. Allowing the app's own
+/// origin would let in every webview with that origin: `tauri://localhost`
+/// (`http://tauri.localhost` on Windows) is the origin of every Tauri app on
+/// the machine, and `http://localhost:1420` that of every Tauri template's
+/// dev server.
+pub fn addon_config() -> Value {
     json!({
         "apiKey": null,
         "webBindAddress": "127.0.0.1",
         "webBindPort": 8765,
-        "webCorsOriginList": origins,
+        "webCorsOriginList": [],
     })
 }
 
@@ -252,7 +243,7 @@ pub(crate) async fn provision_files(
         }
         write_new(&staged.join(file.name), &bytes)?;
     }
-    let config = serde_json::to_vec_pretty(&addon_config(&app_origins()))
+    let config = serde_json::to_vec_pretty(&addon_config())
         .map_err(|err| SetupError::Unavailable(format!("could not encode config.json: {err}")))?;
     write_new(&staged.join("config.json"), &config)?;
 
@@ -376,34 +367,20 @@ mod tests {
         );
     }
 
+    /// Loopback only, and no web origin: not `*`, not `http://localhost`
+    /// (which AnkiConnect widens to browser extensions and every
+    /// `127.0.0.1` port), and not the Tauri origin every Tauri app shares.
     #[test]
-    fn the_config_allows_only_the_app_origin() {
-        let cases = [
-            (false, false, json!(["tauri://localhost"])),
-            (
-                false,
-                true,
-                json!(["tauri://localhost", "http://localhost:1420"]),
-            ),
-            (true, false, json!(["http://tauri.localhost"])),
-            (
-                true,
-                true,
-                json!(["http://tauri.localhost", "http://localhost:1420"]),
-            ),
-        ];
-        for (windows, debug, origins) in cases {
-            assert_eq!(
-                addon_config(&app_origins_for(windows, debug)),
-                json!({
-                    "apiKey": null,
-                    "webBindAddress": "127.0.0.1",
-                    "webBindPort": 8765,
-                    "webCorsOriginList": origins,
-                }),
-                "windows {windows}, debug {debug}"
-            );
-        }
+    fn the_config_binds_loopback_and_allows_no_web_origin() {
+        assert_eq!(
+            addon_config(),
+            json!({
+                "apiKey": null,
+                "webBindAddress": "127.0.0.1",
+                "webBindPort": 8765,
+                "webCorsOriginList": [],
+            })
+        );
     }
 
     #[test]
@@ -426,24 +403,15 @@ mod tests {
         );
         let config: Value =
             serde_json::from_slice(&fs::read(installed.join("config.json")).unwrap()).unwrap();
-        let expected_origins = if cfg!(windows) {
-            json!(["http://tauri.localhost", "http://localhost:1420"])
-        } else {
-            json!(["tauri://localhost", "http://localhost:1420"])
-        };
-        // Tests are debug builds, so the dev-server origin is included.
         assert_eq!(
             config,
             json!({
                 "apiKey": null,
                 "webBindAddress": "127.0.0.1",
                 "webBindPort": 8765,
-                "webCorsOriginList": expected_origins,
+                "webCorsOriginList": [],
             })
         );
-        assert!(!fs::read_to_string(installed.join("config.json"))
-            .unwrap()
-            .contains('*'));
         assert!(is_installed(&installed));
         // Only the pinned URLs were fetched, in order.
         let urls: Vec<String> = files.iter().map(|f| file_url(f.name)).collect();

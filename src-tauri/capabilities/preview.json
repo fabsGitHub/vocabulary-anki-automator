@@ -1,12 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "preview",
-  "description": "Capability for the card approval window: listen for translation-payload and hide, close or focus itself",
+  "description": "Card approval window: listen for translation-payload and capture-error, and hide itself after approve or discard. The app's own commands need no permission.",
   "windows": ["preview"],
-  "permissions": [
-    "core:default",
-    "core:window:allow-hide",
-    "core:window:allow-close",
-    "core:window:allow-set-focus"
-  ]
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten", "core:window:allow-hide"]
 }

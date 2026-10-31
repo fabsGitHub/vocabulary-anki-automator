@@ -165,7 +165,7 @@ export const en = {
     ankiconnectVerify:
       "All four files are downloaded to a temporary folder and their SHA-256 checksums are compared with values built into this app before anything is written to Anki's add-on folder. If one differs, nothing is installed.",
     ankiconnectWrite:
-      "The files and a config.json are written to the add-on folder 2055492159 in Anki's data folder. The config makes AnkiConnect listen on this computer only (127.0.0.1:8765) and refuse requests from web pages other than this app. Nothing is run now; Anki loads the add-on the next time it starts.",
+      "The files and a config.json are written to the add-on folder 2055492159 in Anki's data folder. The config makes AnkiConnect listen on this computer only (127.0.0.1:8765) and refuse requests from all web pages. Nothing is run now; Anki loads the add-on the next time it starts.",
     checksums: 'Expected SHA-256 checksums',
     agree: 'Agree and install',
     cancel: 'Cancel',

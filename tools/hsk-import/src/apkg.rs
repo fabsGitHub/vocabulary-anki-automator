@@ -23,13 +23,19 @@
 //! Extracted media go to a directory of the user's choosing and are never
 //! committed: the deck's media are the deck author's, not part of the MIT
 //! sources. Shared decks are untrusted input, so field parsing is linear,
-//! and media names that could escape that directory are refused.
+//! media names that could escape that directory are refused, and every entry
+//! read from the zip is capped ([`ApkgLimits`]): a few kilobytes of deflate
+//! can expand to gigabytes (a zip bomb), and the size an entry declares is
+//! the packer's claim, not a limit. A media file is written under a temporary
+//! name and renamed into place, so a refused or failed one leaves nothing
+//! behind and an existing file or symlink of that name is replaced, never
+//! written through.
 
 use std::{
     collections::{HashMap, HashSet},
     fmt,
     fs::File,
-    io::{BufReader, Read, Seek},
+    io::{self, BufReader, Read, Seek, Write},
     path::Path,
 };
 
@@ -48,6 +54,40 @@ const LEGACY_COLLECTIONS: &[&str] = &["collection.anki21", "collection.anki2"];
 
 const REEXPORT_HINT: &str = "re-export the deck from Anki with \"Support older Anki versions\" \
      ticked (File > Export..., Anki Deck Package)";
+
+/// How much of a package is read at most.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ApkgLimits {
+    /// The collection database, decompressed.
+    pub collection_bytes: u64,
+    /// The `media` map and each media file, decompressed.
+    pub entry_bytes: u64,
+}
+
+impl Default for ApkgLimits {
+    /// Far above a vocabulary deck: its collection is a few megabytes, its
+    /// recordings and pictures some kilobytes each.
+    fn default() -> Self {
+        Self {
+            collection_bytes: 1024 * 1024 * 1024,
+            entry_bytes: 32 * 1024 * 1024,
+        }
+    }
+}
+
+/// Copies `entry` into `out` unless it is larger than `limit` bytes, by its
+/// own claim or in fact; `Ok(false)` when it is.
+fn copy_capped<R: Read>(
+    entry: &mut zip::read::ZipFile<'_, R>,
+    out: &mut impl Write,
+    limit: u64,
+) -> io::Result<bool> {
+    if entry.size() > limit {
+        return Ok(false);
+    }
+    let copied = io::copy(&mut entry.by_ref().take(limit + 1), out)?;
+    Ok(copied <= limit)
+}
 
 /// Which note fields hold what. The defaults are the field names of the
 /// user's deck.
@@ -94,6 +134,8 @@ pub struct EnrichReport {
     pub media_missing: Vec<String>,
     /// Referenced media names that are not plain file names.
     pub media_rejected: Vec<String>,
+    /// Referenced media larger than [`ApkgLimits::entry_bytes`].
+    pub media_too_large: Vec<String>,
 }
 
 impl fmt::Display for EnrichReport {
@@ -136,11 +178,14 @@ impl fmt::Display for EnrichReport {
         )?;
         writeln!(
             f,
-            "  media missing from the package: {}{}; refused media names: {}{}",
+            "  media missing from the package: {}{}; refused media names: {}{}; \
+             media over the size limit: {}{}",
             self.media_missing.len(),
             list(&self.media_missing),
             self.media_rejected.len(),
-            list(&self.media_rejected)
+            list(&self.media_rejected),
+            self.media_too_large.len(),
+            list(&self.media_too_large)
         )
     }
 }
@@ -167,6 +212,18 @@ pub fn enrich_from_apkg(
     media_out: &Path,
     fields: &ApkgFields,
 ) -> Result<EnrichReport> {
+    enrich_from_apkg_with_limits(apkg, items, media_out, fields, ApkgLimits::default())
+}
+
+/// [`enrich_from_apkg`] with other size limits. A collection over its limit
+/// is an error; a media file over its limit is skipped and reported.
+pub fn enrich_from_apkg_with_limits(
+    apkg: &Path,
+    items: &mut [CurriculumItem],
+    media_out: &Path,
+    fields: &ApkgFields,
+    limits: ApkgLimits,
+) -> Result<EnrichReport> {
     let file = File::open(apkg).map_err(|err| Error::io(apkg, err))?;
     let mut archive = ZipArchive::new(BufReader::new(file))?;
     let names: HashSet<String> = archive.file_names().map(str::to_string).collect();
@@ -189,11 +246,23 @@ pub fn enrich_from_apkg(
         })?;
 
     let mut database = tempfile::NamedTempFile::new().map_err(|err| Error::io("temp dir", err))?;
-    std::io::copy(&mut archive.by_name(collection)?, &mut database)
-        .map_err(|err| Error::io(database.path(), err))?;
+    let fits = copy_capped(
+        &mut archive.by_name(collection)?,
+        &mut database,
+        limits.collection_bytes,
+    )
+    .map_err(|err| Error::io(database.path(), err))?;
+    if !fits {
+        return Err(Error::Apkg(format!(
+            "{} holds a {collection} larger than {} bytes; that is not a vocabulary deck, \
+             so it was not read",
+            apkg.display(),
+            limits.collection_bytes
+        )));
+    }
     let conn = Connection::open_with_flags(database.path(), OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     let note_types = read_note_types(&conn)?;
-    let media = read_media_map(&mut archive)?;
+    let media = read_media_map(&mut archive, limits.entry_bytes)?;
 
     let by_hanzi: HashMap<String, usize> = items
         .iter()
@@ -208,6 +277,7 @@ pub fn enrich_from_apkg(
         dir: media_out,
         by_name: media,
         extracted: HashSet::new(),
+        limit: limits.entry_bytes,
     };
     let mut matched: HashSet<usize> = HashSet::new();
 
@@ -301,6 +371,7 @@ pub fn enrich_from_apkg(
                 }
                 Extracted::Missing => report.media_missing.push(name),
                 Extracted::Rejected => report.media_rejected.push(name),
+                Extracted::TooLarge => report.media_too_large.push(name),
             }
         }
     }
@@ -335,18 +406,25 @@ fn read_note_types(conn: &Connection) -> Result<HashMap<String, Vec<String>>> {
 
 /// The package's `media` map (zip entry -> file name), inverted. A package
 /// without one simply has no media.
-fn read_media_map<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<HashMap<String, String>> {
-    let mut text = String::new();
+fn read_media_map<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
+    limit: u64,
+) -> Result<HashMap<String, String>> {
+    let mut bytes = Vec::new();
     match archive.by_name("media") {
         Ok(mut entry) => {
-            entry
-                .read_to_string(&mut text)
+            let fits = copy_capped(&mut entry, &mut bytes, limit)
                 .map_err(|err| Error::io("media", err))?;
+            if !fits {
+                return Err(Error::Apkg(format!(
+                    "the media map is larger than {limit} bytes; it was not read"
+                )));
+            }
         }
         Err(zip::result::ZipError::FileNotFound) => return Ok(HashMap::new()),
         Err(err) => return Err(err.into()),
     }
-    let map: HashMap<String, String> = serde_json::from_str(&text)
+    let map: HashMap<String, String> = serde_json::from_slice(&bytes)
         .map_err(|err| Error::Apkg(format!("the media map is not JSON: {err}")))?;
     Ok(map.into_iter().map(|(entry, name)| (name, entry)).collect())
 }
@@ -355,6 +433,7 @@ enum Extracted {
     Written,
     Missing,
     Rejected,
+    TooLarge,
 }
 
 struct MediaOut<'a> {
@@ -362,6 +441,8 @@ struct MediaOut<'a> {
     /// File name -> zip entry.
     by_name: HashMap<String, String>,
     extracted: HashSet<String>,
+    /// Largest file written, in bytes.
+    limit: u64,
 }
 
 impl MediaOut<'_> {
@@ -384,10 +465,21 @@ impl MediaOut<'_> {
             Err(zip::result::ZipError::FileNotFound) => return Ok(Extracted::Missing),
             Err(err) => return Err(err.into()),
         };
+        if entry.size() > self.limit {
+            return Ok(Extracted::TooLarge);
+        }
         std::fs::create_dir_all(self.dir).map_err(|err| Error::io(self.dir, err))?;
         let path = self.dir.join(name);
-        let mut out = File::create(&path).map_err(|err| Error::io(&path, err))?;
-        std::io::copy(&mut entry, &mut out).map_err(|err| Error::io(&path, err))?;
+        // Deleted on drop unless persisted, so nothing partial stays behind.
+        let mut part =
+            tempfile::NamedTempFile::new_in(self.dir).map_err(|err| Error::io(self.dir, err))?;
+        let fits = copy_capped(&mut entry, part.as_file_mut(), self.limit)
+            .map_err(|err| Error::io(part.path(), err))?;
+        if !fits {
+            return Ok(Extracted::TooLarge);
+        }
+        part.persist(&path)
+            .map_err(|err| Error::io(&path, err.error))?;
         self.extracted.insert(name.to_string());
         Ok(Extracted::Written)
     }

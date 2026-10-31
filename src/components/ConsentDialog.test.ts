@@ -26,14 +26,19 @@ describe('ConsentDialog', () => {
   })
 
   it('describes the AnkiConnect config as exactly as § 8.4 does, never as app-exclusive', () => {
-    // The config binds loopback and limits web origins (webCorsOriginList). Any
-    // local program can still connect, so "only this app" would be a promise
-    // the consent dialog cannot keep.
+    // The config binds loopback and allows no web origin (an empty
+    // webCorsOriginList: both apps call AnkiConnect from Rust, without an
+    // Origin). Any local program can still connect, so "only this app" would
+    // be a promise the consent dialog cannot keep, and no web page is let in,
+    // this app's windows included.
     for (const locale of ['en', 'de'] as const) {
       setLocale(locale)
       const text = mountDialog('ankiconnect_provision').text()
       expect(text, locale).toContain('127.0.0.1:8765')
-      expect(text, locale).toMatch(locale === 'en' ? /web pages/ : /Webseiten/)
+      expect(text, locale).toMatch(
+        locale === 'en' ? /refuse requests from all web pages/ : /Anfragen von allen Webseiten ab/,
+      )
+      expect(text, locale).not.toMatch(/other than this app|außer dieser App/i)
       expect(text, locale).not.toMatch(/only accepts connections from this app/i)
       expect(text, locale).not.toMatch(/nur Verbindungen dieser App/i)
     }

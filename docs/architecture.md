@@ -704,8 +704,37 @@ Further rules both sides rely on:
 `main` (settings, history; label `main`) and `preview` (approval window,
 created on demand, `always_on_top`, hidden — not destroyed — after approve or
 discard). Both load the same Vue bundle; `App.vue` branches on the window
-label. Every webview call the preview makes (event listen, window hide/close)
-has a matching permission in `src-tauri/capabilities/` for the `preview` label.
+label.
+
+Capabilities (`src-tauri/capabilities/`) grant each window exactly the core and
+plugin commands its code calls, never a `*:default` set: `main` gets
+`core:event:allow-listen`/`-unlisten`, `core:resources:allow-close` and
+`updater:allow-check`/`-download`/`-install` (the update banner); `preview`
+gets `core:event:allow-listen`/`-unlisten` and `core:window:allow-hide`.
+The app's own commands (§ 8.2) need no permission: without an app ACL manifest
+Tauri 2 serves them to every window of the app's local origin and to no remote
+one. So a compromised webview can still call every § 8.2 command (including
+`grant_consent` followed by an install, which only ever installs the pinned,
+verified files), and could still send data out through `apply_settings` (an
+`anki.connect_url` on another host receives every card pushed after it) or
+the updater's `check` (its `proxy` argument); the CSP is what keeps foreign
+script out of the webviews in the first place.
+
+Content Security Policy (`app.security.csp` in `tauri.conf.json`, sent by
+Tauri as a header on the app's HTML, plus Tauri's own hashes of the bundled
+scripts): `default-src 'self'; script-src 'self'; style-src 'self'
+'unsafe-inline'; img-src 'self'; media-src data:; connect-src ipc:
+http://ipc.localhost; object-src 'none'; base-uri 'none'; form-action 'none';
+frame-src 'none'; frame-ancestors 'none'`. That is what the built bundle uses:
+its own module script and stylesheet, Vue style bindings, `data:audio/mpeg`
+clips and Tauri's IPC (`ipc://localhost`, `http://ipc.localhost` on Windows).
+Nothing remote, no eval, no `blob:`. `devCsp` adds only Vite's HMR socket
+(`ws://localhost:1420`); note that Tauri 2.12 on the desktop loads `devUrl`
+straight from Vite and applies neither policy in `tauri dev`, so a CSP
+violation only shows in a `tauri build`. `src-tauri/tests/security_config.rs`
+pins the policies, the capabilities (also through the IPC layer with the real
+ACL) and the empty macOS entitlements (no hardened-runtime exception: the app
+holds the Accessibility permission, which macOS ties to its signature).
 
 ### 8.4 Consent & supply chain (Milestone E)
 
@@ -731,11 +760,15 @@ has a matching permission in `src-tauri/capabilities/` for the `preview` label.
   `master/ankiconnect.py`, which is a 404: it never worked.)
 
 - The `config.json` written for AnkiConnect binds `127.0.0.1:8765` and sets
-  `webCorsOriginList` to the app's own webview origin only — `tauri://localhost`
-  on macOS/Linux, `http://tauri.localhost` on Windows, plus
-  `http://localhost:1420` in debug builds. (Requests from the Rust backend send
-  no `Origin` header and are unaffected; the frontend no longer calls
-  AnkiConnect directly.)
+  `webCorsOriginList` to `[]`: no web origin at all. Both apps call
+  AnkiConnect from Rust only, and requests without an `Origin` header are always
+  served (pinned `web.py`, `allowOrigin`); no webview calls it, and the CSP
+  (§ 8.3) would block it. An origin entry would only widen access:
+  `tauri://localhost` / `http://tauri.localhost` is the origin of _every_ Tauri
+  app on the machine, `http://localhost:1420` that of every Tauri template's dev
+  server, and `http://localhost` makes AnkiConnect also accept browser extensions
+  and every `127.0.0.1` port. (Corrected 2026-10-31; the plan's E item asked for
+  the app's own origin, from before the frontend stopped calling AnkiConnect.)
 - Anki is pinned to 24.06.3 with the SHA-256 values from the release's signed
   `anki-24.06.3-checksums.txt`:
 
@@ -892,6 +925,14 @@ is "new")`, floored at 0, and 0 while today's session does not exist. Introducin
 every argument and result shape (`ReviewResult`, `LearnedCard`, `LearnSettings`,
 `AnkiSyncReport`, `PlatformCapabilities`, ...). The web adapter rejects the TTS and
 Anki methods with a clear message and reports `tts: false, anki: false`.
+
+Learn's desktop window has the same CSP as Automator's (§ 8.3; `devCsp` adds
+`ws://localhost:1430`) and a capability with no permissions at all: it only
+invokes the commands above, which need none, so no core or plugin command
+(events, windows, tray, menus, images) is reachable from it.
+`apps/learn/src-tauri/tests/security_config.rs` pins both. The web build is not
+served by Tauri, so its CSP is up to whoever hosts it (it needs the same
+policy plus `connect-src 'self'` for its curriculum JSON).
 
 ## 11. Serialized shapes (TypeScript)
 

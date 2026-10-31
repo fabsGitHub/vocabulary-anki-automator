@@ -56,6 +56,12 @@ but the tag push itself is a deliberate operator action — no agent triggers it
 ## Where the pipeline lives
 
 `.github/workflows/release.yml` (Milestone N5) consumes exactly the secrets in
-the table above, by name. Its preflight job refuses to build while
-`plugins.updater.pubkey` is still `KEYS_PLACEHOLDER_REPLACE_AFTER_GENERATION`
-or while the pushed tag differs from `src-tauri/tauri.conf.json`'s `version`.
+the table above, by name; the `APPLE_*` ones reach only the macOS jobs and the
+Windows certificate only its import step. Its preflight job
+(`scripts/release-preflight.mjs`, tested by `scripts/release-preflight.test.ts`)
+refuses to build unless `plugins.updater.pubkey` decodes the way the updater
+plugin decodes it — a minisign public key, not the placeholder, not empty and
+not a secret key (one pasted there must be treated as leaked: rotate it) — and
+refuses a tag that differs from `src-tauri/tauri.conf.json`'s `version`. The
+`GITHUB_TOKEN` is read-only except in the build job, and no checkout stores it
+in `.git/config`.
