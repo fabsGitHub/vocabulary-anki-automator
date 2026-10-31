@@ -227,8 +227,8 @@ impl SrsScheduler {
 ///
 /// Fails with [`StoreError::Invalid`] for a row FSRS cannot interpret: another
 /// `algorithm`, an unknown `fsrs_state`, a memory state that contradicts the
-/// `fsrs_state` or is not positive and finite, or a negative count or one
-/// beyond rs-fsrs's `i32`.
+/// `fsrs_state` or is not positive and finite, or a count that is negative or
+/// leaves no room in rs-fsrs's `i32` for one more review or lapse.
 pub fn fsrs_card_from_state(state: &SrsStateRow) -> StoreResult<Card> {
     let invalid =
         |reason: String| StoreError::Invalid(format!("srs_state row {}: {reason}", state.card_id));
@@ -240,11 +240,15 @@ pub fn fsrs_card_from_state(state: &SrsStateRow) -> StoreResult<Card> {
     }
     let fsrs_state = parse_state(&state.fsrs_state)
         .ok_or_else(|| invalid(format!("unknown fsrs_state {:?}", state.fsrs_state)))?;
+    // rs-fsrs adds one to `reps` on every review, and to `lapses` whenever it
+    // computes a review card's Again outcome (which every preview does), with
+    // plain `i32` addition: at `i32::MAX` that panics in debug builds and
+    // wraps negative in release builds.
     let count = |name: &str, value: i64| {
         i32::try_from(value)
             .ok()
-            .filter(|count| *count >= 0)
-            .ok_or_else(|| invalid(format!("{name} {value} is not a count rs-fsrs can hold")))
+            .filter(|count| (0..i32::MAX).contains(count))
+            .ok_or_else(|| invalid(format!("{name} {value} is not a count rs-fsrs can add to")))
     };
     let reps = count("repetitions", state.repetitions)?;
     let lapses = count("lapses", state.lapses)?;

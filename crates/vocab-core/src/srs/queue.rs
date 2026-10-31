@@ -199,3 +199,67 @@ fn curriculum_card(item: &CurriculumItem, target_lang: &str, captured_at: DateTi
     };
     card
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::TimeZone;
+
+    use super::*;
+    use crate::time::FixedClock;
+
+    fn curriculum_word() -> CurriculumItem {
+        CurriculumItem {
+            hanzi: "学习".into(),
+            traditional: None,
+            hsk_level: 1,
+            frequency: None,
+            curriculum_order: 1,
+            pinyin: "xué xí".into(),
+            pos: None,
+            meaning_en: Some("to study".into()),
+            meaning_de: Some("lernen".into()),
+            cloze_sentence: None,
+            example_sentence_source: None,
+            example_sentence_pinyin: None,
+            example_sentence_target: None,
+            vocab_audio_path: None,
+            sentence_audio_path: None,
+            image_path: None,
+        }
+    }
+
+    /// No input makes only the second write fail: both writes take the same
+    /// instant, so a date the store refuses already fails the capture. A
+    /// trigger that refuses `srs_state` inserts does, and the capture inserted
+    /// just before must not survive it.
+    #[test]
+    fn introducing_writes_the_card_and_its_state_together_or_not_at_all() {
+        let mut store = Store::open_in_memory().unwrap();
+        store.replace_curriculum(&[curriculum_word()]).unwrap();
+        let scheduler = SrsScheduler::default();
+        let clock = FixedClock::utc(Utc.with_ymd_and_hms(2026, 10, 31, 8, 0, 0).unwrap());
+        store
+            .conn()
+            .execute_batch(
+                "CREATE TRIGGER refuse_srs_state BEFORE INSERT ON srs_state \
+                 BEGIN SELECT RAISE(ABORT, 'srs_state refused by the test'); END",
+            )
+            .unwrap();
+
+        let refused = introduce_new_item(&store, &scheduler, "学习", "de", &clock);
+        assert!(matches!(refused, Err(StoreError::Sqlite(_))), "{refused:?}");
+        assert!(store.list_captures(None).unwrap().is_empty());
+        assert_eq!(store.count_srs_states().unwrap(), 0);
+
+        store
+            .conn()
+            .execute_batch("DROP TRIGGER refuse_srs_state")
+            .unwrap();
+        let card_id = introduce_new_item(&store, &scheduler, "学习", "de", &clock).unwrap();
+        assert_eq!(store.list_captures(None).unwrap().len(), 1);
+        assert_eq!(
+            store.get_srs_state(card_id).unwrap(),
+            Some(scheduler.initial_state(card_id, clock.now()))
+        );
+    }
+}

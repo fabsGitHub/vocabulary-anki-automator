@@ -582,6 +582,22 @@ mod edge_cases {
                     ..valid.clone()
                 },
             ),
+            // rs-fsrs would overflow adding this review, or the lapse that
+            // computing the Again outcome adds.
+            (
+                "repetitions at i32::MAX",
+                SrsStateRow {
+                    repetitions: i64::from(i32::MAX),
+                    ..valid.clone()
+                },
+            ),
+            (
+                "lapses at i32::MAX",
+                SrsStateRow {
+                    lapses: i64::from(i32::MAX),
+                    ..valid.clone()
+                },
+            ),
         ];
         for (what, row) in cases {
             store.upsert_srs_state(&row).unwrap();
@@ -967,6 +983,20 @@ mod conversion {
                     ..valid.clone()
                 },
             ),
+            (
+                "repetitions that one more review would overflow",
+                SrsStateRow {
+                    repetitions: i64::from(i32::MAX),
+                    ..valid.clone()
+                },
+            ),
+            (
+                "lapses that one more lapse would overflow",
+                SrsStateRow {
+                    lapses: i64::from(i32::MAX),
+                    ..valid.clone()
+                },
+            ),
         ];
         for (what, row) in cases {
             match fsrs_card_from_state(&row) {
@@ -997,6 +1027,27 @@ mod conversion {
             );
         }
         assert!(fsrs_card_from_state(&valid).is_ok());
+    }
+
+    #[test]
+    fn the_largest_counts_rs_fsrs_can_still_add_to_are_scheduled() {
+        let scheduler = SrsScheduler::default();
+        let now = at("2026-11-09T08:00:00.000Z");
+        let almost_full = i64::from(i32::MAX) - 1;
+        let row = SrsStateRow {
+            repetitions: almost_full,
+            lapses: almost_full,
+            ..review_state(7)
+        };
+        assert!(fsrs_card_from_state(&row).is_ok());
+        assert_eq!(scheduler.preview(&row, now).len(), 4);
+
+        let lapse = scheduler.review(&row, Again, now, day("2026-11-09"));
+        assert_eq!(lapse.log.state_before, "review");
+        assert_eq!(
+            (lapse.next.repetitions, lapse.next.lapses),
+            (almost_full + 1, almost_full + 1)
+        );
     }
 }
 
