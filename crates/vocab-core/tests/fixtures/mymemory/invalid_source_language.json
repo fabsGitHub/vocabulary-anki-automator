@@ -1,0 +1,12 @@
+{
+  "responseData": {
+    "translatedText": "INVALID SOURCE LANGUAGE . EXAMPLE: LANGPAIR=EN|IT USING 2 LETTER ISO OR RFC3066 LIKE ZH-CN. ALMOST ALL LANGUAGES SUPPORTED BUT SOME MAY HAVE NO CONTENT"
+  },
+  "quotaFinished": false,
+  "mtLangSupported": null,
+  "responseDetails": "INVALID SOURCE LANGUAGE . EXAMPLE: LANGPAIR=EN|IT USING 2 LETTER ISO OR RFC3066 LIKE ZH-CN. ALMOST ALL LANGUAGES SUPPORTED BUT SOME MAY HAVE NO CONTENT",
+  "responseStatus": 403,
+  "responderId": null,
+  "exception_code": null,
+  "matches": ""
+}

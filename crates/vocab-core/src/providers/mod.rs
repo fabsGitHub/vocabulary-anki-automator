@@ -5,8 +5,24 @@
 //! Traits use `async_trait` so they stay object-safe: the language-aware
 //! `ProviderRegistry` (Milestone J4) holds them as `Arc<dyn Trait>`.
 
+pub mod chinese;
+pub mod datamuse;
+pub mod dictionary_api;
+pub mod google_tts;
+pub mod http;
+pub mod mymemory;
+pub mod registry;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+
+pub use chinese::{CurriculumExampleProvider, PinyinAnnotator};
+pub use datamuse::DatamuseProvider;
+pub use dictionary_api::DictionaryApiProvider;
+pub use google_tts::GoogleTtsProvider;
+pub use http::HttpClient;
+pub use mymemory::MyMemoryProvider;
+pub use registry::{ProviderRegistry, ProviderSet, StandardProviders};
 
 use crate::{
     error::ProviderError,
