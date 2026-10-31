@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { StoreError } from './errors'
 import { asI64, roundHalfAwayFromZero, rustMax, rustMin } from './fsrs'
 import { newCard } from './model'
 import { LearnedVocabularyPool } from './pool'
@@ -51,7 +50,9 @@ describe('the f64 rules of the FSRS port', () => {
       ['a NaN stability', { ...reviewState(7), stability: NaN }],
     ]
     for (const [what, row] of rows) {
-      expect(() => fsrsCardFromState(row), what).toThrow(StoreError)
+      expect(() => fsrsCardFromState(row), what).toThrow(
+        'invalid data: srs_state row 7: a review card needs a positive stability and difficulty and a last review',
+      )
       expect(new SrsScheduler().preview(row, nanosFromMillis(NOW)), what).toEqual([])
     }
   })
