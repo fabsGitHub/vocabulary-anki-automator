@@ -419,21 +419,20 @@ fn lowering_the_quota_to_what_is_done_completes_the_session() {
     }
 }
 
+/// Completion feeds the streak and the session XP bonus, which are tied to
+/// review work: a day with nothing due and no new words never completes, no
+/// matter how its session was set up.
 #[test]
-fn a_day_with_nothing_to_do_is_complete_as_soon_as_it_is_set_up() {
+fn a_day_with_nothing_to_do_never_completes() {
     for hours in OFFSETS {
         let learner = Learner::new(hours);
         let label = learner.label();
         let dismissed = learner.dismiss();
         assert_eq!(dismissed.reviews_due_count, 0, "{label}");
-        assert_eq!(dismissed.completed_at, Some(learner.clock.now()), "{label}");
+        assert_eq!(dismissed.completed_at, None, "{label}");
 
         learner.set_local("2026-11-01 08:00:00.000");
-        assert_eq!(
-            learner.submit(0).completed_at,
-            Some(learner.clock.now()),
-            "{label}"
-        );
+        assert_eq!(learner.submit(0).completed_at, None, "{label}");
         learner.set_local("2026-11-02 08:00:00.000");
         assert_eq!(learner.submit(1).completed_at, None, "{label}");
     }

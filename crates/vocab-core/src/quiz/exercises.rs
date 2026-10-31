@@ -231,10 +231,14 @@ fn choice_candidates<'a>(
     let hanzi = pool.hanzi();
     let prompt_key = text_key(shown(direction.prompt(target), hanzi)?);
     let answer_key = direction.answer_key(shown(direction.answer(target), hanzi)?);
+    let option_lang = direction.option_lang(target);
     Some(
         pool.entries()
             .iter()
             .filter(|entry| entry.card_id != target.card_id)
+            // Every option is in the exercise's `option_lang`: an English
+            // meaning among German ones would be a giveaway (or nonsense).
+            .filter(|entry| direction.option_lang(entry) == option_lang)
             .filter(|entry| text_key(direction.prompt(entry)) != prompt_key)
             .filter(|entry| {
                 shown(direction.answer(entry), hanzi)

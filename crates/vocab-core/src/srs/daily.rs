@@ -17,11 +17,14 @@
 //!   `reviews_due_count` is the number of reviews in the queue at that moment;
 //!   changing the quota later does not recount it, because the reviews done
 //!   since would otherwise be counted against a smaller remainder.
-//! - **A session is complete as soon as both targets are met**, whichever
-//!   write meets them: usually a progress update, but also setting up a day
-//!   with nothing due and no new items, or lowering the quota to no more than
-//!   is done. `completed_at` records the first time and is never cleared, so
-//!   asking for more words after finishing does not undo the day.
+//! - **A session is complete as soon as both targets are met and at least
+//!   one review or new word was done**, whichever write gets there first:
+//!   usually a progress update, but also lowering the quota to no more than is
+//!   done. A day with nothing due and no new words asked for (or a dismissed
+//!   prompt on such a day) never completes: completion feeds the streak and
+//!   the session XP bonus, which are tied to actual review work, not to
+//!   opening the app. `completed_at` records the first time and is never
+//!   cleared, so asking for more words after finishing does not undo the day.
 //! - **Progress before the day's prompt still counts.** A review made after
 //!   midnight in a session started the evening before opens the new day's
 //!   session with quota 0, without answering the prompt for the user.
@@ -184,7 +187,7 @@ fn open_session(
 }
 
 /// Stores `session`, completing it at `at` if this write meets both targets
-/// for the first time.
+/// for the first time and some work was done.
 fn save_session(
     store: &Store,
     mut session: DailySessionRow,
@@ -192,7 +195,8 @@ fn save_session(
 ) -> StoreResult<DailySessionRow> {
     let targets_met = session.reviews_completed >= session.reviews_due_count
         && session.new_items_completed >= session.requested_new_count;
-    if targets_met && session.completed_at.is_none() {
+    let did_work = session.reviews_completed > 0 || session.new_items_completed > 0;
+    if targets_met && did_work && session.completed_at.is_none() {
         session.completed_at = Some(at);
     }
     store.upsert_daily_session(&session)?;

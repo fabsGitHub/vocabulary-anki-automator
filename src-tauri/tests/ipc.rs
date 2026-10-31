@@ -771,6 +771,21 @@ fn launching_anki_goes_through_the_injected_runner() {
     }
 }
 
+/// `open -a Anki` fails when no app of that name exists; the user must see
+/// that, not "Starting Anki…" followed by a launch timeout.
+#[cfg(target_os = "macos")]
+#[test]
+fn launching_a_missing_anki_reports_it_instead_of_pretending() {
+    let harness = Harness::new();
+    harness.runner.fail_runs();
+    let error = harness
+        .invoke("launch_anki_desktop", json!({}))
+        .expect_err("a missing Anki is an error");
+    let message = error.as_str().unwrap_or_default();
+    assert!(message.contains("Anki was not found"), "{error}");
+    assert_eq!(harness.runner.calls().len(), 1);
+}
+
 /// After the first capture the hidden approval window keeps the app alive
 /// when the user closes the settings window, so the tray's "Settings" has to
 /// rebuild it from the app config.

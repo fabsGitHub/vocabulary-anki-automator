@@ -265,11 +265,17 @@ pub type Call = (String, Vec<String>);
 #[derive(Clone, Default)]
 pub struct RecordingRunner {
     calls: Arc<Mutex<Vec<Call>>>,
+    failing_runs: Arc<Mutex<bool>>,
 }
 
 impl RecordingRunner {
     pub fn calls(&self) -> Vec<Call> {
         self.calls.lock().unwrap().clone()
+    }
+
+    /// From now on, waited-for programs (`run`) exit unsuccessfully.
+    pub fn fail_runs(&self) {
+        *self.failing_runs.lock().unwrap() = true;
     }
 
     fn record(&self, program: &Path, args: &[OsString]) {
@@ -286,6 +292,12 @@ impl RecordingRunner {
 impl CommandRunner for RecordingRunner {
     async fn run(&self, program: &Path, args: &[OsString]) -> Result<(), SetupError> {
         self.record(program, args);
+        if *self.failing_runs.lock().unwrap() {
+            return Err(SetupError::Command {
+                program: program.to_string_lossy().into_owned(),
+                message: "exited with status 1".into(),
+            });
+        }
         Ok(())
     }
 

@@ -84,13 +84,28 @@ pub async fn anki_model_field_names(
 }
 
 /// Starts the Anki desktop app.
+///
+/// On macOS this waits for `open -a Anki`, which only asks LaunchServices and
+/// returns at once, so its exit status is the one reliable signal that no app
+/// named Anki exists (anywhere, not just in /Applications). Spawning it
+/// without waiting reported "Starting Anki…" even when Anki was missing.
 #[tauri::command]
-pub fn launch_anki_desktop(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn launch_anki_desktop(state: State<'_, AppState>) -> Result<String, String> {
     let setup = state.setup();
     let started = match std::env::consts::OS {
-        "macos" => setup
-            .runner
-            .spawn(Path::new("/usr/bin/open"), &os_args(["-a", "Anki"])),
+        "macos" => {
+            let opened = setup
+                .runner
+                .run(Path::new("/usr/bin/open"), &os_args(["-a", "Anki"]))
+                .await;
+            if let Err(err) = opened {
+                log::warn!("open -a Anki failed: {err}");
+                return Err("Anki was not found on this Mac. Install it from \
+                     https://apps.ankiweb.net or with the setup button."
+                    .to_string());
+            }
+            Ok(())
+        }
         "windows" => {
             let app = setup
                 .paths()

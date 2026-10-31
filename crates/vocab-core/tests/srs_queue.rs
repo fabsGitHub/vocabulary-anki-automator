@@ -406,7 +406,7 @@ mod introducing {
             cloze_sentence: None,
             example_sentence_source: Some("我学习中文。".into()),
             example_sentence_pinyin: Some("wǒ xué xí zhōng wén".into()),
-            example_sentence_target: Some("Ich lerne Chinesisch.".into()),
+            example_sentence_target: Some("I study Chinese.".into()),
             vocab_audio_path: Some("xuexi.mp3".into()),
             sentence_audio_path: None,
             image_path: None,
@@ -445,7 +445,9 @@ mod introducing {
             at("2026-10-31T08:00:00.000Z"),
         );
         expected.example_source = "我学习中文。".into();
-        expected.example_target = "Ich lerne Chinesisch.".into();
+        // The curriculum's example translation is English, so a German card
+        // carries the sentence without a mismatched translation.
+        expected.example_target = String::new();
         expected.script_metadata = ScriptMetadata::Chinese {
             pinyin: "xué xí".into(),
             hsk_level: Some(1),
@@ -462,6 +464,20 @@ mod introducing {
             at("2026-10-31T08:00:00.000Z")
         );
         assert!(store.chinese_capture_fronts().unwrap().contains("学习"));
+        assert!(store.learned_chinese_fronts().unwrap().contains("学习"));
+    }
+
+    #[test]
+    fn an_english_card_keeps_the_curriculum_s_english_example_translation() {
+        let store = store_with(&[word()]);
+        let card_id =
+            introduce_new_item(&store, &SrsScheduler::default(), "学习", "en", &clock()).unwrap();
+        let card = store.get_capture(card_id).unwrap().unwrap().card;
+        assert_eq!(
+            (card.back.as_str(), card.target_lang.as_str()),
+            ("to study", "en")
+        );
+        assert_eq!(card.example_target, "I study Chinese.");
     }
 
     #[test]
@@ -554,10 +570,24 @@ mod introducing {
                 false,
             )
             .unwrap();
-        assert!(build_daily_queue(&store, 5, &clock).unwrap().is_empty());
+        // Captured but never scheduled: not learned, so the curriculum still
+        // offers it, and nothing else would ever bring it to a review.
+        assert_eq!(
+            build_daily_queue(&store, 5, &clock).unwrap(),
+            [QueueItem::New {
+                hanzi: "学习".into(),
+                curriculum_order: 3
+            }]
+        );
 
         let card_id = introduce_new_item(&store, &scheduler, "学习", "de", &clock).unwrap();
         assert_eq!(card_id, captured);
+        // Adopted and scheduled: now a review, no longer a new word.
+        let queue = build_daily_queue(&store, 5, &clock).unwrap();
+        assert!(
+            matches!(queue.as_slice(), [QueueItem::Review { card_id, .. }] if *card_id == captured),
+            "{queue:?}"
+        );
         assert_eq!(
             store.get_srs_state(captured).unwrap(),
             Some(scheduler.initial_state(captured, clock.now()))

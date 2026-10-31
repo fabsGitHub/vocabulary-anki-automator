@@ -6,9 +6,13 @@
 //! at the end of the learner's local day, not at the current instant, so a
 //! card that falls due this evening is already in the morning's queue. New
 //! words follow in strict `curriculum_order`, skipping every hanzi the learner
-//! already has a Chinese card for, including words captured in Automator, so
-//! the curriculum never teaches a word twice. A quota of zero is not a mode of
-//! its own: it takes zero new words from the same sequence.
+//! has already learned (a Chinese card with an `srs_state` row), so the
+//! curriculum never teaches a word twice. A word captured in Automator but
+//! never scheduled is still offered when its turn comes, and
+//! [`introduce_new_item`] then adopts that capture instead of duplicating it;
+//! otherwise such a word would be neither new nor due and would never reach
+//! a review. A quota of zero is not a mode of its own: it takes zero new
+//! words from the same sequence.
 //!
 //! The queue builder sorts its inputs itself, so the order is a property of
 //! [`build_daily_queue_from`] (and of the TypeScript port tested against it),
@@ -82,8 +86,8 @@ pub fn build_daily_queue_from(
 
 /// Today's queue from the store: every state due before the end of the
 /// user's local day, then up to `new_quota` new curriculum words (see
-/// [`build_daily_queue_from`]). The front of every Chinese capture counts as
-/// a learned hanzi.
+/// [`build_daily_queue_from`]). The front of every Chinese capture with an
+/// `srs_state` row counts as a learned hanzi.
 pub fn build_daily_queue(
     store: &Store,
     new_quota: u32,
@@ -91,7 +95,7 @@ pub fn build_daily_queue(
 ) -> StoreResult<Vec<QueueItem>> {
     let due = due_today(store, &LocalNow::read(clock))?;
     let curriculum = store.curriculum_in_order()?;
-    let learned_hanzi = store.chinese_capture_fronts()?;
+    let learned_hanzi = store.learned_chinese_fronts()?;
     Ok(build_daily_queue_from(
         &due,
         &curriculum,
@@ -189,9 +193,17 @@ fn curriculum_card(item: &CurriculumItem, target_lang: &str, captured_at: DateTi
         (None, Some(english)) => (english, ENGLISH.to_owned()),
         (None, None) => (String::new(), target_lang),
     };
+    // The curriculum's example translations are English (the apkg reuse pass
+    // fills them from its "English Sentence" field), so a German card gets
+    // the Chinese sentence without a translation rather than a mismatched one.
+    let example_target = if back_lang == ENGLISH {
+        item.example_sentence_target.clone().unwrap_or_default()
+    } else {
+        String::new()
+    };
     let mut card = Card::new(item.hanzi.clone(), back, CHINESE, back_lang, captured_at);
     card.example_source = item.example_sentence_source.clone().unwrap_or_default();
-    card.example_target = item.example_sentence_target.clone().unwrap_or_default();
+    card.example_target = example_target;
     card.script_metadata = ScriptMetadata::Chinese {
         pinyin: item.pinyin.clone(),
         hsk_level: Some(item.hsk_level),

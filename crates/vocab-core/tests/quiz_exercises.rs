@@ -390,15 +390,30 @@ mod multiple_choice {
                 );
             }
         }
-        // With one English partner only, the other two distractors are
-        // filled from the rest of the pool.
+        // Every option is in the exercise's option language. All cards here
+        // translate into German, so "tree" -> meaning may draw German
+        // distractors from the Chinese cards too; asked the other way round
+        // (meaning -> English word) only the one other English card fits, and
+        // no Chinese word is offered as an English answer.
+        let english: HashSet<i64> = [ids["tree"], ids["house"]].into();
         for seed in seeds() {
             let exercise = choice(&pool, ids["tree"], seed);
-            assert!(exercise
-                .options
-                .iter()
-                .any(|option| option.card_id == ids["house"]));
-            assert_eq!(exercise.options.len(), 4);
+            match exercise.direction {
+                ChoiceDirection::FrontToBack => {
+                    assert_eq!(exercise.option_lang, "de");
+                    assert_eq!(exercise.options.len(), 4, "seed {seed}");
+                }
+                ChoiceDirection::BackToFront => {
+                    assert_eq!(exercise.option_lang, "en");
+                    let ids: HashSet<i64> = exercise
+                        .options
+                        .iter()
+                        .map(|option| option.card_id)
+                        .collect();
+                    assert_eq!(ids, english, "seed {seed}: {:?}", exercise.options);
+                }
+                ChoiceDirection::FrontToPinyin => panic!("an English card has no pinyin"),
+            }
         }
     }
 
@@ -1046,7 +1061,7 @@ mod parity {
             (
                 42,
                 ExerciseKind::MultipleChoice,
-                r#"BackToFront ["老师", "我们", "学习", "中文"] 2"#,
+                r#"BackToFront ["朋友", "学习", "老师", "中文"] 1"#,
             ),
             (42, ExerciseKind::SentenceBuilder, tiles_42),
             (

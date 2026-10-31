@@ -115,12 +115,27 @@ impl Store {
             .next())
     }
 
-    /// The fronts of every capture with Chinese script metadata: the hanzi
-    /// the daily queue must not offer as new.
+    /// The fronts of every capture with Chinese script metadata, learned or
+    /// not.
     pub fn chinese_capture_fronts(&self) -> StoreResult<HashSet<String>> {
         let mut statement = self
             .conn()
             .prepare_cached("SELECT DISTINCT front FROM captures WHERE script_kind = 'chinese'")?;
+        let fronts = statement.query_map([], |row| row.get(0))?;
+        Ok(fronts.collect::<Result<_, _>>()?)
+    }
+
+    /// The fronts of Chinese captures that have an `srs_state` row: the
+    /// learned hanzi, which the daily queue must not offer as new. A word
+    /// captured in Automator but never scheduled is not in this set, so the
+    /// curriculum still offers it (and `introduce_new_item` adopts the
+    /// existing capture instead of duplicating it).
+    pub fn learned_chinese_fronts(&self) -> StoreResult<HashSet<String>> {
+        let mut statement = self.conn().prepare_cached(
+            "SELECT DISTINCT c.front FROM captures c \
+             INNER JOIN srs_state s ON s.card_id = c.id \
+             WHERE c.script_kind = 'chinese'",
+        )?;
         let fronts = statement.query_map([], |row| row.get(0))?;
         Ok(fronts.collect::<Result<_, _>>()?)
     }
