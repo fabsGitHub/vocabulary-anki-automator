@@ -676,6 +676,9 @@ fn run_every_command() -> (Results, Harness) {
     call("anki_model_field_names", json!({ "model": "Basic" }));
     call("launch_anki_desktop", json!({}));
     call("get_setup_status", json!({}));
+    // Before any consent: both install commands refuse at once (the hard
+    // rule of docs/test-harness-strategy.md), which the assertions after the
+    // session confirm.
     call("download_and_install_anki", json!({}));
     call("auto_provision_ankiconnect", json!({}));
     call("grant_consent", json!({ "action": "anki_install" }));
@@ -707,6 +710,15 @@ fn run_every_command() -> (Results, Harness) {
         unknown,
         Err(json!("Command no_such_command not found")),
         "the absence of this error is what proves a command exists"
+    );
+    assert!(
+        harness.downloader.requests().is_empty(),
+        "nothing was downloaded"
+    );
+    assert!(
+        harness.runner.calls().len() <= 1,
+        "nothing but launch_anki_desktop ran a program: {:?}",
+        harness.runner.calls()
     );
     (results, harness)
 }
