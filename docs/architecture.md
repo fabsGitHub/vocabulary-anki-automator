@@ -860,8 +860,10 @@ core logic, verified against golden vectors generated from the Rust core).
 | `anki_export`            | — (deck/model/mapping from settings)                   | `AnkiSyncReport`              |
 | `anki_import`            | `deck: string`                                         | `AnkiSyncReport`              |
 
-Semantics both adapters implement identically (the web adapter's golden `adapter`
-scenario pins them against the desktop behaviour):
+Semantics both adapters implement identically (the golden `adapter` scenario pins
+them: the web adapter's Vitest suite replays it, and
+`apps/learn/src-tauri/tests/golden_adapter.rs` replays it through these commands, so
+the copy of the command bodies that records it cannot drift from the desktop app):
 
 - `get_daily_queue`: reviews due before the end of the local day, then
   `new_quota = requested_new_count − new_items_completed − (due cards whose fsrs_state
@@ -892,6 +894,15 @@ every argument and result shape (`ReviewResult`, `LearnedCard`, `LearnSettings`,
 Anki methods with a clear message and reports `tts: false, anki: false`.
 
 ## 11. Serialized shapes (TypeScript)
+
+The shapes below (the Automator's, in `src/api/types.ts`) and Learn's in
+`apps/learn/src/platform/types.ts` are pinned against serde: the `ipc_shapes` tests of
+both app crates write `src/api/__fixtures__/ipc_shapes.json` and
+`apps/learn/src/platform/__fixtures__/ipc_shapes.json` (samples of every type and
+variant, plus the command tables of § 8.2 and § 10 checked against the real invoke
+handler; regenerate with `UPDATE_IPC_SHAPES=1 cargo test --test ipc_shapes`), and the
+Vitest suites `ipc_shapes.test.ts` check them against the TypeScript types, the
+adapters and these tables.
 
 ```ts
 type ScriptMetadata =

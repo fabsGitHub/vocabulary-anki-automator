@@ -258,6 +258,9 @@ pub struct Options {
     pub settings: LearnSettings,
     /// Runs on the database before startup.
     pub before_start: Option<Prepare>,
+    /// "Now" for startup and every command: [`start_time`] in Berlin unless
+    /// a test needs another start or offset.
+    pub clock: Arc<FixedClock>,
 }
 
 impl Default for Options {
@@ -267,8 +270,97 @@ impl Default for Options {
             with_store: true,
             settings: test_settings(),
             before_start: None,
+            clock: Arc::new(FixedClock::new(start_time(), berlin())),
         }
     }
+}
+
+/// Every command of docs/architecture.md § 10 as the desktop adapter
+/// (apps/learn/src/platform/tauri.ts) calls it: the `PlatformAdapter`
+/// method, the command, and the camelCase names of the method's arguments,
+/// in parameter order. `tests/ipc_shapes.rs` checks each against the real
+/// invoke handler and writes the table into the IPC fixture, whose Vitest
+/// suite checks it against the adapter; `tests/golden_adapter.rs` uses it to
+/// replay the web build's golden scenario through the same commands.
+pub const COMMANDS: &[(&str, &str, &[&str])] = &[
+    ("getDailyPromptState", "get_daily_prompt_state", &[]),
+    ("submitDailyQuota", "submit_daily_quota", &["newCount"]),
+    ("dismissDailyPrompt", "dismiss_daily_prompt", &[]),
+    ("reopenDailyPrompt", "reopen_daily_prompt", &[]),
+    ("getDailyQueue", "get_daily_queue", &[]),
+    ("startNewItem", "start_new_item", &["hanzi"]),
+    ("getCard", "get_card", &["cardId"]),
+    ("previewRatings", "preview_ratings", &["cardId"]),
+    (
+        "submitReviewRating",
+        "submit_review_rating",
+        &["cardId", "rating"],
+    ),
+    ("listLearnedCards", "list_learned_cards", &[]),
+    ("nextExercise", "next_exercise", &["cardId", "kind", "seed"]),
+    ("checkExercise", "check_exercise", &["exercise", "answer"]),
+    (
+        "recordExerciseResult",
+        "record_exercise_result",
+        &["cardId", "kind", "correct"],
+    ),
+    ("listLessons", "list_lessons", &[]),
+    ("completeLesson", "complete_lesson", &["lessonId"]),
+    ("getStats", "get_stats", &[]),
+    ("getCardAudio", "get_card_audio", &["cardId"]),
+    ("synthesizeAudio", "synthesize_audio", &["text", "lang"]),
+    ("getSettings", "get_settings", &[]),
+    ("saveSettings", "save_settings", &["settings"]),
+    ("ankiExport", "anki_export", &[]),
+    ("ankiImport", "anki_import", &["deck"]),
+];
+
+/// Relative tolerance for floats when comparing JSON, as the golden file's
+/// own `--check` uses: the last bits of `exp` and `powf` (FSRS) differ
+/// between platform maths libraries.
+const FLOAT_TOLERANCE: f64 = 1e-12;
+
+/// The path (from `path`) of the first place where `actual` differs from
+/// `expected`, or `None` when they are equal up to [`FLOAT_TOLERANCE`].
+pub fn first_difference(expected: &Value, actual: &Value, path: &str) -> Option<String> {
+    match (expected, actual) {
+        (Value::Object(a), Value::Object(b)) => {
+            let mut keys: Vec<&String> = a.keys().chain(b.keys()).collect();
+            keys.sort();
+            keys.dedup();
+            keys.into_iter().find_map(|key| {
+                let path = format!("{path}.{key}");
+                match (a.get(key), b.get(key)) {
+                    (Some(x), Some(y)) => first_difference(x, y, &path),
+                    _ => Some(path),
+                }
+            })
+        }
+        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => a
+            .iter()
+            .zip(b)
+            .enumerate()
+            .find_map(|(index, (x, y))| first_difference(x, y, &format!("{path}[{index}]"))),
+        (Value::Number(a), Value::Number(b)) if a != b => {
+            let close = match (a.as_f64(), b.as_f64()) {
+                (Some(x), Some(y)) if a.is_f64() && b.is_f64() => {
+                    (x - y).abs() <= FLOAT_TOLERANCE * x.abs().max(y.abs()).max(1.0)
+                }
+                _ => false,
+            };
+            (!close).then(|| path.to_owned())
+        }
+        _ => (expected != actual).then(|| path.to_owned()),
+    }
+}
+
+/// The command and argument names of the `PlatformAdapter` method `method`.
+pub fn command_for(method: &str) -> (&'static str, &'static [&'static str]) {
+    COMMANDS
+        .iter()
+        .find(|(name, _, _)| *name == method)
+        .map(|&(_, command, args)| (command, args))
+        .unwrap_or_else(|| panic!("no command for the adapter method {method}"))
 }
 
 pub struct Harness {
@@ -297,7 +389,7 @@ impl Harness {
         } else {
             Err("simulated: the database could not be opened".to_string())
         };
-        let clock = Arc::new(FixedClock::new(start_time(), berlin()));
+        let clock = options.clock;
         let tts = FakeTts::default();
         let state = AppState::new(AppServices {
             store,

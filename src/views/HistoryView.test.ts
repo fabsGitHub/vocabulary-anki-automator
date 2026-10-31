@@ -220,6 +220,25 @@ describe('syncing pending captures', () => {
     expect(callsTo('list_recent_captures')).toHaveLength(2)
   })
 
+  it('counts only what it pushes: words Learn added reach Anki through Learn’s export', async () => {
+    const curriculum: StoredCapture = {
+      id: 3,
+      card: card({ front: '你', back: 'du', source_lang: 'zh-CN' }),
+      origin: 'curriculum',
+      synced_to_anki: false,
+    }
+    const pill = () => wrapper?.find('[data-test="sync"] .count-pill')
+    onCommand('list_recent_captures', [CHINESE, curriculum, ENGLISH])
+    await mountHistory()
+    expect(pill()?.text()).toBe('1')
+    expect(items()[1].find('[data-test="synced"]').text()).toBe('Not in Anki yet')
+
+    wrapper?.unmount()
+    onCommand('list_recent_captures', [curriculum, ENGLISH])
+    await mountHistory()
+    expect(pill()?.exists()).toBe(false)
+  })
+
   it('says when there was nothing to sync', async () => {
     onCommand('sync_pending_captures', { attempted: 0, synced: 0, failed: [] })
     await mountHistory()
