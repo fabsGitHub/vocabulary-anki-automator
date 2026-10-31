@@ -1,0 +1,35 @@
+[package]
+name = "vocab-learn"
+description = "Learn: FSRS review sessions and gamified quizzes over the shared vocabulary store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "vocab_learn_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dependencies]
+tauri.workspace = true
+tauri-plugin-log.workspace = true
+
+# Shared core and the Anki boundary
+vocab-core.workspace = true
+anki-bridge.workspace = true
+
+base64.workspace = true
+chrono.workspace = true
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
+async-trait.workspace = true
+tempfile.workspace = true
+wiremock.workspace = true

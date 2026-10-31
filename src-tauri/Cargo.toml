@@ -1,39 +1,47 @@
 [package]
-name = "anki-clipboard-deepl-automator"
+name = "vocab-automator"
 version = "0.1.0"
 description = "Streamlined background vocabulary automation for Anki"
-authors = ["you"]
+authors = ["Fabian Hensel"]
 edition = "2021"
 
 [lib]
-name = "anki_clipboard_deepl_automator_lib"
+name = "vocab_automator_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build.workspace = true
 
 [dependencies]
-# Tauri Core Framework & Core Engine Plugins
-tauri = { version = "2.0", features = ["tray-icon"] }
-tauri-plugin-opener = "2.0"
-tauri-plugin-log = "2.0.0-rc"
-tauri-plugin-global-shortcut = "2.0"
-tauri-plugin-clipboard-manager = "2.0"
-tauri-plugin-updater = "2.0"
+# Tauri and its plugins
+tauri = { workspace = true, features = ["tray-icon"] }
+tauri-plugin-opener.workspace = true
+tauri-plugin-log.workspace = true
+tauri-plugin-global-shortcut.workspace = true
+tauri-plugin-clipboard-manager.workspace = true
+tauri-plugin-updater.workspace = true
 
-# Networking & Modern Async Subsystems (Consolidated Duplicates)
-reqwest = { version = "0.12", features = ["json", "multipart", "blocking"] }
-tokio = { version = "1.0", features = ["full"] }
-urlencoding = "2.1"
+# Shared core and the Anki boundary
+vocab-core.workspace = true
+anki-bridge.workspace = true
 
-# Serialization, Diagnostics & Data Utilities
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-dirs = "5.0"
-log = "0.4"
-base64 = "0.22"
-thiserror = "1.0"
-uuid = { version = "1.0", features = ["v4"] }
+async-trait.workspace = true
+chrono.workspace = true
+dirs.workspace = true
+hex.workspace = true
+log.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true
 
-# OS Native Automation Layer
+# Synthetic copy keystroke (not in [workspace.dependencies]; unchanged from before the split)
 enigo = { version = "0.2", features = ["serde"] }
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
+tempfile.workspace = true
+wiremock.workspace = true

@@ -1,0 +1,13 @@
+{
+  "responseData": {
+    "translatedText": "Tom &amp; Jerry&#39;s &quot;Haus&quot; &lt;3 &#252;ber &#xE4;rger",
+    "match": 0.85
+  },
+  "quotaFinished": false,
+  "mtLangSupported": null,
+  "responseDetails": "",
+  "responseStatus": 200,
+  "responderId": null,
+  "exception_code": null,
+  "matches": []
+}

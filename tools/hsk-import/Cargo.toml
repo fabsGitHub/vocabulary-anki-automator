@@ -1,0 +1,24 @@
+[package]
+name = "hsk-import"
+description = "One-time ETL for the bundled HSK 3.0 curriculum (Milestone J2b); not shipped with the apps"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+chrono.workspace = true
+hex.workspace = true
+reqwest.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+# Extracting the apkg's SQLite collection needs a real file for rusqlite.
+tempfile.workspace = true
+tokio.workspace = true
+vocab-core.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+wiremock.workspace = true

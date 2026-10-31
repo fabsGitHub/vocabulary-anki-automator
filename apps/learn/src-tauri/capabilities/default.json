@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Learn main window: it only invokes Learn's own commands (apps/learn/src/platform/tauri.ts), which need no permission, so no core or plugin command is granted.",
+  "windows": ["main"],
+  "permissions": []
+}

@@ -1,5 +1,17 @@
 dist
 node_modules
+target
 src-tauri/target
+src-tauri/gen
 crates/**/target
+apps/**/dist
+apps/**/dist-web
+apps/**/src-tauri/gen
+crates/vocab-core/data
+.claude/worktrees
 package-lock.json
+crates/**/tests/fixtures
+.vscode
+# Written by the `ipc_shapes` Rust tests (serde_json layout) and compared parsed.
+src/api/__fixtures__/ipc_shapes.json
+apps/learn/src/platform/__fixtures__/ipc_shapes.json
