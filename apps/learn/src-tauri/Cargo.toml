@@ -15,7 +15,21 @@ tauri-build.workspace = true
 
 [dependencies]
 tauri.workspace = true
+tauri-plugin-log.workspace = true
+
+# Shared core and the Anki boundary
+vocab-core.workspace = true
+anki-bridge.workspace = true
+
+base64.workspace = true
+chrono.workspace = true
+log.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-log.workspace = true
-vocab-core.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
+async-trait.workspace = true
+tempfile.workspace = true
+wiremock.workspace = true
