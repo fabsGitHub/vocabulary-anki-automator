@@ -133,6 +133,11 @@ const LEARNED: Word[] = [
   // Learned, but its translation 书 and its example's translation 我读书 hold
   // hanzi no learned front has: only the English sides may be shown.
   other('book', '书', ['en', 'zh-CN'], ['I read a book.', '我读书。'], false),
+  // book's language pair, but with a translation of learned hanzi: asked
+  // front to back, book is a candidate of the right language whose answer
+  // 书 must still never become a distractor (and book itself never gets
+  // asked with 书 as its answer, though 朋友 would be a fitting distractor).
+  other('friend', '朋友', ['en', 'zh-CN'], ['A friend.', '朋友。'], false),
 ]
 
 /**

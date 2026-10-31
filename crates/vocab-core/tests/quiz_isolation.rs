@@ -84,7 +84,7 @@ const ANKI_IMPORT: CaptureOrigin = CaptureOrigin::AnkiImport;
 /// The learner's vocabulary: these get `srs_state` rows. Several example
 /// sentences contain unlearned hanzi (的, 他, 气, 吗, 这, 书) and must never be
 /// shown; 学生很喜欢学习中文 hides the trap word 学生 among learned words.
-const LEARNED: [Word; 15] = [
+const LEARNED: [Word; 16] = [
     zh(
         "我们",
         "wir",
@@ -184,6 +184,17 @@ const LEARNED: [Word; 15] = [
         "书",
         ("en", "zh-CN"),
         ("I read a book.", "我读书。"),
+        false,
+    ),
+    // book's language pair, but with a translation of learned hanzi: asked
+    // front to back, book is a candidate of the right language whose answer
+    // 书 must still never become a distractor (and book itself never gets
+    // asked with 书 as its answer, though 朋友 would be a fitting distractor).
+    other(
+        "friend",
+        "朋友",
+        ("en", "zh-CN"),
+        ("A friend.", "朋友。"),
         false,
     ),
 ];
