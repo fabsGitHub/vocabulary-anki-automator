@@ -45,6 +45,31 @@ describe('validateConfig', () => {
     ).toEqual([{ path: 'hotkeys', key: 'validation.required' }])
   })
 
+  it('refuses shortcuts that would swallow normal typing, as the backend does', () => {
+    for (const shortcut of ['C', 'Shift+C', 'shift+KeyQ', 'Space', 'Shift+Up']) {
+      expect(
+        at(
+          issuesOf((c) => (c.hotkeys = shortcut)),
+          'hotkeys',
+        ),
+        shortcut,
+      ).toEqual([{ path: 'hotkeys', key: 'validation.shortcutNeedsModifier' }])
+    }
+    for (const shortcut of ['F8', 'Shift+F12', 'Alt+C', 'Ctrl+C', 'Super+C', 'Option+Space']) {
+      expect(
+        at(
+          issuesOf((c) => (c.hotkeys = shortcut)),
+          'hotkeys',
+        ),
+        shortcut,
+      ).toEqual([])
+    }
+    const profileIssues = issuesOf((c) => c.hotkey_profiles.push(profile({ shortcut: 'Shift+H' })))
+    expect(at(profileIssues, 'hotkey_profiles.0.shortcut')).toEqual([
+      { path: 'hotkey_profiles.0.shortcut', key: 'validation.shortcutNeedsModifier' },
+    ])
+  })
+
   it('flags a profile reusing the default hotkey, however it is spelled', () => {
     const issues = issuesOf((c) => c.hotkey_profiles.push(profile({ shortcut: 'shift+ctrl+KeyC' })))
     expect(at(issues, 'hotkey_profiles.0.shortcut')).toEqual([

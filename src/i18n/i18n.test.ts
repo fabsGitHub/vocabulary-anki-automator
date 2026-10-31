@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { CaptureOrigin, PipelineStage, ProviderError } from '../api'
-import { CARD_FIELDS } from '../domain/fieldMapping'
+import { CARD_FIELDS, chineseMapping } from '../domain/fieldMapping'
 import { de } from './de'
 import { en } from './en'
 import { UI_LANGS, i18n, setLocale, toUiLang } from './index'
@@ -106,6 +106,26 @@ describe('keys the UI asks for', () => {
       ...providers.map((provider) => `providers.${provider}`),
     ]
     expect(dynamic.filter((key) => !(key in MESSAGES.en))).toEqual([])
+  })
+})
+
+describe('Anki field names', () => {
+  it('name the Chinese preset fields verbatim in every language, since Anki matches them by name', () => {
+    const preset = chineseMapping()
+    const names = [
+      ...preset.fields
+        .filter((binding) => ['front', 'pinyin', 'back'].includes(binding.source))
+        .map((binding) => binding.anki_field),
+      preset.audio_field ?? '',
+    ]
+    expect(names).toEqual(['Hanzi', 'Pinyin', 'Meaning', 'Audio'])
+    for (const locale of UI_LANGS) {
+      for (const key of ['mapping.presetChinese', 'mapping.chineseWarning', 'help.step4Body']) {
+        for (const name of names) {
+          expect(MESSAGES[locale][key], `${locale}:${key}`).toContain(name)
+        }
+      }
+    }
   })
 })
 

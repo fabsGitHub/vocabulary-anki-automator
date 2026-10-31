@@ -195,6 +195,25 @@ describe('save', () => {
     expect(store.dirty.value).toBe(true)
     expect(store.config.value.hotkeys).toBe('CommandOrControl+Shift+K')
   })
+
+  it('takes what the backend stored when it rejects after writing the file', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', ({ newCfg }: { newCfg: AppConfig }) => {
+      onCommand('get_current_settings', newCfg)
+      throw 'The settings were saved, but some hotkeys are not active:\n"CommandOrControl+Shift+K" could not be registered'
+    })
+    store.config.value.hotkeys = 'CommandOrControl+Shift+K'
+    expect(await store.save()).toBe(false)
+    expect(store.saveError.value).toContain('some hotkeys are not active')
+    expect(store.dirty.value).toBe(false)
+    expect(store.saving.value).toBe(false)
+
+    store.revert()
+    expect(store.config.value.hotkeys).toBe('CommandOrControl+Shift+K')
+    onCommand('apply_settings', null)
+    expect(await store.persistUiLang('en')).toBe(true)
+    expect(sentConfig(1).hotkeys).toBe('CommandOrControl+Shift+K')
+  })
 })
 
 describe('dirty tracking', () => {
@@ -242,6 +261,18 @@ describe('persistUiLang', () => {
     expect(await store.persistUiLang('en')).toBe(false)
     expect(store.uiLangError.value).toBe('disk full')
     expect(store.dirty.value).toBe(true)
+  })
+
+  it('is not left dirty when the backend stored the language but a hotkey stayed inactive', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', ({ newCfg }: { newCfg: AppConfig }) => {
+      onCommand('get_current_settings', newCfg)
+      throw 'The settings were saved, but some hotkeys are not active'
+    })
+    expect(await store.persistUiLang('en')).toBe(false)
+    expect(store.uiLangError.value).toContain('some hotkeys are not active')
+    expect(store.saved.value.ui_lang).toBe('en')
+    expect(store.dirty.value).toBe(false)
   })
 })
 

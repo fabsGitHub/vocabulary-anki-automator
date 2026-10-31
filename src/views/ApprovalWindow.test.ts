@@ -365,6 +365,15 @@ describe('keyboard', () => {
     expect(callsTo('execute_card_generation')).toHaveLength(0)
   })
 
+  it('ignores the Enter and Esc that WebKit reports as keyCode 229 while composing', async () => {
+    await mountWindow(capture())
+    press('Enter', { keyCode: 229 }, field('front'))
+    press('Escape', { keyCode: 229 }, field('front'))
+    await flushPromises()
+    expect(callsTo('execute_card_generation')).toHaveLength(0)
+    expect(callsTo('discard_pending_payload')).toHaveLength(0)
+  })
+
   it('leaves Enter on a focused button to that button', async () => {
     await mountWindow(capture())
     const discard = wrapper?.find('[data-test="discard"]').element as HTMLButtonElement

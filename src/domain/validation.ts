@@ -1,7 +1,8 @@
 /**
  * Client-side settings validation, mirroring what `apply_settings` refuses
- * (docs/architecture.md § 8.1): every shortcut must parse and all of them must
- * be distinct, languages must be supported codes, `max_chars` must be usable.
+ * (docs/architecture.md § 8.1): every shortcut must parse, leave normal typing
+ * alone and be distinct, languages must be supported codes, `max_chars` must
+ * be usable.
  *
  * The backend remains the authority and its error is still shown; checking
  * here first ties each problem to the field that caused it, which a single
@@ -12,7 +13,7 @@ import type { AppConfig } from '../api'
 import type { MessageKey } from '../i18n'
 import { effectiveBindings } from './fieldMapping'
 import { isSupportedLang, normalizeLang } from './language'
-import { IS_MAC, parseShortcut, shortcutId } from './shortcuts'
+import { IS_MAC, leavesTypingAlone, parseShortcut, shortcutId } from './shortcuts'
 
 /** One problem, addressed by the dotted path of the offending field (`hotkey_profiles.0.shortcut`). */
 export interface ConfigIssue {
@@ -61,6 +62,10 @@ export function validateConfig(config: AppConfig, isMac: boolean = IS_MAC): Conf
     const parsed = parseShortcut(text, isMac)
     if (!parsed) {
       add(path, 'validation.shortcutInvalid')
+      return
+    }
+    if (!leavesTypingAlone(parsed)) {
+      add(path, 'validation.shortcutNeedsModifier')
       return
     }
     const id = shortcutId(parsed)

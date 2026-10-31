@@ -163,7 +163,7 @@ export const de: MessageSchema = {
     ankiconnectVerify:
       'Alle vier Dateien werden in einen temporären Ordner geladen, und ihre SHA-256-Prüfsummen werden mit in diese App eingebauten Werten verglichen, bevor etwas in den Add-on-Ordner von Anki geschrieben wird. Weicht eine ab, wird nichts installiert.',
     ankiconnectWrite:
-      'Die Dateien und eine config.json werden in den Add-on-Ordner 2055492159 im Datenordner von Anki geschrieben. Die Konfiguration nimmt nur Verbindungen dieser App auf 127.0.0.1:8765 an. Jetzt wird nichts ausgeführt; Anki lädt das Add-on beim nächsten Start.',
+      'Die Dateien und eine config.json werden in den Add-on-Ordner 2055492159 im Datenordner von Anki geschrieben. Mit dieser Konfiguration ist AnkiConnect nur auf diesem Computer erreichbar (127.0.0.1:8765) und lehnt Anfragen von Webseiten außer dieser App ab. Jetzt wird nichts ausgeführt; Anki lädt das Add-on beim nächsten Start.',
     checksums: 'Erwartete SHA-256-Prüfsummen',
     agree: 'Zustimmen und installieren',
     cancel: 'Abbrechen',
@@ -173,7 +173,7 @@ export const de: MessageSchema = {
     intro: 'Legen Sie fest, was in jedes Feld des Notiztyps „{model}“ kommt.',
     presets: 'Vorlagen:',
     presetApple: 'Apple-Stil',
-    presetChinese: 'Chinesisch (Hanzi/Pinyin/Bedeutung/Audio)',
+    presetChinese: 'Chinesisch (Hanzi/Pinyin/Meaning/Audio)',
     ankiField: 'Anki-Feld',
     cardValue: 'Gefüllt mit',
     none: '— nichts —',
@@ -189,7 +189,7 @@ export const de: MessageSchema = {
     missing:
       'Der Notiztyp „{model}“ hat diese Felder nicht, deshalb verwirft Anki ihre Werte stillschweigend:',
     chineseWarning:
-      'Chinesische Erfassungen brauchen einen Notiztyp mit den Feldern Hanzi, Pinyin, Bedeutung und Audio sowie eine Zuordnung, die Pinyin füllt. Wählen Sie einen solchen Notiztyp und wenden Sie die chinesische Vorlage an, oder ordnen Sie einem Feld Pinyin zu.',
+      'Chinesische Erfassungen brauchen einen Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio sowie eine Zuordnung, die Pinyin füllt. Wählen Sie einen solchen Notiztyp und wenden Sie die chinesische Vorlage an, oder ordnen Sie einem Feld Pinyin zu.',
     sources: {
       front: 'Wort (Vorderseite)',
       back: 'Übersetzung (Rückseite)',
@@ -304,7 +304,7 @@ export const de: MessageSchema = {
       'Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie Ihren Hotkey. Prüfen Sie die Karte im Bestätigungsfenster und drücken Sie Enter zum Hinzufügen oder Esc zum Verwerfen.',
     step4Title: '4. Chinesisch',
     step4Body:
-      'Text mit chinesischen Schriftzeichen bekommt Pinyin und bei HSK-Wörtern die HSK-Stufe. Verwenden Sie einen Notiztyp mit den Feldern Hanzi, Pinyin, Bedeutung und Audio zusammen mit der chinesischen Vorlage.',
+      'Text mit chinesischen Schriftzeichen bekommt Pinyin und bei HSK-Wörtern die HSK-Stufe. Verwenden Sie einen Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio zusammen mit der chinesischen Vorlage.',
   },
   update: {
     available: 'Version {version} ist verfügbar – zum Aktualisieren neu starten.',
@@ -318,6 +318,8 @@ export const de: MessageSchema = {
     required: 'Pflichtfeld.',
     shortcutInvalid:
       'Keine gültige Tastenkombination. Modifikatoren und eine Taste verwenden, z. B. CommandOrControl+Shift+C.',
+    shortcutNeedsModifier:
+      'Strg, Cmd oder Alt hinzufügen: Eine globale Tastenkombination ohne diese Tasten würde normales Tippen abfangen. Nur Funktionstasten (F1–F24) dürfen allein stehen.',
     shortcutDuplicate: 'Wird schon von „{other}“ verwendet.',
     shortcutDuplicateDefault: 'Wird schon vom Standard-Hotkey verwendet.',
     languageUnsupported: 'Nicht unterstützte Sprache.',

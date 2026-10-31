@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseShortcut, shortcutId } from './shortcuts'
+import { leavesTypingAlone, parseShortcut, shortcutId } from './shortcuts'
 
 const id = (text: string, isMac: boolean) => {
   const parsed = parseShortcut(text, isMac)
@@ -62,5 +62,32 @@ describe('shortcutId', () => {
   it('tells different keys and modifier sets apart', () => {
     expect(id('Ctrl+Shift+C', false)).not.toBe(id('Ctrl+Shift+V', false))
     expect(id('Ctrl+Shift+C', false)).not.toBe(id('Ctrl+C', false))
+  })
+})
+
+describe('leavesTypingAlone (the backend refuses the rest)', () => {
+  const safe = (text: string, isMac = false) => {
+    const parsed = parseShortcut(text, isMac)
+    if (!parsed) throw new Error(`${text} did not parse`)
+    return leavesTypingAlone(parsed)
+  }
+
+  it.each(['C', 'Shift+C', 'shift+KeyQ', 'Digit1', 'Space', 'Shift+Enter', 'MediaPlayPause'])(
+    'refuses %j: it needs Ctrl, Alt or Cmd',
+    (text) => expect(safe(text)).toBe(false),
+  )
+
+  it.each([
+    'Ctrl+C',
+    'Alt+C',
+    'Super+C',
+    'CommandOrControl+Shift+C',
+    'F1',
+    'F8',
+    'Shift+F12',
+    'F24',
+  ])('accepts %j', (text) => {
+    expect(safe(text, false)).toBe(true)
+    expect(safe(text, true)).toBe(true)
   })
 })

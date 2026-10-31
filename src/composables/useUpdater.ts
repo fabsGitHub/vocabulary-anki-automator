@@ -8,6 +8,13 @@
  * restarting happen solely on the user's click. Every failure is logged and
  * otherwise swallowed: an update problem must never interrupt the user with a
  * dialog, and never restarts the app.
+ *
+ * Download and install are two steps on purpose. A download can take a while,
+ * and a hotkey pressed meanwhile starts a capture; installing then exits the
+ * app (Windows) and the restart follows (macOS, Linux), either of which would
+ * drop that card. So capture state is asked again right before installing, and
+ * a capture that started during the download keeps the downloaded update for
+ * the next click instead.
  */
 
 import { check, type Update } from '@tauri-apps/plugin-updater'
@@ -40,11 +47,14 @@ export interface Updater {
   installing: Ref<boolean>
   /** The last install attempt failed (already logged). */
   failed: Ref<boolean>
-  /** The user clicked while a capture was running; nothing was installed. */
+  /** A capture was running when the click came or when the download finished; nothing was installed. */
   blockedByCapture: Ref<boolean>
   /** Schedules the first check; called once when the main window mounts. */
   start(): void
-  /** Downloads and installs the update, then restarts the app. */
+  /**
+   * Downloads the update (once), asks again whether a capture runs, and only
+   * then installs it and restarts the app.
+   */
   install(): Promise<void>
   /** Hides the banner for this session. */
   dismiss(): void
@@ -68,6 +78,8 @@ export function useUpdater(options: UpdaterOptions = {}): Updater {
   let attempts = 0
   let started = false
   let disposed = false
+  /** The update whose package is downloaded and waiting to be installed. */
+  let downloaded: Update | null = null
 
   /** `true` when a capture runs, or when that cannot be determined: checking then could interrupt one. */
   async function captureBusy(): Promise<boolean> {
@@ -123,10 +135,19 @@ export function useUpdater(options: UpdaterOptions = {}): Updater {
         blockedByCapture.value = true
         return
       }
-      await pending.downloadAndInstall()
+      if (downloaded !== pending) {
+        await pending.download()
+        downloaded = pending
+      }
+      if (await captureBusy()) {
+        blockedByCapture.value = true
+        return
+      }
+      await pending.install()
       await restartApp()
     } catch (err) {
       console.error(LOG_PREFIX, 'installing the update failed', err)
+      downloaded = null
       failed.value = true
     } finally {
       installing.value = false
@@ -136,6 +157,7 @@ export function useUpdater(options: UpdaterOptions = {}): Updater {
   function dismiss(): void {
     const pending = update.value
     update.value = null
+    downloaded = null
     pending
       ?.close()
       .catch((err: unknown) => console.warn(LOG_PREFIX, 'releasing the update failed', err))

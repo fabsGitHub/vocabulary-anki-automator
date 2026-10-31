@@ -25,6 +25,20 @@ describe('ConsentDialog', () => {
     expect(text).toContain('2185b1243b924152cbac7a7668b40c0bf713902619bfc8ede5c42465066d0f05')
   })
 
+  it('describes the AnkiConnect config as exactly as § 8.4 does, never as app-exclusive', () => {
+    // The config binds loopback and limits web origins (webCorsOriginList). Any
+    // local program can still connect, so "only this app" would be a promise
+    // the consent dialog cannot keep.
+    for (const locale of ['en', 'de'] as const) {
+      setLocale(locale)
+      const text = mountDialog('ankiconnect_provision').text()
+      expect(text, locale).toContain('127.0.0.1:8765')
+      expect(text, locale).toMatch(locale === 'en' ? /web pages/ : /Webseiten/)
+      expect(text, locale).not.toMatch(/only accepts connections from this app/i)
+      expect(text, locale).not.toMatch(/nur Verbindungen dieser App/i)
+    }
+  })
+
   it('states what the Anki install downloads, from where, how it is verified and where it goes', () => {
     const text = mountDialog('anki_install').text()
     expect(text).toContain('Install Anki 24.06.3?')

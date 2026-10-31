@@ -172,6 +172,8 @@ export function toSettingsPayload(config: AppConfig): AppConfig {
 export interface ConfigStore {
   /** The working copy the form edits. Holds the defaults until {@link ConfigStore.load} succeeds. */
   config: Ref<AppConfig>
+  /** What the backend runs with: the config as last loaded or saved. Read-only. */
+  saved: ComputedRef<AppConfig>
   loaded: Ref<boolean>
   loading: Ref<boolean>
   loadError: Ref<string | null>
@@ -218,7 +220,9 @@ export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
   const issues = computed(() => validateConfig(payload.value, isMac))
   const isValid = computed(() => issues.value.length === 0)
 
+  /** A fresh, mutable copy of the stored config. */
   const savedConfig = (): AppConfig => JSON.parse(snapshot.value) as AppConfig
+  const saved = computed(savedConfig)
 
   async function load(): Promise<void> {
     loading.value = true
@@ -235,6 +239,24 @@ export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
     }
   }
 
+  /**
+   * After a refused save or language switch, takes what the backend now
+   * stores as the saved state. A validation error stores nothing, but
+   * `apply_settings` also rejects when the file was written and only a
+   * shortcut could not be registered (another app owns it); keeping the old
+   * snapshot then would let Revert, and the next language switch, send the
+   * old settings back.
+   */
+  async function resyncSaved(): Promise<void> {
+    try {
+      snapshot.value = JSON.stringify(
+        toSettingsPayload(normalizeConfig(await getCurrentSettings())),
+      )
+    } catch (err) {
+      console.warn('[settings] could not re-read the settings after a failed save:', err)
+    }
+  }
+
   async function save(): Promise<boolean> {
     if (!loaded.value || saving.value) return false
     saveError.value = null
@@ -247,6 +269,7 @@ export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
       return true
     } catch (err) {
       saveError.value = errorMessage(err)
+      await resyncSaved()
       return false
     } finally {
       saving.value = false
@@ -263,15 +286,16 @@ export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
     config.value.ui_lang = lang
     uiLangError.value = null
     if (!loaded.value) return false
-    const saved = savedConfig()
-    if (saved.ui_lang === lang) return true
-    saved.ui_lang = lang
+    const stored = savedConfig()
+    if (stored.ui_lang === lang) return true
+    stored.ui_lang = lang
     try {
-      await applySettings(saved)
-      snapshot.value = JSON.stringify(saved)
+      await applySettings(stored)
+      snapshot.value = JSON.stringify(stored)
       return true
     } catch (err) {
       uiLangError.value = errorMessage(err)
+      await resyncSaved()
       return false
     }
   }
@@ -283,13 +307,14 @@ export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
     }
     config.value.consent = copy
     if (!loaded.value) return
-    const saved = savedConfig()
-    saved.consent = { ...copy }
-    snapshot.value = JSON.stringify(saved)
+    const stored = savedConfig()
+    stored.consent = { ...copy }
+    snapshot.value = JSON.stringify(stored)
   }
 
   return {
     config,
+    saved,
     loaded,
     loading,
     loadError,

@@ -149,3 +149,17 @@ export function parseShortcut(text: string, isMac: boolean = IS_MAC): Shortcut |
 export function shortcutId(shortcut: Shortcut): string {
   return [...shortcut.modifiers, shortcut.key].join('+')
 }
+
+const FUNCTION_KEY = /^F([1-9]|1\d|2[0-4])$/
+
+/**
+ * The backend's second rule after the grammar (`shortcuts::parse_shortcut`):
+ * a global shortcut takes its key away from every other app, so it needs
+ * Ctrl, Alt or Cmd. A letter alone, or with only Shift, would swallow normal
+ * typing; function keys may stand alone.
+ */
+export function leavesTypingAlone(shortcut: Shortcut): boolean {
+  return (
+    shortcut.modifiers.some((modifier) => modifier !== 'shift') || FUNCTION_KEY.test(shortcut.key)
+  )
+}

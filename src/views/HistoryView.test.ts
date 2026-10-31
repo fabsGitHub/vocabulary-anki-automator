@@ -169,8 +169,15 @@ describe('deleting', () => {
   })
 
   it('deletes the confirmed capture by id and reloads', async () => {
+    // Deleting one frees a place in the latest 50, so the reload brings in an older capture.
+    const OLDER: StoredCapture = {
+      id: 0,
+      card: card({ front: 'house', back: 'Haus', captured_at: '2026-10-29T08:00:00Z' }),
+      origin: 'capture',
+      synced_to_anki: true,
+    }
     onCommand('delete_capture', () => {
-      onCommand('list_recent_captures', [ENGLISH])
+      onCommand('list_recent_captures', [ENGLISH, OLDER])
       return true
     })
     await mountHistory()
@@ -178,8 +185,11 @@ describe('deleting', () => {
     await items()[0].find('[data-test="confirm-delete"]').trigger('click')
     await flushPromises()
     expect(callsTo('delete_capture').map((call) => call.args)).toEqual([{ id: 2 }])
-    expect(items()).toHaveLength(1)
-    expect(items()[0].find('[data-test="front"]').text()).toBe('serendipity')
+    expect(callsTo('list_recent_captures')).toHaveLength(2)
+    expect(items().map((item) => item.find('[data-test="front"]').text())).toEqual([
+      'serendipity',
+      'house',
+    ])
   })
 
   it('reports a capture that was already gone', async () => {

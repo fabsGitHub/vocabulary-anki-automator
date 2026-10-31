@@ -186,6 +186,41 @@ describe('MainWindow', () => {
     expect(wrapper?.text()).toContain('The approval window opens when the card is ready.')
   })
 
+  it('leaves the Enter that commits an input method composition to the IME', async () => {
+    onCommand('capture_text', null)
+    await mountMain()
+    const input = wrapper?.find('[data-test="try-text"]')
+    await input?.setValue('学习')
+    await input?.trigger('keydown', { key: 'Enter', isComposing: true })
+    await input?.trigger('keydown', { key: 'Enter', keyCode: 229 })
+    await flushPromises()
+    expect(callsTo('capture_text')).toHaveLength(0)
+
+    await input?.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(callsTo('capture_text').map((call) => call.args)).toEqual([
+      { text: '学习', profileId: null },
+    ])
+  })
+
+  it('offers only saved hotkey profiles for the test capture', async () => {
+    const tryProfiles = () =>
+      wrapper?.findAll('select[aria-label="Hotkey"] option').map((o) => o.attributes('value'))
+    await mountMain()
+    expect(tryProfiles()).toEqual([''])
+
+    await tab('profiles')?.trigger('click')
+    await wrapper?.find('[data-test="add-profile"]').trigger('click')
+    await wrapper?.find('[data-test="profile-shortcut"]').setValue('CommandOrControl+Shift+J')
+    await tab('capture')?.trigger('click')
+    expect(tryProfiles()).toEqual([''])
+
+    await wrapper?.find('[data-test="save"]').trigger('click')
+    await flushPromises()
+    expect(sentConfigs()).toHaveLength(1)
+    expect(tryProfiles()).toEqual(['', 'en-de'])
+  })
+
   it('hosts the update banner', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     onCommand('capture_in_progress', false)

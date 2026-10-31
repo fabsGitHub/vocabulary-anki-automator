@@ -5,7 +5,7 @@
  * C: provider-neutral, with the optional MyMemory contact e-mail), plus a
  * test capture that runs the real pipeline without the OS hotkey.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { captureText, errorMessage } from '../api'
@@ -36,6 +36,15 @@ const tryProfile = ref('')
 const trying = ref(false)
 const tryResult = ref<{ tone: 'success' | 'error'; text: string } | null>(null)
 
+/** `capture_text` resolves the profile in the saved settings, so unsaved profiles are not offered. */
+const tryProfiles = computed(() => store.saved.value.hotkey_profiles)
+
+watch(tryProfiles, (profiles) => {
+  if (tryProfile.value && !profiles.some((profile) => profile.id === tryProfile.value)) {
+    tryProfile.value = ''
+  }
+})
+
 async function tryCapture(): Promise<void> {
   const text = tryText.value.trim()
   if (!text || trying.value) return
@@ -49,6 +58,17 @@ async function tryCapture(): Promise<void> {
   } finally {
     trying.value = false
   }
+}
+
+/**
+ * Enter captures, except the Enter that commits an input method's
+ * composition (typing hanzi with a pinyin keyboard): that one belongs to the
+ * IME, and WebKit reports it with keyCode 229 rather than `isComposing`.
+ */
+function onTryEnter(event: KeyboardEvent): void {
+  if (event.isComposing || event.keyCode === 229) return
+  event.preventDefault()
+  void tryCapture()
 }
 </script>
 
@@ -169,7 +189,7 @@ async function tryCapture(): Promise<void> {
           data-test="try-text"
           :placeholder="t('capture.tryPlaceholder')"
           :aria-label="t('capture.tryPlaceholder')"
-          @keydown.enter.prevent="tryCapture"
+          @keydown.enter="onTryEnter"
         />
         <select
           v-model="tryProfile"
@@ -177,7 +197,7 @@ async function tryCapture(): Promise<void> {
           :aria-label="t('capture.tryProfile')"
         >
           <option value="">{{ t('capture.tryDefaultProfile') }}</option>
-          <option v-for="profile in config.hotkey_profiles" :key="profile.id" :value="profile.id">
+          <option v-for="profile in tryProfiles" :key="profile.id" :value="profile.id">
             {{ profile.label || profile.id }}
           </option>
         </select>
