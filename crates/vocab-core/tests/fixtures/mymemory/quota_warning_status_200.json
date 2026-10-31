@@ -1,0 +1,13 @@
+{
+  "responseData": {
+    "translatedText": "MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY. NEXT AVAILABLE IN  23 HOURS 59 MINUTES 59 SECONDS VISIT HTTPS:\/\/MYMEMORY.TRANSLATED.NET\/DOC\/USAGELIMITS.PHP TO TRANSLATE MORE",
+    "match": 1
+  },
+  "quotaFinished": false,
+  "mtLangSupported": null,
+  "responseDetails": "",
+  "responseStatus": 200,
+  "responderId": null,
+  "exception_code": null,
+  "matches": []
+}
