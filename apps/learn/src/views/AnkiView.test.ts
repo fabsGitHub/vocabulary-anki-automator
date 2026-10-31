@@ -1,0 +1,233 @@
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
+import { afterEach, describe, expect, it } from 'vitest'
+
+import type { LearnSettings } from '../platform/types'
+import { deferred, fakePlatform, mountWith, type FakePlatform } from '../test/fakePlatform'
+import * as fx from '../test/fixtures'
+import AnkiView from './AnkiView.vue'
+
+let wrapper: VueWrapper | null = null
+
+// Attached, because a detached form never submits (the save and import buttons are submit buttons).
+async function mountAnki(platform: FakePlatform): Promise<VueWrapper> {
+  wrapper = mountWith(AnkiView, { platform }, { attachTo: document.body })
+  await flushPromises()
+  return wrapper
+}
+
+const find = (selector: string) => wrapper!.find(selector)
+const input = (selector: string) => find(selector).element as HTMLInputElement
+
+async function click(selector: string): Promise<void> {
+  await find(selector).trigger('click')
+  await flushPromises()
+}
+
+afterEach(() => {
+  wrapper?.unmount()
+  wrapper = null
+})
+
+describe('settings', () => {
+  it('loads the meaning language, deck, note type and reverse cards', async () => {
+    const platform = fakePlatform()
+    await mountAnki(platform)
+    expect(platform.getSettings).toHaveBeenCalledTimes(1)
+    expect((find('[data-test="meaning-lang"]').element as HTMLSelectElement).value).toBe('de')
+    expect(input('[data-test="deck"]').value).toBe('Chinese::HSK')
+    expect(input('[data-test="model"]').value).toBe('Chinese (Hanzi)')
+    expect(input('[data-test="reverse"]').checked).toBe(false)
+    expect(find('[data-test="save"]').attributes('disabled')).toBeDefined()
+    expect(wrapper!.text()).toContain('German meanings are not bundled yet')
+  })
+
+  it('saves the edits and keeps everything it does not edit', async () => {
+    const platform = fakePlatform()
+    await mountAnki(platform)
+    await find('[data-test="meaning-lang"]').setValue('en')
+    await find('[data-test="deck"]').setValue('  Mandarin::Daily  ')
+    await find('[data-test="model"]').setValue('Basic')
+    await find('[data-test="reverse"]').setValue(true)
+    expect(wrapper!.text()).toContain('Unsaved changes')
+
+    await click('[data-test="save"]')
+
+    const expected: LearnSettings = fx.settings((value) => {
+      value.meaning_lang = 'en'
+      value.anki.deck_name = 'Mandarin::Daily'
+      value.anki.model_name = 'Basic'
+      value.anki.create_reverse = true
+    })
+    expect(platform.saveSettings).toHaveBeenCalledTimes(1)
+    expect(platform.saveSettings).toHaveBeenCalledWith(expected)
+    expect(find('[data-test="saved"]').text()).toBe('Settings saved.')
+    expect(input('[data-test="deck"]').value).toBe('Mandarin::Daily')
+    expect(find('[data-test="save"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('requires a deck and a note type', async () => {
+    const platform = fakePlatform()
+    await mountAnki(platform)
+    await find('[data-test="deck"]').setValue('   ')
+    expect(wrapper!.text()).toContain('Required.')
+    expect(find('[data-test="save"]').attributes('disabled')).toBeDefined()
+    await find('form').trigger('submit')
+    await flushPromises()
+    expect(platform.saveSettings).not.toHaveBeenCalled()
+  })
+
+  it('reverts unsaved edits', async () => {
+    await mountAnki(fakePlatform())
+    await find('[data-test="model"]').setValue('Basic')
+    await click('[data-test="revert"]')
+    expect(input('[data-test="model"]').value).toBe('Chinese (Hanzi)')
+    expect(find('[data-test="revert"]').exists()).toBe(false)
+  })
+
+  it('shows why saving failed and keeps the edits', async () => {
+    const platform = fakePlatform()
+    platform.saveSettings.mockRejectedValueOnce('database is locked')
+    await mountAnki(platform)
+    await find('[data-test="model"]').setValue('Basic')
+    await click('[data-test="save"]')
+    expect(find('[data-test="save-error"]').text()).toContain('database is locked')
+    expect(input('[data-test="model"]').value).toBe('Basic')
+  })
+
+  it('offers a retry when the settings do not load', async () => {
+    const platform = fakePlatform()
+    platform.getSettings.mockRejectedValueOnce('database is locked')
+    await mountAnki(platform)
+    expect(find('[data-test="settings-error"]').text()).toContain('database is locked')
+    await click('[data-test="settings-retry"]')
+    expect(input('[data-test="deck"]').value).toBe('Chinese::HSK')
+  })
+})
+
+describe('Anki export', () => {
+  it('exports with the saved settings and summarizes the report', async () => {
+    const platform = fakePlatform()
+    platform.ankiExport.mockResolvedValue(
+      fx.report({
+        attempted: 5,
+        succeeded: 2,
+        skipped: 2,
+        failed: [{ card_id: 4, front: '老师', error: 'model was not found: Chinese (Hanzi)' }],
+      }),
+    )
+    await mountAnki(platform)
+    await click('[data-test="export"]')
+    expect(platform.ankiExport).toHaveBeenCalledTimes(1)
+    const report = find('[data-test="export-report"]')
+    expect(report.find('[data-test="report-summary"]').text()).toBe('Exported: 2 of 5.')
+    expect(report.find('[data-test="report-skipped"]').text()).toBe('Already in Anki: 2.')
+    expect(report.find('[data-test="report-failures"]').text()).toBe('Not transferred: 1')
+    expect(report.find('[data-test="report-failure"]').text()).toBe(
+      '老师: model was not found: Chinese (Hanzi)',
+    )
+    expect(report.classes()).toContain('warning')
+  })
+
+  it('waits for unsaved changes, since it exports to the saved deck', async () => {
+    const platform = fakePlatform()
+    await mountAnki(platform)
+    await find('[data-test="deck"]').setValue('Other')
+    expect(find('[data-test="export"]').attributes('disabled')).toBeDefined()
+    expect(find('[data-test="save-first"]').text()).toContain('Save your changes first')
+    await click('[data-test="save"]')
+    expect(find('[data-test="export"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('says there was nothing to export', async () => {
+    const platform = fakePlatform()
+    platform.ankiExport.mockResolvedValue(fx.report({ attempted: 0, succeeded: 0 }))
+    await mountAnki(platform)
+    await click('[data-test="export"]')
+    expect(find('[data-test="report-summary"]').text()).toBe('There was nothing to export.')
+    expect(find('[data-test="export-report"]').classes()).toContain('success')
+  })
+
+  it('explains a failed export', async () => {
+    const platform = fakePlatform()
+    platform.ankiExport.mockRejectedValueOnce('Anki is not reachable at http://127.0.0.1:8765')
+    await mountAnki(platform)
+    await click('[data-test="export"]')
+    const error = find('[data-test="export-error"]')
+    expect(error.attributes('role')).toBe('alert')
+    expect(error.text()).toContain('The export failed: Anki is not reachable')
+    expect(error.text()).toContain('AnkiConnect')
+  })
+
+  it('runs one transfer at a time', async () => {
+    const platform = fakePlatform()
+    const pending = deferred<ReturnType<typeof fx.report>>()
+    platform.ankiExport.mockReturnValueOnce(pending.promise)
+    await mountAnki(platform)
+    const exportButton = find('[data-test="export"]')
+    ;(exportButton.element as HTMLElement).focus()
+    await click('[data-test="export"]')
+    expect(exportButton.text()).toBe('Exporting…')
+    // Unavailable while it runs, but still focusable: a keyboard user keeps their place.
+    expect(exportButton.attributes('aria-disabled')).toBe('true')
+    expect(exportButton.attributes('disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(exportButton.element)
+    expect(find('[data-test="import"]').attributes('aria-disabled')).toBe('true')
+    await click('[data-test="import"]')
+    await click('[data-test="export"]')
+    expect(platform.ankiImport).not.toHaveBeenCalled()
+    expect(platform.ankiExport).toHaveBeenCalledTimes(1)
+
+    pending.resolve(fx.report())
+    await flushPromises()
+    expect(find('[data-test="import"]').attributes('aria-disabled')).toBeUndefined()
+    expect(exportButton.attributes('aria-disabled')).toBeUndefined()
+  })
+})
+
+describe('Anki import', () => {
+  it('imports the typed deck, starting from the saved one', async () => {
+    const platform = fakePlatform()
+    platform.ankiImport.mockResolvedValue(fx.report({ attempted: 3, succeeded: 2, skipped: 1 }))
+    await mountAnki(platform)
+    expect(input('[data-test="import-deck"]').value).toBe('Chinese::HSK')
+    await find('[data-test="import-deck"]').setValue(' Mandarin::Old deck ')
+    await click('[data-test="import"]')
+    expect(platform.ankiImport).toHaveBeenCalledWith('Mandarin::Old deck')
+    expect(find('[data-test="import-report"]').text()).toContain('Imported: 2 of 3.')
+    expect(find('[data-test="import-report"]').text()).toContain('Already captured: 1.')
+  })
+
+  it('names cards without a front by their id', async () => {
+    const platform = fakePlatform()
+    platform.ankiImport.mockResolvedValue(
+      fx.report({ attempted: 1, succeeded: 0, failed: [{ card_id: null, front: '', error: 'x' }] }),
+    )
+    await mountAnki(platform)
+    await click('[data-test="import"]')
+    expect(find('[data-test="report-failure"]').text()).toBe('—: x')
+  })
+
+  it('needs a deck name and explains a failure', async () => {
+    const platform = fakePlatform()
+    platform.ankiImport.mockRejectedValueOnce('deck not found: Nope')
+    await mountAnki(platform)
+    await find('[data-test="import-deck"]').setValue('')
+    expect(find('[data-test="import"]').attributes('disabled')).toBeDefined()
+    await find('[data-test="import-deck"]').setValue('Nope')
+    await click('[data-test="import"]')
+    expect(find('[data-test="import-error"]').text()).toContain('The import failed: deck not found')
+  })
+})
+
+describe('without AnkiConnect', () => {
+  it('keeps the settings but hides export and import', async () => {
+    const platform = fakePlatform({ kind: 'web', tts: false, anki: false })
+    await mountAnki(platform)
+    expect(find('[data-test="anki-unavailable"]').text()).toBe(
+      'Anki export and import need the desktop app.',
+    )
+    expect(find('[data-test="export"]').exists()).toBe(false)
+    expect(find('[data-test="import"]').exists()).toBe(false)
+    expect(find('[data-test="meaning-lang"]').exists()).toBe(true)
+  })
+})
