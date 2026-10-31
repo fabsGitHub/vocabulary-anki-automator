@@ -747,14 +747,24 @@ core logic, verified against golden vectors generated from the Rust core).
 | `get_card`               | `cardId: number`                                       | `StoredCapture`               |
 | `preview_ratings`        | `cardId: number`                                       | `RatingPreview[]`             |
 | `submit_review_rating`   | `cardId: number, rating: 1\|2\|3\|4`                   | `ReviewResult`                |
+| `list_learned_cards`     | —                                                      | `LearnedCard[]` (the pool)    |
 | `next_exercise`          | `cardId: number, kind: ExerciseKind, seed: number`     | `Exercise`                    |
+| `check_exercise`         | `exercise: Exercise, answer: ExerciseAnswer`           | `boolean`                     |
 | `record_exercise_result` | `cardId: number, kind: ExerciseKind, correct: boolean` | `number` (XP awarded)         |
 | `get_stats`              | —                                                      | `StatsSummary`                |
 | `list_lessons`           | —                                                      | `Lesson[]`                    |
 | `complete_lesson`        | `lessonId: string`                                     | `number` (XP awarded)         |
 | `get_card_audio`         | `cardId: number`                                       | `string \| null` (base64 MP3) |
-| `anki_export`            | `deck: string, model: string`                          | `AnkiSyncReport`              |
+| `synthesize_audio`       | `text: string, lang: string`                           | `string \| null` (base64 MP3) |
+| `get_settings`           | —                                                      | `LearnSettings`               |
+| `save_settings`          | `settings: LearnSettings`                              | `null`                        |
+| `anki_export`            | — (deck/model/mapping from settings)                   | `AnkiSyncReport`              |
 | `anki_import`            | `deck: string`                                         | `AnkiSyncReport`              |
+
+`apps/learn/src/platform/types.ts` is the TypeScript side of this table and holds
+every argument and result shape (`ReviewResult`, `LearnedCard`, `LearnSettings`,
+`AnkiSyncReport`, `PlatformCapabilities`, ...). The web adapter rejects the TTS and
+Anki methods with a clear message and reports `tts: false, anki: false`.
 
 ## 11. Serialized shapes (TypeScript)
 
