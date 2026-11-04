@@ -173,6 +173,12 @@ const autoMatch = object({
   guessed: array(string),
   unmatched: array(string),
 })
+const recommendedNoteType = object({
+  model_name: string,
+  mapping: fieldMapping,
+  created: boolean,
+  matches_by_name: boolean,
+})
 const lostValue = union(
   object({ kind: literal('missing_field'), anki_field: string, source: cardField }),
   object({ kind: literal('unmapped'), source: cardField }),
@@ -255,6 +261,7 @@ const SCHEMAS = {
   FieldBinding: fieldBinding,
   FieldMapping: fieldMapping,
   AutoMatch: autoMatch,
+  RecommendedNoteType: recommendedNoteType,
   LostValue: lostValue,
   FieldCheck: fieldCheck,
   HotkeyProfile: hotkeyProfile,
@@ -293,6 +300,7 @@ interface Types {
   FieldBinding: T.FieldBinding
   FieldMapping: T.FieldMapping
   AutoMatch: T.AutoMatch
+  RecommendedNoteType: T.RecommendedNoteType
   LostValue: T.LostValue
   FieldCheck: T.FieldCheck
   HotkeyProfile: T.HotkeyProfile
@@ -335,6 +343,7 @@ interface Results {
   'StoredCapture[]': T.StoredCapture[]
   SyncReport: T.SyncReport
   AutoMatch: T.AutoMatch
+  RecommendedNoteType: T.RecommendedNoteType
   'FieldCheck | null': T.FieldCheck | null
   never: never
 }
@@ -351,6 +360,7 @@ const RETURNS = {
   ankiModelFieldNames: 'string[]',
   suggestFieldMapping: 'AutoMatch',
   checkPendingFields: 'FieldCheck | null',
+  createRecommendedNoteType: 'RecommendedNoteType',
   launchAnkiDesktop: 'string',
   getSetupStatus: 'SetupStatus',
   grantConsent: 'ConsentState',
@@ -388,6 +398,7 @@ const CALLS: Record<Wrapper, () => Promise<unknown>> = {
   ankiModelFieldNames: () => commands.ankiModelFieldNames('Basic'),
   suggestFieldMapping: () => commands.suggestFieldMapping('Basic', 'en', 'de'),
   checkPendingFields: () => commands.checkPendingFields(sample('Card')),
+  createRecommendedNoteType: () => commands.createRecommendedNoteType(),
   launchAnkiDesktop: () => commands.launchAnkiDesktop(),
   getSetupStatus: () => commands.getSetupStatus(),
   grantConsent: () => commands.grantConsent('anki_install'),

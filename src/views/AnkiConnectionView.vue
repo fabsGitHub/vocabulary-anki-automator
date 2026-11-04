@@ -13,19 +13,27 @@
  * own. Offline, "Customize" starts from the Apple-style preset.
  *
  * Deck and note type stay editable while Anki is offline, as free text; the
- * lists Anki reports replace the text fields once it is online.
+ * lists Anki reports replace the text fields once it is online. While it is
+ * online, "Create the recommended note type" (`RecommendedNoteType`) adds the
+ * note type with a field for every value and selects it here, matched by
+ * name (`selectRecommendedNoteType`).
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ConsentDialog from '../components/ConsentDialog.vue'
 import MappingChoiceEditor from '../components/MappingChoiceEditor.vue'
+import RecommendedNoteType from '../components/RecommendedNoteType.vue'
 import { useAnkiConnectionContext } from '../composables/useAnkiConnection'
 import { useAutoMatches, type AutoMatchRequest } from '../composables/useAutoMatches'
 import { useConfigStore } from '../composables/useConfig'
 import { useIssueText } from '../composables/useIssueText'
 import { useModelFields } from '../composables/useModelFields'
-import { appleStyleMapping, needsChineseNoteType } from '../domain/fieldMapping'
+import {
+  appleStyleMapping,
+  needsChineseNoteType,
+  selectRecommendedNoteType,
+} from '../domain/fieldMapping'
 
 const { t } = useI18n()
 const store = useConfigStore()
@@ -239,6 +247,10 @@ const fallback = appleStyleMapping()
           }}</span>
         </div>
       </div>
+      <RecommendedNoteType
+        :model-name="config.anki.model_name"
+        @use="(noteType) => selectRecommendedNoteType(config.anki, noteType)"
+      />
     </section>
 
     <section class="pane-layout">

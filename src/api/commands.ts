@@ -18,6 +18,7 @@ import type {
   ConsentState,
   FieldCheck,
   PendingCapture,
+  RecommendedNoteType,
   SetupStatus,
   StoredCapture,
   SubmitResult,
@@ -88,6 +89,15 @@ export function suggestFieldMapping(
  */
 export function checkPendingFields(card?: Card): Promise<FieldCheck | null> {
   return invoke<FieldCheck | null>('check_pending_fields', { card: card ?? null })
+}
+
+/**
+ * Creates the recommended note type in Anki, or reuses one of that name with
+ * every field; rejects for one with other fields, which stays as it is.
+ * Writes to the user's Anki collection: only a click may call it.
+ */
+export function createRecommendedNoteType(): Promise<RecommendedNoteType> {
+  return invoke<RecommendedNoteType>('create_recommended_note_type')
 }
 
 export function launchAnkiDesktop(): Promise<string> {

@@ -796,30 +796,31 @@ language pair in capture order.
 
 ### 8.2 Commands (`invoke` names; JS passes args in camelCase)
 
-| command                       | args                                                    | returns                                                                                                 |
-| ----------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `get_current_settings`        | —                                                       | `AppConfig`                                                                                             |
-| `apply_settings`              | `newCfg: AppConfig`                                     | `null` (re-registers shortcuts; validation errors as `string`)                                          |
-| `get_pending_payload`         | —                                                       | `PendingCapture \| null`                                                                                |
-| `discard_pending_payload`     | —                                                       | `null` (clears state, hides `preview`)                                                                  |
-| `execute_card_generation`     | `card: Card`                                            | `SubmitResult`                                                                                          |
-| `capture_text`                | `text: string, profileId: string \| null`               | `null` (runs the pipeline as if the hotkey had copied `text`; the internal capture event for tests/E2E) |
-| `rerun_pending_capture`       | `sourceLang: string, text: string, generation: number`  | `PendingCapture` (the pending card captured again as `sourceLang`; also sent as `translation-payload`)  |
-| `anki_status`                 | —                                                       | `AnkiStatus`                                                                                            |
-| `anki_model_field_names`      | `model: string`                                         | `string[]`                                                                                              |
-| `suggest_field_mapping`       | `model: string, sourceLang: string, targetLang: string` | `AutoMatch` (`modelFieldNames`, then `FieldMapping::auto_match`; saves nothing)                         |
-| `check_pending_fields`        | `card: Card \| null`                                    | `FieldCheck \| null` (what a push of the pending card would drop; `null` when nothing is pending)       |
-| `launch_anki_desktop`         | —                                                       | `string`                                                                                                |
-| `get_setup_status`            | —                                                       | `SetupStatus`                                                                                           |
-| `grant_consent`               | `action: "anki_install" \| "ankiconnect_provision"`     | `ConsentState`                                                                                          |
-| `download_and_install_anki`   | —                                                       | `string` (error unless consent granted)                                                                 |
-| `auto_provision_ankiconnect`  | —                                                       | `string` (error unless consent granted)                                                                 |
-| `check_ankiconnect_installed` | —                                                       | `boolean`                                                                                               |
-| `list_recent_captures`        | `limit: number`                                         | `StoredCapture[]`                                                                                       |
-| `delete_capture`              | `id: number`                                            | `boolean`                                                                                               |
-| `sync_pending_captures`       | —                                                       | `SyncReport`                                                                                            |
-| `capture_in_progress`         | —                                                       | `boolean`                                                                                               |
-| `restart_app`                 | —                                                       | never returns                                                                                           |
+| command                        | args                                                    | returns                                                                                                 |
+| ------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `get_current_settings`         | —                                                       | `AppConfig`                                                                                             |
+| `apply_settings`               | `newCfg: AppConfig`                                     | `null` (re-registers shortcuts; validation errors as `string`)                                          |
+| `get_pending_payload`          | —                                                       | `PendingCapture \| null`                                                                                |
+| `discard_pending_payload`      | —                                                       | `null` (clears state, hides `preview`)                                                                  |
+| `execute_card_generation`      | `card: Card`                                            | `SubmitResult`                                                                                          |
+| `capture_text`                 | `text: string, profileId: string \| null`               | `null` (runs the pipeline as if the hotkey had copied `text`; the internal capture event for tests/E2E) |
+| `rerun_pending_capture`        | `sourceLang: string, text: string, generation: number`  | `PendingCapture` (the pending card captured again as `sourceLang`; also sent as `translation-payload`)  |
+| `anki_status`                  | —                                                       | `AnkiStatus`                                                                                            |
+| `anki_model_field_names`       | `model: string`                                         | `string[]`                                                                                              |
+| `suggest_field_mapping`        | `model: string, sourceLang: string, targetLang: string` | `AutoMatch` (`modelFieldNames`, then `FieldMapping::auto_match`; saves nothing)                         |
+| `check_pending_fields`         | `card: Card \| null`                                    | `FieldCheck \| null` (what a push of the pending card would drop; `null` when nothing is pending)       |
+| `create_recommended_note_type` | —                                                       | `RecommendedNoteType` (creates or reuses the recommended note type in Anki; writes no config)           |
+| `launch_anki_desktop`          | —                                                       | `string`                                                                                                |
+| `get_setup_status`             | —                                                       | `SetupStatus`                                                                                           |
+| `grant_consent`                | `action: "anki_install" \| "ankiconnect_provision"`     | `ConsentState`                                                                                          |
+| `download_and_install_anki`    | —                                                       | `string` (error unless consent granted)                                                                 |
+| `auto_provision_ankiconnect`   | —                                                       | `string` (error unless consent granted)                                                                 |
+| `check_ankiconnect_installed`  | —                                                       | `boolean`                                                                                               |
+| `list_recent_captures`         | `limit: number`                                         | `StoredCapture[]`                                                                                       |
+| `delete_capture`               | `id: number`                                            | `boolean`                                                                                               |
+| `sync_pending_captures`        | —                                                       | `SyncReport`                                                                                            |
+| `capture_in_progress`          | —                                                       | `boolean`                                                                                               |
+| `restart_app`                  | —                                                       | never returns                                                                                           |
 
 Events: `translation-payload` (`PendingCapture`, emitted to the `preview`
 window), `capture-error` (`{ message: string }`, app-wide),
@@ -917,6 +918,28 @@ Further rules both sides rely on:
   (`anki_model_field_names`) for customized mappings only, once while Anki stays
   online, from a cache the main window shares between them
   (`src/composables/useModelFields.ts`).
+- `create_recommended_note_type` sets up the recommended note type (§ 9
+  `recommended_note_type`, "Vocabulary Automator") in the user's collection, the
+  one command besides the pushes that writes to it. It runs only from the button
+  both settings tabs show while Anki is online (the Anki tab under the note type,
+  each "My languages" entry under its own; `src/components/RecommendedNoteType.vue`),
+  never at startup, and the tests only against a mock AnkiConnect. It reads
+  `modelNames`; without that name it sends `createModel` with the spec's fields,
+  CSS and template (`created: true`). With it, it reads `modelFieldNames` and reuses
+  the note type as it is when it has every recommended field (`created: false`;
+  extra fields are fine), and otherwise fails naming the missing fields: an existing
+  note type is never changed or replaced (AnkiConnect's `createModel` refuses a
+  name the collection has anyway). It returns the name, `FieldMapping::recommended`
+  and `matches_by_name`, whether matching the note type's fields by name gives
+  exactly that mapping for every language pair (`FieldMapping::is_matched_by_name`;
+  always true for a note type it created). It writes no config: the button selects
+  the note type for its place in the form and, when `matches_by_name`, leaves that
+  place's mapping `null` (matched by name, the simplest config), else saves the
+  mapping; the user saves the form. The button runs as the Anki connection's
+  `note_type` activity, so it never overlaps a rescan, launch or install, and the
+  note type lists are read again afterwards. When Anki already lists the note type,
+  the button says "Use" instead of "Create". The mapping is also the first preset
+  of the mapping editor.
 
 ### 8.3 Windows and capabilities
 
@@ -972,7 +995,9 @@ holds the Accessibility permission, which macOS ties to its signature).
 ### 8.4 Consent & supply chain (Milestone E)
 
 - Startup only _checks_ (`check_anki_installed`, `check_ankiconnect_installed`);
-  nothing is downloaded, installed or launched without a user click.
+  nothing is downloaded, installed or launched without a user click. Creating the
+  recommended note type (§ 8.2) writes to the collection, so it waits for a click
+  too; it records no consent, since it downloads nothing and only ever adds.
 - Each install action requires a one-time consent recorded in
   `config.consent.*_granted_at` via `grant_consent`; the UI shows a consent
   dialog that explains exactly what will be downloaded, from where, and what
@@ -1143,7 +1168,8 @@ Semantics:
   AnkiDroid's `night_mode` classes. Matching its field names by name gives exactly
   `FieldMapping::recommended` for every language pair, so a place that uses it can
   leave its mapping `null`. The name is the one place the product name appears in
-  Rust.
+  Rust; the frontend mirrors it in `RECOMMENDED_NOTE_TYPE`
+  (`src/domain/fieldMapping.ts`, pinned to `mapper.rs` by its tests).
 
 - `lost_values` checks the forward note only (the reverse note writes the same
   fields): a binding whose field the note type lacks while the card has a value for
@@ -1375,6 +1401,12 @@ interface AutoMatch {
   mapping: FieldMapping // bindings in note-type order
   guessed: string[] // fields bound only by position
   unmatched: string[] // fields left empty (the audio field excluded)
+}
+interface RecommendedNoteType {
+  model_name: string
+  mapping: FieldMapping // FieldMapping::recommended
+  created: boolean // false: an existing note type of that name was reused
+  matches_by_name: boolean // matching its fields by name gives exactly mapping
 }
 type LostValue =
   | { kind: 'missing_field'; anki_field: string; source: CardField }

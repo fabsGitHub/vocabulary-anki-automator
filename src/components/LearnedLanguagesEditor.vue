@@ -15,7 +15,8 @@
  * or the Apple-style preset while that one is matched by name too) and
  * "Stop customizing". A Chinese entry is checked for a Pinyin field in the
  * mapping it will use: the saved one, or else the preview (offline, an entry
- * matched by name stays silent).
+ * matched by name stays silent). Each entry offers to create the recommended
+ * note type (`RecommendedNoteType`) and select it for that entry.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -23,12 +24,13 @@ import { useI18n } from 'vue-i18n'
 import type { LearnedLanguage } from '../api'
 import LanguageSelect from './LanguageSelect.vue'
 import MappingChoiceEditor from './MappingChoiceEditor.vue'
+import RecommendedNoteType from './RecommendedNoteType.vue'
 import { useAnkiConnectionContext } from '../composables/useAnkiConnection'
 import { useAutoMatches, type AutoMatchRequest } from '../composables/useAutoMatches'
 import { useConfigStore } from '../composables/useConfig'
 import { useIssueText } from '../composables/useIssueText'
 import { useModelFields } from '../composables/useModelFields'
-import { appleStyleMapping, lacksPinyin } from '../domain/fieldMapping'
+import { appleStyleMapping, lacksPinyin, selectRecommendedNoteType } from '../domain/fieldMapping'
 import { isChinese, isSupportedLang, normalizeLang } from '../domain/language'
 import {
   DEFAULT_DECKS,
@@ -211,6 +213,11 @@ function issue(index: number, field: keyof LearnedLanguage): string | null {
           <span>{{ t('mapping.createReverse') }}</span>
         </label>
       </div>
+
+      <RecommendedNoteType
+        :model-name="entry.model_name"
+        @use="(noteType) => selectRecommendedNoteType(entry, noteType)"
+      />
 
       <div v-if="needsPinyin" class="notice warning" role="alert" data-test="chinese-warning">
         {{ t('mapping.chineseWarning') }}

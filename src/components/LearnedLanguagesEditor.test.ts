@@ -14,7 +14,7 @@ import {
   useConfig,
   type ConfigStore,
 } from '../composables/useConfig'
-import { appleStyleMapping, chineseMapping } from '../domain/fieldMapping'
+import { appleStyleMapping, chineseMapping, recommendedMapping } from '../domain/fieldMapping'
 import { i18n, setLocale } from '../i18n'
 import { callsTo, deferred, invokeCalls, onCommand, resetTauri } from '../test/fakeTauri'
 import LearnedLanguagesEditor from './LearnedLanguagesEditor.vue'
@@ -518,5 +518,47 @@ describe('online', () => {
       'Hanzi, Pinyin, Meaning and Audio',
     )
     expect(store.config.value.learning.languages[0].field_mapping).toBeNull()
+  })
+})
+
+describe('the recommended note type', () => {
+  beforeEach(() => {
+    onCommand('anki_status', ONLINE)
+    onCommand('anki_model_field_names', APPLE_V3_FIELDS)
+    onCommand('suggest_field_mapping', APPLE_V3_FR)
+  })
+
+  it('is offered in each entry, and selected only in the one clicked', async () => {
+    const saved = appleStyleMapping()
+    await mountEditor(
+      settings([entry(), entry({ lang: 'es', deck_name: 'spanish', field_mapping: saved })]),
+    )
+    expect(cards().map((each) => each.find('[data-test="create-note-type"]').exists())).toEqual([
+      true,
+      true,
+    ])
+    onCommand('create_recommended_note_type', {
+      model_name: 'Vocabulary Automator',
+      mapping: recommendedMapping(),
+      created: true,
+      matches_by_name: true,
+    })
+    onCommand('anki_status', { ...ONLINE, models: [...ONLINE.models, 'Vocabulary Automator'] })
+
+    await card(1).find('[data-test="create-note-type"]').trigger('click')
+    await flushPromises()
+
+    const [french, spanish] = store.config.value.learning.languages
+    expect(spanish).toMatchObject({ model_name: 'Vocabulary Automator', field_mapping: null })
+    expect(french).toEqual(entry())
+    expect(callsTo('create_recommended_note_type')).toHaveLength(1)
+    expect(card(1).find('[data-test="create-note-type"]').exists()).toBe(false)
+    expect(card(1).find('[data-test="note-type-result"]').exists()).toBe(true)
+    // The other entry may now use it too: Anki lists it.
+    expect(card(0).find('[data-test="create-note-type"]').text()).toBe(
+      'Use the recommended note type',
+    )
+    expect(card(0).find('[data-test="note-type-result"]').exists()).toBe(false)
+    expect(store.dirty.value).toBe(true)
   })
 })

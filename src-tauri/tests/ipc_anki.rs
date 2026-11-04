@@ -17,7 +17,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anki_bridge::FieldMapping;
+use anki_bridge::{recommended_note_type, FieldMapping};
 use common::{b64, fake_audio, Harness, Options, UNREACHABLE_ANKI};
 use serde_json::{json, Value};
 use tauri::async_runtime::block_on;
@@ -1055,4 +1055,199 @@ fn check_pending_fields_reports_a_missing_note_type() {
             "error": "model was not found: AppleStyleFinalV3"
         })
     );
+}
+
+// ---------------------------------------------------------------------------
+// create_recommended_note_type
+
+fn model_names() -> Value {
+    json!({ "action": "modelNames", "version": 6 })
+}
+
+/// The recommended note type's fields, in order.
+fn recommended_fields() -> Value {
+    json!([
+        "Front",
+        "Back",
+        "Sentence",
+        "Sentence Translation",
+        "Audio",
+        "Pinyin",
+        "HSK Level",
+        "Notes"
+    ])
+}
+
+/// The `createModel` request for the recommended note type, CSS and
+/// templates as `anki_bridge` defines them.
+fn create_recommended_model() -> Value {
+    let spec = recommended_note_type();
+    let template = &spec.templates[0];
+    json!({
+        "action": "createModel",
+        "version": 6,
+        "params": {
+            "modelName": "Vocabulary Automator",
+            "inOrderFields": recommended_fields(),
+            "css": spec.css,
+            "isCloze": false,
+            "cardTemplates": [{ "Name": "Recall", "Front": template.front, "Back": template.back }]
+        }
+    })
+}
+
+/// What the command returns for the recommended note type.
+fn recommended_result(created: bool, matches_by_name: bool) -> Value {
+    json!({
+        "model_name": "Vocabulary Automator",
+        "mapping": {
+            "fields": [
+                { "anki_field": "Front", "source": "front" },
+                { "anki_field": "Back", "source": "back" },
+                { "anki_field": "Sentence", "source": "example_in_source_lang" },
+                { "anki_field": "Sentence Translation", "source": "example_in_target_lang" },
+                { "anki_field": "Pinyin", "source": "pinyin" },
+                { "anki_field": "HSK Level", "source": "hsk_level" },
+                { "anki_field": "Notes", "source": "notes" }
+            ],
+            "audio_field": "Audio"
+        },
+        "created": created,
+        "matches_by_name": matches_by_name
+    })
+}
+
+fn config_file(harness: &Harness) -> Vec<u8> {
+    std::fs::read(harness.dir.path().join("app-data").join("config.json")).expect("config file")
+}
+
+#[test]
+fn the_recommended_note_type_is_created_when_anki_lacks_it() {
+    let server = start();
+    answer_exactly(
+        &server,
+        model_names(),
+        ok(json!(["Basic", "AppleStyleFinalV3"])),
+    );
+    answer_exactly(
+        &server,
+        create_recommended_model(),
+        ok(json!({ "name": "Vocabulary Automator", "id": 1_730_000_000_123_i64 })),
+    );
+    let harness = Harness::with_anki(&server.uri());
+    let config = config_file(&harness);
+
+    let result = harness.call("create_recommended_note_type", json!({}));
+
+    assert_eq!(result, recommended_result(true, true));
+    assert_eq!(sent(&server), [model_names(), create_recommended_model()]);
+    assert_eq!(
+        config_file(&harness),
+        config,
+        "the config is left to the form"
+    );
+}
+
+/// A second click, or a note type made on another computer: it is used as
+/// it is, fields added in Anki included, and never sent again.
+#[test]
+fn an_existing_recommended_note_type_with_every_field_is_reused() {
+    let server = start();
+    answer_exactly(
+        &server,
+        model_names(),
+        ok(json!(["Basic", "Vocabulary Automator"])),
+    );
+    let mut fields = recommended_fields();
+    fields.as_array_mut().unwrap().push(json!("Image"));
+    answer_exactly(
+        &server,
+        model_field_names("Vocabulary Automator"),
+        ok(fields),
+    );
+    let harness = Harness::with_anki(&server.uri());
+
+    let result = harness.call("create_recommended_note_type", json!({}));
+
+    assert_eq!(result, recommended_result(false, true));
+    assert_eq!(
+        actions(&sent(&server)),
+        ["modelNames", "modelFieldNames"],
+        "nothing is created or changed"
+    );
+}
+
+/// Fields reordered in Anki still hold everything, but matching them by name
+/// would bind them in another order: the settings save the mapping instead.
+#[test]
+fn a_reused_note_type_whose_match_differs_is_reported_as_such() {
+    let server = start();
+    answer(&server, "modelNames", ok(json!(["Vocabulary Automator"])));
+    answer(
+        &server,
+        "modelFieldNames",
+        ok(json!([
+            "Back",
+            "Front",
+            "Sentence",
+            "Sentence Translation",
+            "Audio",
+            "Pinyin",
+            "HSK Level",
+            "Notes"
+        ])),
+    );
+    let harness = Harness::with_anki(&server.uri());
+
+    let result = harness.call("create_recommended_note_type", json!({}));
+
+    assert_eq!(result, recommended_result(false, false));
+}
+
+#[test]
+fn a_note_type_of_that_name_with_other_fields_is_left_alone() {
+    let server = start();
+    answer(&server, "modelNames", ok(json!(["Vocabulary Automator"])));
+    answer(
+        &server,
+        "modelFieldNames",
+        ok(json!(["Front", "Back", "Sentence", "Audio", "Notes"])),
+    );
+    let harness = Harness::with_anki(&server.uri());
+
+    let err = harness.call_err("create_recommended_note_type", json!({}));
+
+    assert_eq!(
+        err,
+        "Anki already has a note type named “Vocabulary Automator”, but some of its fields are \
+         missing: “Sentence Translation”, “Pinyin”, “HSK Level”. It was left as it is: rename it \
+         in Anki (Tools → Manage Note Types) and try again, or choose it and customize the field \
+         mapping."
+    );
+    assert_eq!(actions(&sent(&server)), ["modelNames", "modelFieldNames"]);
+}
+
+#[test]
+fn creating_the_recommended_note_type_reports_anki_s_error() {
+    let server = start();
+    answer(&server, "modelNames", ok(json!(["Basic"])));
+    answer(
+        &server,
+        "createModel",
+        anki_error("Model name already exists"),
+    );
+    let harness = Harness::with_anki(&server.uri());
+
+    let err = harness.call_err("create_recommended_note_type", json!({}));
+
+    assert_eq!(err, "AnkiConnect error: Model name already exists");
+}
+
+#[test]
+fn the_recommended_note_type_needs_anki() {
+    let harness = Harness::with_anki(UNREACHABLE_ANKI);
+
+    let err = harness.call_err("create_recommended_note_type", json!({}));
+
+    assert!(err.starts_with("could not reach AnkiConnect: "), "{err}");
 }

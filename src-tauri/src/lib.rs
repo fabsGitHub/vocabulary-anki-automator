@@ -63,6 +63,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::anki::anki_model_field_names,
             commands::anki::suggest_field_mapping,
             commands::anki::check_pending_fields,
+            commands::anki::create_recommended_note_type,
             commands::anki::launch_anki_desktop,
             commands::setup::get_setup_status,
             commands::setup::grant_consent,

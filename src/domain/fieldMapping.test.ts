@@ -5,6 +5,8 @@ import type { AppConfig, AutoMatch, CardField, FieldMapping } from '../api'
 import { defaultConfig } from '../composables/useConfig'
 import {
   CARD_FIELDS,
+  MAPPING_PRESETS,
+  RECOMMENDED_NOTE_TYPE,
   appleStyleMapping,
   bindingFor,
   bindsSource,
@@ -15,7 +17,9 @@ import {
   lacksPinyin,
   missingFields,
   needsChineseNoteType,
+  recommendedMapping,
   sameMapping,
+  selectRecommendedNoteType,
   withAudioField,
   withBinding,
 } from './fieldMapping'
@@ -60,10 +64,54 @@ describe('presets', () => {
     expect(chineseMapping()).toEqual(rustPreset('chinese_default'))
   })
 
+  it('equal FieldMapping::recommended exactly', () => {
+    expect(rustPreset('recommended').fields).toHaveLength(7)
+    expect(recommendedMapping()).toEqual(rustPreset('recommended'))
+  })
+
+  it('name the recommended note type as anki_bridge::RECOMMENDED_NOTE_TYPE does', () => {
+    const rust = /pub const RECOMMENDED_NOTE_TYPE: &str = "([^"]+)";/.exec(mapperSource)
+    expect(rust?.[1]).toBe('Vocabulary Automator')
+    expect(RECOMMENDED_NOTE_TYPE).toBe(rust?.[1])
+  })
+
+  it('offer the recommended mapping first', () => {
+    expect(Object.keys(MAPPING_PRESETS)).toEqual(['recommended', 'apple', 'chinese'])
+    expect(MAPPING_PRESETS.recommended()).toEqual(recommendedMapping())
+  })
+
   it('are fresh objects, so editing one never changes the next', () => {
     const first = chineseMapping()
     first.fields[0].anki_field = 'Edited'
     expect(chineseMapping().fields[0].anki_field).toBe('Hanzi')
+  })
+})
+
+describe('selectRecommendedNoteType', () => {
+  const custom: FieldMapping = { fields: [{ anki_field: 'Q', source: 'front' }], audio_field: null }
+
+  it('leaves the mapping to the match by name when that gives the recommended one', () => {
+    const place = { model_name: 'AppleStyleFinalV3', field_mapping: custom }
+    selectRecommendedNoteType(place, {
+      model_name: RECOMMENDED_NOTE_TYPE,
+      mapping: recommendedMapping(),
+      created: true,
+      matches_by_name: true,
+    })
+    expect(place).toEqual({ model_name: 'Vocabulary Automator', field_mapping: null })
+  })
+
+  it('saves a copy of the mapping when the match would differ', () => {
+    const mapping = recommendedMapping()
+    const place = { model_name: 'Basic', field_mapping: null as FieldMapping | null }
+    selectRecommendedNoteType(place, {
+      model_name: RECOMMENDED_NOTE_TYPE,
+      mapping,
+      created: false,
+      matches_by_name: false,
+    })
+    expect(place).toEqual({ model_name: 'Vocabulary Automator', field_mapping: mapping })
+    expect(place.field_mapping).not.toBe(mapping)
   })
 })
 

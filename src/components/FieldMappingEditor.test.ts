@@ -2,7 +2,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AutoMatch, FieldMapping } from '../api'
-import { appleStyleMapping, chineseMapping } from '../domain/fieldMapping'
+import { appleStyleMapping, chineseMapping, recommendedMapping } from '../domain/fieldMapping'
 import { i18n, setLocale } from '../i18n'
 import { callsTo, deferred, onCommand, resetTauri } from '../test/fakeTauri'
 import FieldMappingEditor from './FieldMappingEditor.vue'
@@ -12,6 +12,16 @@ vi.mock('@tauri-apps/api/core', async () => (await import('../test/fakeTauri')).
 const APPLE_FIELDS = ['Front', 'Back', 'Context Sentence', 'Notes', 'Front Audio']
 const CHINESE_FIELDS = ['Hanzi', 'Pinyin', 'Meaning', 'Sentence', 'Audio']
 const APPLE_V3_FIELDS = ['Front', 'Back', 'English Sentence', 'German Sentence', 'Audio']
+const RECOMMENDED_FIELDS = [
+  'Front',
+  'Back',
+  'Sentence',
+  'Sentence Translation',
+  'Audio',
+  'Pinyin',
+  'HSK Level',
+  'Notes',
+]
 
 /** What `suggest_field_mapping` answers for AppleStyleFinalV3, en -> de. */
 const APPLE_V3_MATCH: AutoMatch = {
@@ -186,6 +196,21 @@ describe('presets', () => {
 
     await wrapper.find('[data-test="preset-apple"]').trigger('click')
     expect(shown(wrapper)).toEqual(appleStyleMapping())
+  })
+
+  it('apply the recommended note type’s mapping, named after it', async () => {
+    const wrapper = mountEditor({
+      mapping: { fields: [], audio_field: null },
+      modelFields: RECOMMENDED_FIELDS,
+    })
+    const button = wrapper.find('[data-test="preset-recommended"]')
+    expect(button.text()).toBe('Vocabulary Automator (recommended)')
+    await button.trigger('click')
+    expect(shown(wrapper)).toEqual(recommendedMapping())
+    expect(selected(wrapper, 'Sentence')).toBe('example_in_source_lang')
+    expect(selected(wrapper, 'Sentence Translation')).toBe('example_in_target_lang')
+    expect(selected(wrapper, 'HSK Level')).toBe('hsk_level')
+    expect(wrapper.find('[data-test="missing-fields"]').exists()).toBe(false)
   })
 })
 

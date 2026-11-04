@@ -9,11 +9,19 @@
  * (field names compared case-insensitively, as AnkiConnect compares them),
  * `missing_fields` flags what a note type would silently drop, and a global
  * mapping equal to the Apple-style preset counts as never chosen (§ 8.1).
- * The presets are copies of `FieldMapping::apple_style_default` and
- * `FieldMapping::chinese_default`.
+ * The presets are copies of `FieldMapping::apple_style_default`,
+ * `FieldMapping::chinese_default` and `FieldMapping::recommended`, the
+ * mapping of the note type the settings offer to create in Anki.
  */
 
-import type { AppConfig, AutoMatch, CardField, FieldBinding, FieldMapping } from '../api'
+import type {
+  AppConfig,
+  AutoMatch,
+  CardField,
+  FieldBinding,
+  FieldMapping,
+  RecommendedNoteType,
+} from '../api'
 import { isChinese } from './language'
 
 /** Every card value, in the order the binding selects list them (the examples together). */
@@ -56,10 +64,37 @@ export function chineseMapping(): FieldMapping {
   }
 }
 
-export type MappingPresetId = 'apple' | 'chinese'
+/**
+ * The name of the note type `create_recommended_note_type` creates
+ * (`anki_bridge::RECOMMENDED_NOTE_TYPE`, which the tests read it from). The
+ * UI texts name it through this constant only.
+ */
+export const RECOMMENDED_NOTE_TYPE = 'Vocabulary Automator'
 
-/** The built-in mappings, as fresh objects on every call. */
+/**
+ * `FieldMapping::recommended`: the recommended note type, a field for every
+ * value. The sentences keep their language on the reverse note.
+ */
+export function recommendedMapping(): FieldMapping {
+  return {
+    fields: [
+      { anki_field: 'Front', source: 'front' },
+      { anki_field: 'Back', source: 'back' },
+      { anki_field: 'Sentence', source: 'example_in_source_lang' },
+      { anki_field: 'Sentence Translation', source: 'example_in_target_lang' },
+      { anki_field: 'Pinyin', source: 'pinyin' },
+      { anki_field: 'HSK Level', source: 'hsk_level' },
+      { anki_field: 'Notes', source: 'notes' },
+    ],
+    audio_field: 'Audio',
+  }
+}
+
+export type MappingPresetId = 'recommended' | 'apple' | 'chinese'
+
+/** The built-in mappings, as fresh objects on every call, in the order the editor offers them. */
 export const MAPPING_PRESETS: Record<MappingPresetId, () => FieldMapping> = {
+  recommended: recommendedMapping,
   apple: appleStyleMapping,
   chinese: chineseMapping,
 }
@@ -89,6 +124,22 @@ export function sameMapping(a: FieldMapping, b: FieldMapping): boolean {
  */
 export function globalMapping(mapping: FieldMapping | null): FieldMapping | null {
   return mapping && !sameMapping(mapping, appleStyleMapping()) ? mapping : null
+}
+
+/**
+ * Points `place`, the Anki tab's settings or a "My languages" entry, at the
+ * note type `create_recommended_note_type` set up. Its mapping is left
+ * `null`, matched by name, when that gives exactly the recommended mapping
+ * (always for a note type the app created: nothing to save, and nothing to
+ * go stale); otherwise, for a reused note type whose fields were reordered
+ * or renamed, the mapping is saved.
+ */
+export function selectRecommendedNoteType(
+  place: { model_name: string; field_mapping: FieldMapping | null },
+  noteType: RecommendedNoteType,
+): void {
+  place.model_name = noteType.model_name
+  place.field_mapping = noteType.matches_by_name ? null : copyMapping(noteType.mapping)
 }
 
 /** A copy that shares no object with `mapping`. */

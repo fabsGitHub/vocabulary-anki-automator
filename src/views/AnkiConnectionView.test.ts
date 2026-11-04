@@ -14,7 +14,12 @@ import {
   useConfig,
   type ConfigStore,
 } from '../composables/useConfig'
-import { appleStyleMapping, chineseMapping, withBinding } from '../domain/fieldMapping'
+import {
+  appleStyleMapping,
+  chineseMapping,
+  recommendedMapping,
+  withBinding,
+} from '../domain/fieldMapping'
 import { i18n, setLocale } from '../i18n'
 import { callsTo, commandNames, invokeCalls, onCommand, resetTauri } from '../test/fakeTauri'
 import AnkiConnectionView from './AnkiConnectionView.vue'
@@ -301,6 +306,73 @@ describe('online', () => {
     await flushPromises()
     expect(exists('chinese-warning')).toBe(false)
     expect(store.config.value.anki.field_mapping).toBeNull()
+  })
+})
+
+describe('the recommended note type', () => {
+  beforeEach(() => {
+    onCommand('anki_status', ONLINE)
+    onCommand('anki_model_field_names', CLASSIC_FIELDS)
+    onCommand('suggest_field_mapping', APPLE_V3_MATCH)
+  })
+
+  /** Clicks the button; Anki lists the note type from then on. */
+  async function setUp(matchesByName: boolean, created = true): Promise<void> {
+    onCommand('create_recommended_note_type', {
+      model_name: 'Vocabulary Automator',
+      mapping: recommendedMapping(),
+      created,
+      matches_by_name: matchesByName,
+    })
+    onCommand('anki_status', { ...ONLINE, models: [...ONLINE.models, 'Vocabulary Automator'] })
+    await find('create-note-type')?.trigger('click')
+    await flushPromises()
+  }
+
+  it('is offered under the note type, and selects the one it creates, matched by name', async () => {
+    await mountTab(customized())
+    expect(find('create-note-type')?.text()).toBe('Create the recommended note type')
+
+    await setUp(true)
+
+    expect(store.config.value.anki.model_name).toBe('Vocabulary Automator')
+    expect(store.config.value.anki.field_mapping).toBeNull()
+    expect(find('model-select')?.element).toHaveProperty('value', 'Vocabulary Automator')
+    expect(find('mapping-badge')?.text()).toBe('Matched by field name')
+    expect(callsTo('suggest_field_mapping').map((call) => call.args)).toContainEqual({
+      model: 'Vocabulary Automator',
+      sourceLang: 'en',
+      targetLang: 'de',
+    })
+    expect(exists('create-note-type')).toBe(false)
+    expect(find('note-type-result')?.text()).toContain('was added to Anki and is selected here.')
+
+    // Nothing is saved until the user saves.
+    expect(callsTo('apply_settings')).toHaveLength(0)
+    expect(store.dirty.value).toBe(true)
+    onCommand('apply_settings', null)
+    expect(await store.save()).toBe(true)
+    expect(callsTo('apply_settings')[0].args?.newCfg).toMatchObject({
+      anki: { model_name: 'Vocabulary Automator', field_mapping: null },
+    })
+  })
+
+  it('saves the mapping of a reused note type whose fields match differently', async () => {
+    await mountTab()
+    await setUp(false, false)
+
+    expect(store.config.value.anki.model_name).toBe('Vocabulary Automator')
+    expect(store.config.value.anki.field_mapping).toEqual(recommendedMapping())
+    expect(find('note-type-result')?.text()).toBe(
+      '“Vocabulary Automator” is selected here. Save the settings to use it.',
+    )
+  })
+
+  it('is not offered while Anki is offline', async () => {
+    onCommand('anki_status', OFFLINE)
+    onCommand('get_setup_status', setup())
+    await mountTab()
+    expect(exists('create-note-type')).toBe(false)
   })
 })
 

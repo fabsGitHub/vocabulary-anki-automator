@@ -56,6 +56,14 @@ pronunciation), and the UI language (English or German). It can also install Ank
 and AnkiConnect for you, but only after you agree to it in a consent dialog; both
 downloads are pinned and checksum-verified before anything is installed.
 
+No note type of your own yet? While Anki runs, click **Create the recommended note
+type** on **Anki connection** or in a **My languages** entry. It adds the note type
+"Vocabulary Automator" to Anki, with a field for every value a card has (word,
+translation, example and its translation, pronunciation, pinyin, HSK level, notes)
+and a card with a light and a dark style, and selects it there with the field
+mapping matched by name; save the settings to use it. If Anki already has a note
+type of that name, it is used as it is or, without all of those fields, left alone.
+
 On macOS the hotkey copies the selection with a simulated `Cmd+C`, which needs
 the Accessibility permission (System Settings > Privacy & Security >
 Accessibility).

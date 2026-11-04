@@ -33,6 +33,7 @@ import {
 import {
   CARD_FIELDS,
   MAPPING_PRESETS,
+  RECOMMENDED_NOTE_TYPE,
   bindingFor,
   effectiveBindings,
   missingFields,
@@ -174,6 +175,14 @@ function sourceLabel(source: CardField): string {
           {{ matching ? t('mapping.matching') : t('mapping.matchByName') }}
         </button>
         <span class="input-hint">{{ t('mapping.presets') }}</span>
+        <button
+          type="button"
+          class="btn btn-secondary btn-mini"
+          data-test="preset-recommended"
+          @click="applyPreset('recommended')"
+        >
+          {{ t('mapping.presetRecommended', { name: RECOMMENDED_NOTE_TYPE }) }}
+        </button>
         <button
           type="button"
           class="btn btn-secondary btn-mini"

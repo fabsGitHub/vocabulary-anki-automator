@@ -14,6 +14,9 @@
  * always two-step (§ 8.4): an install request opens the consent dialog, and
  * only "Agree" records the consent with `grant_consent` and then starts the
  * download, so nothing is fetched without an explicit click.
+ *
+ * Creating the recommended note type is one of the operations too, so it
+ * never overlaps another, and the note type lists are read again after it.
  */
 
 import {
@@ -31,6 +34,7 @@ import {
 import {
   ankiStatus,
   autoProvisionAnkiconnect,
+  createRecommendedNoteType as createRecommendedNoteTypeCommand,
   downloadAndInstallAnki,
   errorMessage,
   getSetupStatus,
@@ -39,6 +43,7 @@ import {
   type AnkiStatus,
   type ConsentAction,
   type ConsentState,
+  type RecommendedNoteType,
   type SetupStatus,
 } from '../api'
 import type { MessageKey } from '../i18n'
@@ -47,7 +52,11 @@ export type AnkiConnectionState =
   'checking' | 'anki_missing' | 'plugin_missing' | 'anki_closed' | 'online'
 
 /** The user-triggered operation in flight; at most one at a time. */
-export type AnkiActivity = 'rescan' | 'launch' | 'install' | 'provision'
+export type AnkiActivity = 'rescan' | 'launch' | 'install' | 'provision' | 'note_type'
+
+/** What creating the recommended note type came to. */
+export type NoteTypeOutcome =
+  { ok: true; noteType: RecommendedNoteType } | { ok: false; error: string }
 
 /** A message for the tab's feedback line, as a key the view translates. */
 export interface AnkiFeedback {
@@ -93,6 +102,12 @@ export interface AnkiConnection {
   confirmConsent(): Promise<void>
   /** "Cancel": closes the dialog; nothing is recorded or downloaded. */
   cancelConsent(): void
+  /**
+   * `create_recommended_note_type`, then a re-check, so the note type lists
+   * include it; `null` while another operation runs. It writes to the
+   * user's Anki collection, so only a click may call it.
+   */
+  createRecommendedNoteType(): Promise<NoteTypeOutcome | null>
   /** Stops polling; called automatically when the owning scope ends. */
   dispose(): void
 }
@@ -279,6 +294,24 @@ export function useAnkiConnection(options: AnkiConnectionOptions = {}): AnkiConn
     }
   }
 
+  async function createRecommendedNoteType(): Promise<NoteTypeOutcome | null> {
+    if (activity.value) return null
+    activity.value = 'note_type'
+    try {
+      let outcome: NoteTypeOutcome
+      try {
+        outcome = { ok: true, noteType: await createRecommendedNoteTypeCommand() }
+      } catch (err) {
+        outcome = { ok: false, error: errorMessage(err) }
+      }
+      // Lists the new note type, or notices that Anki went away.
+      await resolveState()
+      return outcome
+    } finally {
+      activity.value = null
+    }
+  }
+
   function dispose(): void {
     disposed = true
     for (const timer of timers) clearTimeout(timer)
@@ -305,6 +338,7 @@ export function useAnkiConnection(options: AnkiConnectionOptions = {}): AnkiConn
     requestProvision,
     confirmConsent,
     cancelConsent,
+    createRecommendedNoteType,
     dispose,
   }
 }

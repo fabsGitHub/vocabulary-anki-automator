@@ -627,7 +627,8 @@ fn parse_hsk_level(text: &str) -> Option<u8> {
 // The recommended note type
 
 /// The name of the recommended note type, and the one place the product
-/// name appears in Rust.
+/// name appears in Rust; the settings form mirrors it (`RECOMMENDED_NOTE_TYPE`
+/// in `src/domain/fieldMapping.ts`, which its tests read from here).
 pub const RECOMMENDED_NOTE_TYPE: &str = "Vocabulary Automator";
 
 /// A note type to create, as [`AnkiClient::create_model`](crate::AnkiClient::create_model)

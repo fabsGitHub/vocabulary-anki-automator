@@ -209,6 +209,7 @@ export const de: MessageSchema = {
     matchFailed: 'Die Felder konnten nicht zugeordnet werden: {error}',
     matchedGuessed: 'Nach Position gefüllt, weil kein Name passte:',
     matchedUnmatched: 'Bleiben leer:',
+    presetRecommended: '{name} (empfohlen)',
     presetApple: 'Apple-Stil',
     presetChinese: 'Chinesisch (Hanzi/Pinyin/Meaning/Audio)',
     ankiField: 'Anki-Feld',
@@ -239,6 +240,19 @@ export const de: MessageSchema = {
       example_in_source_lang: 'Beispiel in der Lernsprache',
       example_in_target_lang: 'Beispiel in Ihrer Sprache',
     },
+  },
+  noteType: {
+    create: 'Empfohlenen Notiztyp anlegen',
+    use: 'Empfohlenen Notiztyp verwenden',
+    creating: 'Notiztyp wird angelegt…',
+    createHint:
+      'Legt in Anki den Notiztyp „{name}“ an, mit einem Feld für alles, was eine Karte enthält: Wort, Übersetzung, Beispiel und seine Übersetzung, Aussprache, Pinyin, HSK-Stufe und Notizen.',
+    useHint:
+      'Anki hat den Notiztyp „{name}“ schon, mit einem Feld für alles, was eine Karte enthält.',
+    created:
+      '„{name}“ wurde in Anki angelegt und ist hier ausgewählt. Speichern Sie die Einstellungen, um ihn zu verwenden.',
+    reused: '„{name}“ ist hier ausgewählt. Speichern Sie die Einstellungen, um ihn zu verwenden.',
+    failed: 'Der Notiztyp konnte nicht eingerichtet werden: {error}',
   },
   history: {
     title: 'Letzte Erfassungen',

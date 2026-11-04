@@ -210,6 +210,7 @@ export const en = {
     matchFailed: 'The fields could not be matched: {error}',
     matchedGuessed: 'Filled by position because no name fit:',
     matchedUnmatched: 'Left empty:',
+    presetRecommended: '{name} (recommended)',
     presetApple: 'Apple style',
     presetChinese: 'Chinese (Hanzi/Pinyin/Meaning/Audio)',
     ankiField: 'Anki field',
@@ -240,6 +241,17 @@ export const en = {
       example_in_source_lang: 'Example in the language learned',
       example_in_target_lang: 'Example in your language',
     },
+  },
+  noteType: {
+    create: 'Create the recommended note type',
+    use: 'Use the recommended note type',
+    creating: 'Creating the note type…',
+    createHint:
+      'Adds the note type “{name}” to Anki, with a field for everything a card holds: word, translation, example and its translation, pronunciation, pinyin, HSK level and notes.',
+    useHint: 'Anki already has the note type “{name}”, with a field for everything a card holds.',
+    created: '“{name}” was added to Anki and is selected here. Save the settings to use it.',
+    reused: '“{name}” is selected here. Save the settings to use it.',
+    failed: 'The note type could not be set up: {error}',
   },
   history: {
     title: 'Recent captures',

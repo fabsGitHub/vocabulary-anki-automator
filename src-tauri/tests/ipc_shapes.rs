@@ -39,7 +39,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Map, Value};
 use vocab_automator_lib::{
     capture::{CaptureErrorPayload, PendingCapture, PendingFiling},
-    commands::anki::AnkiStatus,
+    commands::anki::{AnkiStatus, RecommendedNoteType},
     config::{
         AnkiConfig, AppConfig, ConsentAction, ConsentState, HotkeyProfile, LearnedLanguage,
         LearningConfig, TranslationConfig,
@@ -123,6 +123,12 @@ const COMMANDS: &[(&str, &str, &[&str], &str)] = &[
         &["card"],
         "FieldCheck | null",
     ),
+    (
+        "createRecommendedNoteType",
+        "create_recommended_note_type",
+        &[],
+        "RecommendedNoteType",
+    ),
     ("launchAnkiDesktop", "launch_anki_desktop", &[], "string"),
     ("getSetupStatus", "get_setup_status", &[], "SetupStatus"),
     ("grantConsent", "grant_consent", &["action"], "ConsentState"),
@@ -171,6 +177,7 @@ const NOT_RUN: &str = "restart_app";
 const MAY_FAIL: &[&str] = &[
     "anki_model_field_names",
     "suggest_field_mapping",
+    "create_recommended_note_type",
     "launch_anki_desktop",
     "download_and_install_anki",
     "auto_provision_ankiconnect",
@@ -792,6 +799,23 @@ fn shapes() -> Map<String, Value> {
                 )),
             ],
         ),
+        (
+            "RecommendedNoteType",
+            vec![
+                json_of(RecommendedNoteType {
+                    model_name: "Vocabulary Automator".into(),
+                    mapping: FieldMapping::recommended(),
+                    created: true,
+                    matches_by_name: true,
+                }),
+                json_of(RecommendedNoteType {
+                    model_name: "Vocabulary Automator".into(),
+                    mapping: FieldMapping::recommended(),
+                    created: false,
+                    matches_by_name: false,
+                }),
+            ],
+        ),
         ("LostValue", lost_values().iter().map(json_of).collect()),
         (
             "FieldCheck",
@@ -902,6 +926,7 @@ fn conforms(returns: &str, value: &Value) -> Result<(), String> {
         "StoredCapture" => exactly::<StoredCapture>(value),
         "SyncReport" => exactly::<SyncReport>(value),
         "AutoMatch" => exactly::<AutoMatch>(value),
+        "RecommendedNoteType" => exactly::<RecommendedNoteType>(value),
         "FieldCheck" => exactly::<FieldCheck>(value),
         "CaptureErrorPayload" => exactly::<CaptureErrorPayload>(value),
         other => Err(format!("no Rust type is known for {other}")),
@@ -971,6 +996,7 @@ fn run_every_command() -> (Results, Harness) {
         "suggest_field_mapping",
         json!({ "model": "Basic", "sourceLang": "en", "targetLang": "de" }),
     );
+    call("create_recommended_note_type", json!({}));
     call("launch_anki_desktop", json!({}));
     call("get_setup_status", json!({}));
     // Before any consent: both install commands refuse at once (the hard
