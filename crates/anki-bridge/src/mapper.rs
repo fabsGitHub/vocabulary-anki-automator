@@ -647,11 +647,15 @@ pub struct NoteTypeSpec {
 /// [`FieldMapping::recommended`] (which matching its field names by name also
 /// gives, for every language pair), and one card per note.
 ///
-/// The card asks the note's `Front` and answers with `Back`, then whatever
-/// the note has of pinyin, the sentence and its translation, notes, HSK level
-/// and the pronunciation; empty fields leave no trace. The reverse note swaps
-/// `Front` and `Back` but not the sentences, so both notes answer with the
-/// sentence in the captured language over its translation. The CSS has a
+/// The card asks the note's `Front`. The answer side puts the pronunciation
+/// right under it, since the `Audio` field speaks the note's own `Front` (the
+/// reverse note's is the prompt in the user's language), and then answers
+/// with the pinyin over `Back`, so it stands next to the Hanzi it belongs to
+/// in both directions: under the question forward, over the answer reversed.
+/// Whatever the note has of the sentence and its translation, notes and HSK
+/// level follow; empty fields leave no trace. The reverse note swaps `Front`
+/// and `Back` but not the sentences, so both notes answer with the sentence
+/// in the captured language over its translation. The CSS has a
 /// light and a dark variant (Anki and AnkiMobile mark dark mode with
 /// `nightMode`, AnkiDroid with `night_mode`) and loads nothing from anywhere:
 /// no fonts, images or scripts.
@@ -682,16 +686,16 @@ const RECOMMENDED_FIELDS: [&str; 8] = [
 const RECOMMENDED_FRONT: &str = r#"<div class="word">{{Front}}</div>"#;
 
 const RECOMMENDED_BACK: &str = r#"{{FrontSide}}
+{{#Audio}}<div class="audio">{{Audio}}</div>{{/Audio}}
 
 <hr id=answer>
 
-<div class="meaning">{{Back}}</div>
 {{#Pinyin}}<div class="pinyin">{{Pinyin}}</div>{{/Pinyin}}
+<div class="meaning">{{Back}}</div>
 {{#Sentence}}<div class="sentence">{{Sentence}}</div>{{/Sentence}}
 {{#Sentence Translation}}<div class="sentence-translation">{{Sentence Translation}}</div>{{/Sentence Translation}}
 {{#Notes}}<div class="notes">{{Notes}}</div>{{/Notes}}
-{{#HSK Level}}<div class="hsk"><span>HSK {{HSK Level}}</span></div>{{/HSK Level}}
-{{#Audio}}<div class="audio">{{Audio}}</div>{{/Audio}}"#;
+{{#HSK Level}}<div class="hsk"><span>HSK {{HSK Level}}</span></div>{{/HSK Level}}"#;
 
 const RECOMMENDED_CSS: &str = r#".card {
   --text: #1d1d1f;
@@ -741,7 +745,7 @@ hr#answer {
 }
 
 .pinyin {
-  margin-top: 2px;
+  margin-bottom: 4px;
   font-size: 1.05em;
   color: var(--muted);
 }
@@ -785,7 +789,7 @@ hr#answer {
 }
 
 .audio {
-  margin-top: 14px;
+  margin-top: 10px;
 }
 "#;
 
@@ -2961,6 +2965,116 @@ mod recommended_tests {
             assert!(back.contains(field), "{field} is not shown");
         }
         assert!(template.back.contains("<hr id=answer>"));
+    }
+
+    /// `template` as Anki renders it for `values`: a `{{#Field}}` section
+    /// only when the field is not empty, then every `{{Field}}` replaced.
+    fn render(template: &str, values: &BTreeMap<String, String>) -> String {
+        let mut out = template.to_string();
+        for (name, value) in values {
+            let (open, close) = (format!("{{{{#{name}}}}}"), format!("{{{{/{name}}}}}"));
+            while let Some(start) = out.find(&open) {
+                let end = start + out[start..].find(&close).expect("a closed section");
+                let inner = out[start + open.len()..end].to_string();
+                let kept = if value.is_empty() {
+                    String::new()
+                } else {
+                    inner
+                };
+                out.replace_range(start..end + close.len(), &kept);
+            }
+            out = out.replace(&format!("{{{{{name}}}}}"), value);
+        }
+        assert!(!out.contains("{{"), "a field left over: {out}");
+        out
+    }
+
+    /// The answer side of `note`, top to bottom, one line per block of text
+    /// and `—` for the rule; the audio field holds the `[sound:...]` tag
+    /// Anki appends to it.
+    fn answer_side(note: &NoteSpec) -> Vec<String> {
+        let mut values = note.fields.clone();
+        let audio = note.audio.as_ref().expect("a pronunciation");
+        for field in &audio.fields {
+            values.insert(field.clone(), format!("[sound:{}]", audio.filename));
+        }
+        let template = &recommended_note_type().templates[0];
+        let back = template.back.replace("{{FrontSide}}", &template.front);
+        render(&back, &values)
+            .replace("<hr id=answer>", "—")
+            .lines()
+            .map(|line| {
+                let mut text = String::new();
+                let mut in_tag = false;
+                for c in line.chars() {
+                    match c {
+                        '<' => in_tag = true,
+                        '>' => in_tag = false,
+                        _ if !in_tag => text.push(c),
+                        _ => {}
+                    }
+                }
+                text.trim().to_string()
+            })
+            .filter(|line| !line.is_empty())
+            .collect()
+    }
+
+    fn sound(note: &NoteSpec) -> String {
+        format!("[sound:{}]", note.audio.as_ref().unwrap().filename)
+    }
+
+    /// The pronunciation sits under the word it speaks, and the pinyin next
+    /// to the Hanzi, in both directions: forward 学习 / xué xí / lernen,
+    /// reversed lernen / xué xí / 学习, never the pinyin under "lernen" alone.
+    #[test]
+    fn the_answer_keeps_pronunciation_and_pinyin_next_to_their_word() {
+        let card = chinese_card();
+        let forward = note(&card, Direction::Forward, FWD_AUDIO);
+        assert_eq!(
+            answer_side(&forward),
+            [
+                "学习",
+                &sound(&forward),
+                "—",
+                "xué xí",
+                "lernen",
+                "我们一起学习中文。",
+                "Wir lernen zusammen Chinesisch.",
+                "Auch: studieren",
+                "HSK 1",
+            ]
+        );
+        let reverse = note(&card, Direction::Reverse, REV_AUDIO);
+        assert_eq!(
+            answer_side(&reverse),
+            [
+                "lernen",
+                &sound(&reverse),
+                "—",
+                "xué xí",
+                "学习",
+                "我们一起学习中文。",
+                "Wir lernen zusammen Chinesisch.",
+                "Auch: studieren",
+                "HSK 1",
+            ]
+        );
+
+        // Without pinyin and HSK level, their blocks leave no trace.
+        let english = note(&english_card(), Direction::Forward, FWD_AUDIO);
+        assert_eq!(
+            answer_side(&english),
+            [
+                "serendipity",
+                &sound(&english),
+                "—",
+                "glücklicher Zufall",
+                "It was pure serendipity.",
+                "Es war reiner Zufall.",
+                "Rare word. More common synonym: luck",
+            ]
+        );
     }
 
     #[test]

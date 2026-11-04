@@ -1176,9 +1176,15 @@ Semantics:
   The sentences are bound by language, so the reverse note (front and back
   swapped) still has the sentence in the captured language over its translation.
   One template, "Recall": the question side shows `{{Front}}` large; the answer
-  side shows `{{FrontSide}}`, `<hr id=answer>`, `{{Back}}`, then each of Pinyin,
-  Sentence, Sentence Translation, Notes, HSK Level and Audio inside a
-  `{{#Field}}...{{/Field}}` block, so an empty field leaves no trace. The CSS is
+  side shows `{{FrontSide}}`, Audio, `<hr id=answer>`, Pinyin, `{{Back}}`, then
+  Sentence, Sentence Translation, Notes and HSK Level, each optional field inside a
+  `{{#Field}}...{{/Field}}` block, so an empty field leaves no trace. The order keeps
+  each value next to the word it belongs to in both directions: Audio speaks the
+  note's own `Front` (on the reverse note, the prompt in the user's language), so it
+  sits under the question, and the pinyin sits between the two words, under the
+  Hanzi forward (学习 / xué xí / lernen) and over it reversed (lernen / xué xí /
+  学习); `the_answer_keeps_pronunciation_and_pinyin_next_to_their_word` renders
+  both. The CSS is
   self-contained (no fonts, images or scripts from anywhere, no JavaScript): a
   centred word, muted secondary text, and a dark variant for Anki's `nightMode` and
   AnkiDroid's `night_mode` classes. Matching its field names by name gives exactly
