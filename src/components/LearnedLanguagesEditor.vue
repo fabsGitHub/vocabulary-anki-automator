@@ -11,7 +11,9 @@
  * the entry previews that match (`suggest_field_mapping`); the preview lives
  * here, never in the form, so it dirties nothing. "Customize" saves a copy of
  * the match (offline: of the global mapping) for the usual mapping editor,
- * and "Match by field name again" goes back to `null`.
+ * and "Match by field name again" goes back to `null`. A Chinese entry is
+ * checked for a Pinyin field in the mapping it will use: the saved one, or
+ * else the preview (offline, an entry matched by name stays silent).
  */
 import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -134,13 +136,11 @@ function sourceLabel(source: CardField): string {
   return t(`mapping.sources.${source}`)
 }
 
-/** A saved Chinese mapping that leaves the pinyin out (Milestone J5, per entry). */
-function needsPinyin(entry: LearnedLanguage): boolean {
-  return (
-    isChinese(entry.lang) &&
-    entry.field_mapping !== null &&
-    !bindsSource(entry.field_mapping, 'pinyin')
-  )
+/** A Chinese entry whose saved or auto-matched mapping leaves the pinyin out (Milestone J5, per entry). */
+function needsPinyin(entry: LearnedLanguage, match: AutoMatch | null): boolean {
+  if (!isChinese(entry.lang)) return false
+  const mapping = entry.field_mapping ?? match?.mapping ?? null
+  return mapping !== null && !bindsSource(mapping, 'pinyin')
 }
 
 function copyMapping(mapping: FieldMapping): FieldMapping {
@@ -271,7 +271,7 @@ function issue(index: number, field: keyof LearnedLanguage): string | null {
       </div>
 
       <div
-        v-if="needsPinyin(entry)"
+        v-if="needsPinyin(entry, match)"
         class="notice warning"
         role="alert"
         data-test="chinese-warning"

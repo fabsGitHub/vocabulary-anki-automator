@@ -143,7 +143,8 @@ export function missingFields(mapping: FieldMapping, modelFields: string[]): str
  * Chinese note type can hold. True when the default hotkey or any profile
  * captures from Chinese but nothing in the global mapping receives the
  * pinyin. With Chinese under "My languages" every Chinese capture is filed
- * through that entry, which the languages tab checks on its own.
+ * through that entry, which the languages tab checks on its own: a saved
+ * mapping directly, one matched by field name through its preview.
  */
 export function needsChineseNoteType(config: AppConfig): boolean {
   if (config.learning.languages.some((entry) => isChinese(entry.lang))) return false

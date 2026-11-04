@@ -74,6 +74,20 @@ const APPLE_V3_FR: AutoMatch = {
   unmatched: ['English Sentence'],
 }
 
+/** A Chinese note type for Chinese cards: every value has its field. */
+const CHINESE_ZH: AutoMatch = {
+  mapping: {
+    fields: [
+      { anki_field: 'Hanzi', source: 'front' },
+      { anki_field: 'Pinyin', source: 'pinyin' },
+      { anki_field: 'Meaning', source: 'back' },
+    ],
+    audio_field: 'Audio',
+  },
+  guessed: [],
+  unmatched: [],
+}
+
 function entry(overrides: Partial<LearnedLanguage> = {}): LearnedLanguage {
   return {
     lang: 'fr',
@@ -261,6 +275,11 @@ describe('offline', () => {
     expect(callsTo('anki_model_field_names')).toHaveLength(0)
   })
 
+  it('cannot tell whether a Chinese entry matched by name reaches a Pinyin field', async () => {
+    await mountEditor(settings([entry({ lang: 'zh-CN', deck_name: 'chinese' })]))
+    expect(card(0).find('[data-test="chinese-warning"]').exists()).toBe(false)
+  })
+
   it('Customize copies the global mapping', async () => {
     const config = settings([entry()])
     config.anki.field_mapping = chineseMapping()
@@ -439,7 +458,28 @@ describe('online', () => {
 
     await card(0).find('[data-test="preset-chinese"]').trigger('click')
     expect(card(0).find('[data-test="chinese-warning"]').exists()).toBe(false)
+    // Matched by name, AppleStyleFinalV3 has no Pinyin field either.
     await card(0).find('[data-test="rematch-mapping"]').trigger('click')
+    await flushPromises()
+    expect(card(0).find('[data-test="mapping-preview"]').exists()).toBe(true)
+    expect(card(0).find('[data-test="chinese-warning"]').exists()).toBe(true)
+  })
+
+  it('warns when the match by name of a Chinese entry fills no Pinyin field', async () => {
+    onCommand('suggest_field_mapping', ({ model }: { model: string }) =>
+      model === 'Chinese' ? CHINESE_ZH : APPLE_V3_EN,
+    )
+    await mountEditor(
+      settings([entry({ lang: 'zh-CN', deck_name: 'chinese', model_name: 'Chinese' })]),
+    )
+    expect(card(0).find('[data-test="mapping-preview"]').exists()).toBe(true)
     expect(card(0).find('[data-test="chinese-warning"]').exists()).toBe(false)
+
+    await card(0).find('[data-test="learned-model"]').setValue('AppleStyleFinalV3')
+    await flushPromises()
+    expect(card(0).find('[data-test="chinese-warning"]').text()).toContain(
+      'Hanzi, Pinyin, Meaning and Audio',
+    )
+    expect(store.config.value.learning.languages[0].field_mapping).toBeNull()
   })
 })
