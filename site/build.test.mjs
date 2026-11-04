@@ -122,7 +122,11 @@ describe('copy', () => {
       }
       assert.match(copy.get('faq.q13.a_html'), /Polywort.*Vocabulary Automator/s)
       assert.match(copy.get('meta.title'), /^Polywort – /)
-      assert.match(copy.get('mock.model'), /: Polywort$/)
+      assert.doesNotMatch(
+        copy.get('mock.model'),
+        /Polywort/,
+        `${lang}: the app has no note type of its own`,
+      )
     }
   })
 
