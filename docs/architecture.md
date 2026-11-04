@@ -833,8 +833,14 @@ impl FieldMapping {
     pub fn chinese_default() -> Self;     // Front->Hanzi, Pinyin->Pinyin, Back->Meaning, Example->Sentence, audio "Audio"
     pub fn audio_field(&self) -> Option<&str>;                    // None when unset or blank
     pub fn missing_fields(&self, model_fields: &[String]) -> Vec<String>; // mapped fields the note type lacks
+    pub fn lost_values(&self, card: &Card, model_fields: &[String]) -> Vec<LostValue>; // what a push of card drops
+    pub fn auto_match(model_fields: &[String], source_lang: &str, target_lang: &str) -> AutoMatch;
 }
 impl Default for FieldMapping { /* apple_style_default */ }
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum LostValue { MissingField { anki_field: String, source: CardField }, Unmapped { source: CardField },
+    Audio { audio_field: Option<String> } }
+pub struct AutoMatch { pub mapping: FieldMapping, pub guessed: Vec<String>, pub unmatched: Vec<String> }
 pub enum Direction { Forward, Reverse }
 pub struct AnkiTarget { pub deck: String, pub model: String }
 pub struct NoteSpec { pub deck: String, pub model: String, pub fields: BTreeMap<String, String>,
@@ -883,6 +889,25 @@ Semantics:
   and both example halves of a note whose hanzi is on the back
   (`apps/learn/src-tauri/src/anki.rs`), which would be wrong for them, so offering
   them needs a direction-aware `card_from_note` first.
+- `FieldMapping::auto_match` builds a mapping from a note type's field names alone
+  (the keyword tables and rules are at the end of `mapper.rs`): it splits each name
+  into folded words ("EnglishSentence" → english, sentence; "Rückseite" →
+  ruckseite), recognizes the supported languages by their names (spelled in English,
+  German, French, Spanish or Italian) and codes, and binds in note-type order, the first field winning each value. A field naming the
+  card's source or target language gets `ExampleInSourceLang`/`ExampleInTargetLang`
+  (or `Front`/`Back` when it is not an example); one naming a third language, or a
+  template switch like "Add Reverse", stays empty. `Front` and `Back` fall back to
+  the first unrecognized fields (listed in `guessed`), since Anki refuses a note
+  with an empty first field; `audio_field` is the first word-audio field, spelled
+  exactly; `unmatched` lists the fields left empty. Codes are normalized first. Both
+  built-in mappings come out of their own field names exactly.
+- `lost_values` checks the forward note only (the reverse note writes the same
+  fields): a binding whose field the note type lacks while the card has a value for
+  it (`missing_field`, field names case-insensitive), a non-empty front, back,
+  example half, notes or pinyin that no field receives and no `missing_field`
+  already reports (`unmapped`; an example half also travels in its relative or the
+  combined field), and audio bytes without an exactly named audio field of the note
+  type (`audio`). Empty values are never reported.
 - Field values are HTML-escaped (`&`, `<`, `>`) and line breaks are written as
   `<br>` (a raw newline renders as a space in Anki's HTML fields, which put both
   example sentences on one line). `card_from_note` reverses this (tags stripped,

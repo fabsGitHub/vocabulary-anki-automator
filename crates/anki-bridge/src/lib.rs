@@ -22,7 +22,7 @@ pub use client::{
 };
 pub use error::AnkiError;
 pub use mapper::{
-    add_note_params, card_from_note, map_card, AnkiTarget, AudioAttachment, CardField, Direction,
-    FieldBinding, FieldMapping, NoteSpec,
+    add_note_params, card_from_note, map_card, AnkiTarget, AudioAttachment, AutoMatch, CardField,
+    Direction, FieldBinding, FieldMapping, LostValue, NoteSpec,
 };
 pub use sync::{push_card, PushOptions, PushOutcome};

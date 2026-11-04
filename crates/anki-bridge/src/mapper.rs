@@ -11,6 +11,10 @@
 //!
 //! [`card_from_note`] is the inverse, used by Learn's Anki import, so a card
 //! written by [`map_card`] reads back as the same card.
+//!
+//! [`FieldMapping::auto_match`] builds a mapping from a note type's field
+//! names alone (the keyword tables at the end of this file), and
+//! [`FieldMapping::lost_values`] says what a push of a card would drop.
 
 use std::collections::BTreeMap;
 
@@ -18,7 +22,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use vocab_core::{Card, ScriptMetadata, ScriptVariant};
+use vocab_core::{language::normalize_lang, Card, ScriptMetadata, ScriptVariant};
 
 use crate::{client::NoteInfo, html};
 
@@ -145,6 +149,92 @@ impl FieldMapping {
         missing
     }
 
+    /// What a push of `card` onto a note type with `model_fields` would drop:
+    /// the approval window's warning. Unlike [`missing_fields`](Self::missing_fields)
+    /// it looks at the card, so an empty value is never reported. Only the
+    /// forward note is checked; the reverse note writes the same fields.
+    ///
+    /// The result lists the [`LostValue::MissingField`] entries in mapping
+    /// order, then [`LostValue::Unmapped`], then [`LostValue::Audio`].
+    pub fn lost_values(&self, card: &Card, model_fields: &[String]) -> Vec<LostValue> {
+        let has = |name: &str| {
+            let lowered = name.to_lowercase();
+            model_fields
+                .iter()
+                .any(|field| field.to_lowercase() == lowered)
+        };
+        let mut lost = Vec::new();
+        let mut delivered: Vec<CardField> = Vec::new();
+        let mut reported: Vec<CardField> = Vec::new();
+        for binding in self.effective_bindings() {
+            let value = field_value(card, Direction::Forward, binding.source);
+            if has(&binding.anki_field) {
+                delivered.push(binding.source);
+            } else if !value.trim().is_empty() {
+                lost.push(LostValue::MissingField {
+                    anki_field: binding.anki_field.clone(),
+                    source: binding.source,
+                });
+                reported.push(binding.source);
+            }
+        }
+        // A value counts as written when any binding carries its content: an
+        // example half also travels in its relative or combined field.
+        let covers = |kind: CardField, set: &[CardField]| {
+            set.iter().any(|&bound| match kind {
+                CardField::ExampleInSourceLang => matches!(
+                    bound,
+                    CardField::ExampleInSourceLang | CardField::ExampleSource | CardField::Example
+                ),
+                CardField::ExampleInTargetLang => matches!(
+                    bound,
+                    CardField::ExampleInTargetLang | CardField::ExampleTarget | CardField::Example
+                ),
+                other => bound == other,
+            })
+        };
+        let checks = [
+            (CardField::Front, card.front.as_str()),
+            (CardField::Back, card.back.as_str()),
+            (CardField::ExampleInSourceLang, card.example_source.as_str()),
+            (CardField::ExampleInTargetLang, card.example_target.as_str()),
+            (CardField::Notes, card.notes.as_str()),
+            (CardField::Pinyin, card.pinyin().unwrap_or_default()),
+        ];
+        for (kind, value) in checks {
+            if !value.trim().is_empty() && !covers(kind, &delivered) && !covers(kind, &reported) {
+                lost.push(LostValue::Unmapped { source: kind });
+            }
+        }
+        if card
+            .audio_front
+            .as_ref()
+            .is_some_and(|audio| !audio.is_empty())
+        {
+            let audio = self.audio_field();
+            if !audio.is_some_and(|audio| model_fields.iter().any(|field| field == audio)) {
+                lost.push(LostValue::Audio {
+                    audio_field: audio.map(str::to_string),
+                });
+            }
+        }
+        lost
+    }
+
+    /// A mapping for a note type with `model_fields` (in `modelFieldNames`
+    /// order) and cards `source_lang` -> `target_lang`, from the field names
+    /// alone: "English Sentence" gets the English example, "Audio" the
+    /// pronunciation, "Add Reverse" nothing. The rules and keyword tables are
+    /// at the end of this file; both built-in mappings come out of their own
+    /// field names exactly. Language codes are normalized first.
+    pub fn auto_match(model_fields: &[String], source_lang: &str, target_lang: &str) -> AutoMatch {
+        match_fields(
+            model_fields,
+            &normalize_lang(source_lang),
+            &normalize_lang(target_lang),
+        )
+    }
+
     /// The bindings that take effect: the first one for each Anki field. Both
     /// directions use these, so import never reads a binding export skipped.
     fn effective_bindings(&self) -> impl Iterator<Item = &FieldBinding> {
@@ -170,6 +260,35 @@ impl Default for FieldMapping {
     fn default() -> Self {
         Self::apple_style_default()
     }
+}
+
+/// A card value a push would not deliver ([`FieldMapping::lost_values`]).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum LostValue {
+    /// A binding whose Anki field the note type lacks, while the card has a
+    /// value for it.
+    MissingField {
+        anki_field: String,
+        source: CardField,
+    },
+    /// A non-empty card value no existing field receives (and no
+    /// `MissingField` already reports).
+    Unmapped { source: CardField },
+    /// Audio bytes but no audio field, or one the note type lacks (compared
+    /// exactly, as AnkiConnect attaches media).
+    Audio { audio_field: Option<String> },
+}
+
+/// What [`FieldMapping::auto_match`] made of a note type's fields.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AutoMatch {
+    /// Bindings in note-type order.
+    pub mapping: FieldMapping,
+    /// Fields bound only by position (no name matched): worth a look.
+    pub guessed: Vec<String>,
+    /// Fields left empty (the audio field excluded).
+    pub unmatched: Vec<String>,
 }
 
 /// Which way round a card is written. `Reverse` is the extra target -> source
@@ -459,6 +578,479 @@ fn parse_hsk_level(text: &str) -> Option<u8> {
         level @ 1..=6 => Some(level),
         7..=9 => Some(7),
         _ => None,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Matching a note type's fields by name (FieldMapping::auto_match)
+
+/// Words that name each supported language inside an Anki field name, after
+/// [`fold`]. German adjective endings (-e/-er/-es/-en/-em) are accepted on
+/// the longer ones ("Englischer Satz", "Deutsche Übersetzung"); two- and
+/// three-letter codes only as the last word ("Sentence (EN)", "satz_de").
+const LANGUAGE_WORDS: &[(&str, &[&str], &[&str])] = &[
+    (
+        "en",
+        &["english", "englisch", "anglais", "ingles", "inglese"],
+        &["en", "eng"],
+    ),
+    (
+        "de",
+        &["german", "deutsch", "allemand", "aleman", "tedesco"],
+        &["de", "ger", "deu"],
+    ),
+    (
+        "fr",
+        &[
+            "french",
+            "franzosisch",
+            "franzoesisch",
+            "francais",
+            "frances",
+            "francese",
+        ],
+        &["fr", "fra", "fre"],
+    ),
+    (
+        "es",
+        &["spanish", "spanisch", "espagnol", "espanol", "spagnolo"],
+        &["es", "spa"],
+    ),
+    (
+        "it",
+        &["italian", "italienisch", "italien", "italiano"],
+        &["it", "ita"],
+    ),
+    (
+        "zh-CN",
+        &[
+            "chinese",
+            "chinesisch",
+            "chinois",
+            "chino",
+            "cinese",
+            "mandarin",
+            "hanzi",
+            "zhongwen",
+        ],
+        &["zh", "chn", "cn"],
+    ),
+];
+/// CJK spellings, matched as substrings of the raw name.
+const LANGUAGE_CJK: &[(&str, &[&str])] =
+    &[("zh-CN", &["中文", "汉语", "漢語", "汉字", "漢字", "普通话"])];
+
+const AUDIO: &[&str] = &[
+    "audio",
+    "sound",
+    "sounds",
+    "pronunciation",
+    "prononciation",
+    "aussprache",
+    "voice",
+    "stimme",
+    "tts",
+    "mp3",
+    "recording",
+    "aufnahme",
+];
+const AUDIO_CJK: &[&str] = &["发音", "音频", "录音"];
+const NOTES: &[&str] = &[
+    "notes",
+    "note",
+    "notizen",
+    "notiz",
+    "anmerkung",
+    "anmerkungen",
+    "hinweis",
+    "hinweise",
+    "comment",
+    "comments",
+    "kommentar",
+    "kommentare",
+    "bemerkung",
+    "bemerkungen",
+    "remarks",
+    "remarque",
+    "remarques",
+    "extra",
+    "zusatz",
+    "zusatzinfo",
+    "info",
+    "misc",
+    "sonstiges",
+];
+const NOTES_CJK: &[&str] = &["备注", "注释"];
+const EXAMPLE: &[&str] = &[
+    "sentence",
+    "sentences",
+    "satz",
+    "satze",
+    "beispiel",
+    "beispiele",
+    "beispielsatz",
+    "beispielsatze",
+    "example",
+    "examples",
+    "exemple",
+    "exemples",
+    "phrase",
+    "context",
+    "kontext",
+    "usage",
+    "ejemplo",
+    "frase",
+    "esempio",
+];
+const EXAMPLE_CJK: &[&str] = &["例句", "句子"];
+const TRANSLATION: &[&str] = &[
+    "translation",
+    "translated",
+    "ubersetzung",
+    "uebersetzung",
+    "ubersetzt",
+    "traduction",
+    "traduccion",
+    "traduzione",
+    "meaning",
+    "bedeutung",
+];
+const FRONT: &[&str] = &[
+    "front",
+    "vorderseite",
+    "vorne",
+    "recto",
+    "question",
+    "frage",
+    "prompt",
+];
+const BACK: &[&str] = &[
+    "back",
+    "ruckseite",
+    "rueckseite",
+    "hinten",
+    "verso",
+    "answer",
+    "antwort",
+];
+const WORD: &[&str] = &[
+    "word",
+    "wort",
+    "vokabel",
+    "vocab",
+    "vocabulary",
+    "term",
+    "begriff",
+    "expression",
+    "ausdruck",
+    "lemma",
+    "headword",
+    "mot",
+    "palabra",
+    "parola",
+    "characters",
+    "zeichen",
+    "simplified",
+];
+const WORD_CJK: &[&str] = &["单词", "生词", "词语"];
+const MEANING: &[&str] = &[
+    "meaning",
+    "meanings",
+    "bedeutung",
+    "translation",
+    "ubersetzung",
+    "uebersetzung",
+    "definition",
+    "gloss",
+    "traduction",
+    "signification",
+    "significado",
+    "significato",
+];
+const MEANING_CJK: &[&str] = &["意思", "释义", "翻译"];
+const PINYIN: &[&str] = &["pinyin"];
+/// Switches in the note type's own templates ("Add Reverse" in Anki's
+/// "Basic (optional reversed card)"): filling one adds cards.
+const NEVER: &[&str] = &["reverse", "reversed", "umgekehrt", "umkehren", "tags"];
+const PINYIN_CJK: &[&str] = &["拼音"];
+const HSK: &[&str] = &["hsk"];
+/// Level words count as the HSK level only on a Chinese capture.
+const LEVEL: &[&str] = &["level", "stufe", "niveau"];
+
+/// Lowercase with accents and umlauts folded (a fixed table, so a port to
+/// another language folds identically without Unicode normalization).
+fn fold(c: char) -> String {
+    match c {
+        'ä' | 'à' | 'á' | 'â' | 'ã' | 'å' => "a".into(),
+        'ö' | 'ò' | 'ó' | 'ô' | 'õ' => "o".into(),
+        'ü' | 'ù' | 'ú' | 'û' => "u".into(),
+        'é' | 'è' | 'ê' | 'ë' => "e".into(),
+        'í' | 'ì' | 'î' | 'ï' => "i".into(),
+        'ç' => "c".into(),
+        'ñ' => "n".into(),
+        'ß' => "ss".into(),
+        other => other.to_string(),
+    }
+}
+
+/// The words of a field name: camelCase and every non-alphanumeric split,
+/// lowercased and folded. "EnglishSentence" -> ["english", "sentence"],
+/// "Rückseite" -> ["ruckseite"], "satz_de" -> ["satz", "de"].
+fn words(name: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut current = String::new();
+    let mut prev_lower = false;
+    for c in name.chars() {
+        if c.is_alphanumeric() {
+            if c.is_uppercase() && prev_lower && !current.is_empty() {
+                out.push(std::mem::take(&mut current));
+            }
+            prev_lower = c.is_lowercase();
+            for l in c.to_lowercase() {
+                current.push_str(&fold(l));
+            }
+        } else {
+            prev_lower = false;
+            if !current.is_empty() {
+                out.push(std::mem::take(&mut current));
+            }
+        }
+    }
+    if !current.is_empty() {
+        out.push(current);
+    }
+    out
+}
+
+/// A field name, raw (for the CJK keywords) and as [`words`].
+struct Name<'a> {
+    raw: &'a str,
+    words: Vec<String>,
+}
+
+impl Name<'_> {
+    fn has(&self, list: &[&str]) -> bool {
+        self.words.iter().any(|w| list.contains(&w.as_str()))
+    }
+
+    fn has_cjk(&self, list: &[&str]) -> bool {
+        list.iter().any(|k| self.raw.contains(k))
+    }
+
+    /// German compounds: "Beispielsatz", "Kontextsatz" (not "Zusatz").
+    fn has_example(&self) -> bool {
+        self.has(EXAMPLE)
+            || self.has_cjk(EXAMPLE_CJK)
+            || self.words.iter().any(|w| {
+                (w.ends_with("satz") && w != "zusatz")
+                    || w.ends_with("beispiel")
+                    || w.ends_with("satze")
+            })
+    }
+
+    fn language(&self) -> Option<&'static str> {
+        for (code, names, codes) in LANGUAGE_WORDS {
+            let named = self.words.iter().any(|w| {
+                names.iter().any(|n| {
+                    w == n
+                        || (n.len() > 4
+                            && w.strip_prefix(n)
+                                .is_some_and(|rest| ["e", "er", "es", "en", "em"].contains(&rest)))
+                })
+            });
+            let coded = self.words.len() > 1
+                && self
+                    .words
+                    .last()
+                    .is_some_and(|w| codes.contains(&w.as_str()));
+            if named || coded {
+                return Some(code);
+            }
+        }
+        LANGUAGE_CJK
+            .iter()
+            .find(|(_, spellings)| self.has_cjk(spellings))
+            .map(|(code, _)| *code)
+    }
+}
+
+/// What one field name looks like, before the one-binding-per-value rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Guess {
+    Audio {
+        word_audio: bool,
+    },
+    Text(CardField),
+    /// An example field naming no language or side.
+    GenericExample,
+    /// Names a third language: leave it empty.
+    OtherLanguage,
+    /// Never filled, not even by position ("Add Reverse" adds a card).
+    Never,
+    Unknown,
+}
+
+/// The first rule that applies to `name` wins; `source` and `target` are
+/// canonical codes.
+fn classify(name: &Name, source: &str, target: &str) -> Guess {
+    let lang = name.language();
+    let side = |code: &str| {
+        if code == source {
+            Some(true)
+        } else if code == target {
+            Some(false)
+        } else {
+            None
+        }
+    };
+    if name.has(NEVER) {
+        return Guess::Never;
+    }
+    if name.has(AUDIO) || name.has_cjk(AUDIO_CJK) {
+        // The audio is TTS of the note's front word; a sentence, back or
+        // target-language audio field would get the wrong recording.
+        let word_audio =
+            !name.has_example() && !name.has(BACK) && lang.is_none_or(|code| code == source);
+        return Guess::Audio { word_audio };
+    }
+    // Before examples, so "Zusatz" is not read as a sentence.
+    if name.has(NOTES) || name.has_cjk(NOTES_CJK) {
+        return Guess::Text(CardField::Notes);
+    }
+    if name.has_example() {
+        return match lang.map(side) {
+            Some(Some(true)) => Guess::Text(CardField::ExampleInSourceLang),
+            Some(Some(false)) => Guess::Text(CardField::ExampleInTargetLang),
+            Some(None) => Guess::OtherLanguage,
+            None if name.has(TRANSLATION) => Guess::Text(CardField::ExampleInTargetLang),
+            None if name.has(FRONT) => Guess::Text(CardField::ExampleSource),
+            None if name.has(BACK) => Guess::Text(CardField::ExampleTarget),
+            None => Guess::GenericExample,
+        };
+    }
+    if name.has(PINYIN) || name.has_cjk(PINYIN_CJK) {
+        return Guess::Text(CardField::Pinyin);
+    }
+    let chinese = source == "zh-CN" || target == "zh-CN";
+    if name.has(HSK) || (chinese && name.has(LEVEL)) {
+        return Guess::Text(CardField::HskLevel);
+    }
+    if name.has(FRONT) {
+        return Guess::Text(CardField::Front);
+    }
+    if name.has(BACK) {
+        return Guess::Text(CardField::Back);
+    }
+    if let Some(code) = lang {
+        return match side(code) {
+            Some(true) => Guess::Text(CardField::Front),
+            Some(false) => Guess::Text(CardField::Back),
+            None => Guess::OtherLanguage,
+        };
+    }
+    if name.has(MEANING) || name.has_cjk(MEANING_CJK) {
+        return Guess::Text(CardField::Back);
+    }
+    if name.has(WORD) || name.has_cjk(WORD_CJK) {
+        return Guess::Text(CardField::Front);
+    }
+    Guess::Unknown
+}
+
+/// [`FieldMapping::auto_match`] for canonical `source`/`target` codes.
+fn match_fields(model_fields: &[String], source: &str, target: &str) -> AutoMatch {
+    let guesses: Vec<Guess> = model_fields
+        .iter()
+        .map(|raw| {
+            let name = Name {
+                raw,
+                words: words(raw),
+            };
+            classify(&name, source, target)
+        })
+        .collect();
+
+    // First field wins: a value goes to the first field that names it.
+    let mut chosen: Vec<Option<CardField>> = vec![None; model_fields.len()];
+    let taken = |field: CardField, chosen: &[Option<CardField>]| chosen.contains(&Some(field));
+    for (i, guess) in guesses.iter().enumerate() {
+        if let Guess::Text(field) = guess {
+            if !taken(*field, &chosen) {
+                chosen[i] = Some(*field);
+            }
+        }
+    }
+    // Generic example fields: the combined two-line Example when it is the
+    // note type's only example field (what both presets do), otherwise the
+    // captured-language half first, then the translation half.
+    let example_fields = guesses
+        .iter()
+        .filter(|g| {
+            matches!(
+                g,
+                Guess::GenericExample
+                    | Guess::Text(
+                        CardField::ExampleInSourceLang
+                            | CardField::ExampleInTargetLang
+                            | CardField::ExampleSource
+                            | CardField::ExampleTarget
+                    )
+            )
+        })
+        .count();
+    for (i, guess) in guesses.iter().enumerate() {
+        if *guess != Guess::GenericExample {
+            continue;
+        }
+        let pick = if example_fields == 1 {
+            Some(CardField::Example)
+        } else {
+            [
+                CardField::ExampleInSourceLang,
+                CardField::ExampleInTargetLang,
+            ]
+            .into_iter()
+            .find(|f| !taken(*f, &chosen))
+        };
+        chosen[i] = pick;
+    }
+    // Positional fallback: Anki refuses a note whose first field is empty,
+    // and a note type always has a question and an answer side.
+    let mut guessed = Vec::new();
+    for field in [CardField::Front, CardField::Back] {
+        if taken(field, &chosen) {
+            continue;
+        }
+        let free = (0..model_fields.len())
+            .find(|&i| chosen[i].is_none() && matches!(guesses[i], Guess::Unknown));
+        if let Some(i) = free {
+            chosen[i] = Some(field);
+            guessed.push(model_fields[i].clone());
+        }
+    }
+    let audio_field = guesses
+        .iter()
+        .position(|g| matches!(g, Guess::Audio { word_audio: true }))
+        .map(|i| model_fields[i].clone());
+
+    let fields: Vec<FieldBinding> = model_fields
+        .iter()
+        .zip(&chosen)
+        .filter_map(|(name, field)| field.map(|f| FieldBinding::new(name.clone(), f)))
+        .collect();
+    let unmatched = model_fields
+        .iter()
+        .zip(&chosen)
+        .filter(|(name, field)| field.is_none() && audio_field.as_deref() != Some(name.as_str()))
+        .map(|(name, _)| name.clone())
+        .collect();
+    AutoMatch {
+        mapping: FieldMapping {
+            fields,
+            audio_field,
+        },
+        guessed,
+        unmatched,
     }
 }
 
@@ -1519,5 +2111,512 @@ mod tests {
         for (text, expected) in cases {
             assert_eq!(parse_hsk_level(text), expected, "{text:?}");
         }
+    }
+}
+
+/// `FieldMapping::auto_match` and `lost_values`, with the user's
+/// AppleStyleFinalV3 note type (Front, Back, English Sentence, German
+/// Sentence, Audio) as the main case.
+#[cfg(test)]
+mod auto_match_tests {
+    use chrono::{TimeZone, Utc};
+    use serde_json::json;
+
+    use super::*;
+
+    fn names(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn apple_v3() -> Vec<String> {
+        names(&[
+            "Front",
+            "Back",
+            "English Sentence",
+            "German Sentence",
+            "Audio",
+        ])
+    }
+
+    fn english_card() -> Card {
+        let captured_at = Utc.with_ymd_and_hms(2026, 11, 4, 12, 0, 0).unwrap();
+        let mut card = Card::new("serendipity", "glücklicher Zufall", "en", "de", captured_at);
+        card.example_source = "It was pure serendipity.".into();
+        card.example_target = "Es war reiner Zufall.".into();
+        card.audio_front = Some(b"ID3".to_vec());
+        card
+    }
+
+    fn pairs(list: &[(&str, &str)]) -> Vec<(String, String)> {
+        list.iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
+    }
+
+    /// Anki field -> value, in mapping order, as map_card would send it
+    /// (without the HTML escaping).
+    fn map_fields(
+        card: &Card,
+        direction: Direction,
+        mapping: &FieldMapping,
+    ) -> Vec<(String, String)> {
+        mapping
+            .effective_bindings()
+            .map(|b| (b.anki_field.clone(), field_value(card, direction, b.source)))
+            .collect()
+    }
+
+    fn auto_match(model_fields: &[String], source_lang: &str, target_lang: &str) -> AutoMatch {
+        FieldMapping::auto_match(model_fields, source_lang, target_lang)
+    }
+
+    fn lost_values(card: &Card, mapping: &FieldMapping, model_fields: &[String]) -> Vec<LostValue> {
+        mapping.lost_values(card, model_fields)
+    }
+
+    fn unmapped(source: CardField) -> LostValue {
+        LostValue::Unmapped { source }
+    }
+
+    #[test]
+    fn apple_style_final_v3_en_de() {
+        let m = auto_match(&apple_v3(), "en", "de");
+        assert_eq!(
+            m.mapping,
+            FieldMapping {
+                fields: vec![
+                    FieldBinding::new("Front", CardField::Front),
+                    FieldBinding::new("Back", CardField::Back),
+                    FieldBinding::new("English Sentence", CardField::ExampleInSourceLang),
+                    FieldBinding::new("German Sentence", CardField::ExampleInTargetLang),
+                ],
+                audio_field: Some("Audio".into()),
+            }
+        );
+        assert!(m.unmatched.is_empty() && m.guessed.is_empty(), "{m:?}");
+        assert!(m.mapping.missing_fields(&apple_v3()).is_empty());
+
+        let card = english_card();
+        assert_eq!(
+            map_fields(&card, Direction::Forward, &m.mapping),
+            pairs(&[
+                ("Front", "serendipity"),
+                ("Back", "glücklicher Zufall"),
+                ("English Sentence", "It was pure serendipity."),
+                ("German Sentence", "Es war reiner Zufall."),
+            ])
+        );
+        // The reverse note: sides swap, language-named sentences do not.
+        assert_eq!(
+            map_fields(&card, Direction::Reverse, &m.mapping),
+            pairs(&[
+                ("Front", "glücklicher Zufall"),
+                ("Back", "serendipity"),
+                ("English Sentence", "It was pure serendipity."),
+                ("German Sentence", "Es war reiner Zufall."),
+            ])
+        );
+        assert_eq!(lost_values(&card, &m.mapping, &apple_v3()), vec![]);
+    }
+
+    /// Why relative ExampleSource/ExampleTarget are wrong for these names.
+    #[test]
+    fn relative_bindings_swap_language_named_fields_on_the_reverse_note() {
+        let relative = FieldMapping {
+            fields: vec![
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+                FieldBinding::new("English Sentence", CardField::ExampleSource),
+                FieldBinding::new("German Sentence", CardField::ExampleTarget),
+            ],
+            audio_field: Some("Audio".into()),
+        };
+        let reverse = map_fields(&english_card(), Direction::Reverse, &relative);
+        assert_eq!(
+            reverse[2],
+            ("English Sentence".into(), "Es war reiner Zufall.".into())
+        );
+    }
+
+    /// The user's real situation: the default mapping on their note type.
+    /// The example is reported once, as the missing "Context Sentence".
+    #[test]
+    fn today_s_default_mapping_loses_example_and_audio_on_apple_v3() {
+        let default = FieldMapping::apple_style_default();
+        assert_eq!(
+            default.missing_fields(&apple_v3()),
+            names(&["Context Sentence", "Notes", "Front Audio"])
+        );
+        let card = english_card();
+        assert_eq!(
+            lost_values(&card, &default, &apple_v3()),
+            vec![
+                LostValue::MissingField {
+                    anki_field: "Context Sentence".into(),
+                    source: CardField::Example
+                },
+                LostValue::Audio {
+                    audio_field: Some("Front Audio".into())
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn french_card_on_apple_v3_leaves_the_english_sentence_empty() {
+        let m = auto_match(&apple_v3(), "fr", "de");
+        assert_eq!(
+            m.mapping.fields,
+            vec![
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+                FieldBinding::new("German Sentence", CardField::ExampleInTargetLang),
+            ]
+        );
+        assert_eq!(m.mapping.audio_field.as_deref(), Some("Audio"));
+        assert_eq!(m.unmatched, names(&["English Sentence"]));
+        let mut card = english_card();
+        card.source_lang = "fr".into();
+        card.front = "message".into();
+        card.example_source = "J'ai reçu ton message.".into();
+        assert_eq!(
+            lost_values(&card, &m.mapping, &apple_v3()),
+            vec![unmapped(CardField::ExampleInSourceLang)]
+        );
+    }
+
+    #[test]
+    fn german_source_flips_which_sentence_is_the_captured_one() {
+        let m = auto_match(&apple_v3(), "de", "en");
+        assert_eq!(
+            m.mapping.fields[2],
+            FieldBinding::new("English Sentence", CardField::ExampleInTargetLang)
+        );
+        assert_eq!(
+            m.mapping.fields[3],
+            FieldBinding::new("German Sentence", CardField::ExampleInSourceLang)
+        );
+    }
+
+    #[test]
+    fn reproduces_both_presets_from_their_field_names() {
+        let apple = names(&["Front", "Back", "Context Sentence", "Notes", "Front Audio"]);
+        let m = auto_match(&apple, "en", "de");
+        assert_eq!(m.mapping, FieldMapping::apple_style_default());
+        let chinese = names(&["Hanzi", "Pinyin", "Meaning", "Sentence", "Audio"]);
+        let m = auto_match(&chinese, "zh-CN", "de");
+        assert_eq!(m.mapping, FieldMapping::chinese_default());
+    }
+
+    #[test]
+    fn german_field_names() {
+        let model = names(&[
+            "Vorderseite",
+            "Rückseite",
+            "Englischer Satz",
+            "Deutscher Satz",
+            "Aussprache",
+            "Notizen",
+        ]);
+        let m = auto_match(&model, "en", "de");
+        assert_eq!(
+            m.mapping,
+            FieldMapping {
+                fields: vec![
+                    FieldBinding::new("Vorderseite", CardField::Front),
+                    FieldBinding::new("Rückseite", CardField::Back),
+                    FieldBinding::new("Englischer Satz", CardField::ExampleInSourceLang),
+                    FieldBinding::new("Deutscher Satz", CardField::ExampleInTargetLang),
+                    FieldBinding::new("Notizen", CardField::Notes),
+                ],
+                audio_field: Some("Aussprache".into()),
+            }
+        );
+    }
+
+    #[test]
+    fn chinese_note_type_with_german_names() {
+        let model = names(&[
+            "Hanzi",
+            "Pinyin",
+            "Bedeutung",
+            "Beispielsatz",
+            "Beispiel Übersetzung",
+            "HSK",
+            "Audio",
+            "Zusatz",
+        ]);
+        let m = auto_match(&model, "zh-CN", "de");
+        assert_eq!(
+            m.mapping.fields,
+            vec![
+                FieldBinding::new("Hanzi", CardField::Front),
+                FieldBinding::new("Pinyin", CardField::Pinyin),
+                FieldBinding::new("Bedeutung", CardField::Back),
+                FieldBinding::new("Beispielsatz", CardField::ExampleInSourceLang),
+                FieldBinding::new("Beispiel Übersetzung", CardField::ExampleInTargetLang),
+                FieldBinding::new("HSK", CardField::HskLevel),
+                FieldBinding::new("Zusatz", CardField::Notes),
+            ]
+        );
+        assert_eq!(m.mapping.audio_field.as_deref(), Some("Audio"));
+    }
+
+    #[test]
+    fn basic_note_types() {
+        let m = auto_match(&names(&["Front", "Back"]), "en", "de");
+        assert_eq!(m.mapping.fields.len(), 2);
+        assert_eq!(m.mapping.audio_field, None);
+        // "Add Reverse" must stay empty, or Anki would add the reverse card.
+        let m = auto_match(&names(&["Front", "Back", "Add Reverse"]), "en", "de");
+        assert_eq!(m.unmatched, names(&["Add Reverse"]));
+        // Not even by position.
+        let m = auto_match(&names(&["Word", "Add Reverse"]), "en", "de");
+        assert_eq!(
+            m.mapping.fields,
+            vec![FieldBinding::new("Word", CardField::Front)]
+        );
+        assert_eq!(m.unmatched, names(&["Add Reverse"]));
+    }
+
+    #[test]
+    fn language_named_word_fields_and_codes() {
+        let m = auto_match(
+            &names(&[
+                "English",
+                "Deutsch",
+                "Sentence (EN)",
+                "Satz_DE",
+                "EnglishAudio",
+            ]),
+            "en",
+            "de",
+        );
+        assert_eq!(
+            m.mapping,
+            FieldMapping {
+                fields: vec![
+                    FieldBinding::new("English", CardField::Front),
+                    FieldBinding::new("Deutsch", CardField::Back),
+                    FieldBinding::new("Sentence (EN)", CardField::ExampleInSourceLang),
+                    FieldBinding::new("Satz_DE", CardField::ExampleInTargetLang),
+                ],
+                audio_field: Some("EnglishAudio".into()),
+            }
+        );
+    }
+
+    #[test]
+    fn sentence_audio_is_not_word_audio() {
+        let m = auto_match(
+            &names(&["Word", "Meaning", "Sentence", "Sentence Audio"]),
+            "en",
+            "de",
+        );
+        assert_eq!(m.mapping.audio_field, None);
+        assert_eq!(m.unmatched, names(&["Sentence Audio"]));
+        let m = auto_match(
+            &names(&["Word", "Meaning", "Sentence Audio", "Word Audio"]),
+            "en",
+            "de",
+        );
+        assert_eq!(m.mapping.audio_field.as_deref(), Some("Word Audio"));
+    }
+
+    #[test]
+    fn unknown_names_fall_back_to_position() {
+        let m = auto_match(&names(&["Q", "A", "Sound"]), "en", "de");
+        assert_eq!(
+            m.mapping,
+            FieldMapping {
+                fields: vec![
+                    FieldBinding::new("Q", CardField::Front),
+                    FieldBinding::new("A", CardField::Back),
+                ],
+                audio_field: Some("Sound".into()),
+            }
+        );
+        assert_eq!(m.guessed, names(&["Q", "A"]));
+    }
+
+    #[test]
+    fn first_field_wins_for_a_repeated_value() {
+        let m = auto_match(&names(&["Front", "Word", "Back"]), "en", "de");
+        assert_eq!(m.mapping.fields.len(), 2);
+        assert_eq!(m.unmatched, names(&["Word"]));
+    }
+
+    #[test]
+    fn words_split_and_fold() {
+        assert_eq!(words("EnglishSentence"), ["english", "sentence"]);
+        assert_eq!(words("Rückseite"), ["ruckseite"]);
+        assert_eq!(words("satz_de"), ["satz", "de"]);
+        assert_eq!(words("Front Audio"), ["front", "audio"]);
+        assert_eq!(words("Français"), ["francais"]);
+        assert_eq!(words("HSK"), ["hsk"]);
+    }
+
+    #[test]
+    fn auto_match_normalizes_its_language_codes() {
+        let chinese = names(&["Hanzi", "Pinyin", "Meaning", "Sentence", "Level", "Audio"]);
+        let m = auto_match(&chinese, "ZH", "DE");
+        assert_eq!(
+            m.mapping.fields.last(),
+            Some(&FieldBinding::new("Level", CardField::HskLevel)),
+            "a level field counts only on a Chinese capture"
+        );
+        let m = auto_match(&apple_v3(), " EN ", "De");
+        assert_eq!(m, auto_match(&apple_v3(), "en", "de"));
+    }
+
+    #[test]
+    fn lost_values_reports_only_values_the_card_has() {
+        let auto = auto_match(&apple_v3(), "en", "de").mapping;
+        assert_eq!(lost_values(&english_card(), &auto, &apple_v3()), vec![]);
+
+        // Pinyin on a Chinese card with the apple mapping has nowhere to go.
+        let mut chinese = english_card();
+        chinese.front = "学习".into();
+        chinese.source_lang = "zh-CN".into();
+        chinese.script_metadata = ScriptMetadata::Chinese {
+            pinyin: "xué xí".into(),
+            hsk_level: Some(1),
+            script_variant: ScriptVariant::Simplified,
+        };
+        let apple = names(&["Front", "Back", "Context Sentence", "Notes", "Front Audio"]);
+        assert_eq!(
+            lost_values(&chinese, &FieldMapping::apple_style_default(), &apple),
+            vec![unmapped(CardField::Pinyin)]
+        );
+
+        // No audio bytes: no audio entry, whatever the audio field.
+        let mut silent = english_card();
+        silent.audio_front = None;
+        let no_audio_field = FieldMapping {
+            audio_field: None,
+            ..auto.clone()
+        };
+        assert_eq!(lost_values(&silent, &no_audio_field, &apple_v3()), vec![]);
+        silent.audio_front = Some(Vec::new());
+        assert_eq!(lost_values(&silent, &no_audio_field, &apple_v3()), vec![]);
+        assert_eq!(
+            lost_values(&english_card(), &no_audio_field, &apple_v3()),
+            vec![LostValue::Audio { audio_field: None }]
+        );
+
+        // AnkiConnect attaches media only to an exactly named field.
+        let lowercase_audio = FieldMapping {
+            audio_field: Some("audio".into()),
+            ..auto.clone()
+        };
+        assert_eq!(
+            lost_values(&english_card(), &lowercase_audio, &apple_v3()),
+            vec![LostValue::Audio {
+                audio_field: Some("audio".into())
+            }]
+        );
+
+        // An empty value whose field is missing loses nothing.
+        let with_notes = FieldMapping {
+            fields: [
+                auto.fields.clone(),
+                vec![FieldBinding::new("Notes", CardField::Notes)],
+            ]
+            .concat(),
+            ..auto.clone()
+        };
+        assert_eq!(
+            lost_values(&english_card(), &with_notes, &apple_v3()),
+            vec![]
+        );
+        let mut noted = english_card();
+        noted.notes = "Rare word.".into();
+        assert_eq!(
+            lost_values(&noted, &with_notes, &apple_v3()),
+            vec![LostValue::MissingField {
+                anki_field: "Notes".into(),
+                source: CardField::Notes
+            }]
+        );
+        assert_eq!(
+            lost_values(&noted, &auto, &apple_v3()),
+            vec![unmapped(CardField::Notes)]
+        );
+    }
+
+    #[test]
+    fn lost_values_counts_any_field_that_carries_an_example_half() {
+        let fields = names(&["Front", "Back", "Sentence"]);
+        let with = |source: CardField| FieldMapping {
+            fields: vec![
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+                FieldBinding::new("Sentence", source),
+            ],
+            audio_field: None,
+        };
+        let mut card = english_card();
+        card.audio_front = None;
+        assert_eq!(
+            lost_values(&card, &with(CardField::Example), &fields),
+            vec![]
+        );
+        assert_eq!(
+            lost_values(&card, &with(CardField::ExampleSource), &fields),
+            vec![unmapped(CardField::ExampleInTargetLang)]
+        );
+        assert_eq!(
+            lost_values(&card, &with(CardField::ExampleInTargetLang), &fields),
+            vec![unmapped(CardField::ExampleInSourceLang)]
+        );
+        // A case-insensitive name match delivers the text value.
+        let shouty = names(&["FRONT", "BACK", "SENTENCE"]);
+        assert_eq!(
+            lost_values(&card, &with(CardField::Example), &shouty),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn serde_shapes() {
+        assert_eq!(
+            serde_json::to_value([
+                LostValue::MissingField {
+                    anki_field: "Context Sentence".into(),
+                    source: CardField::Example,
+                },
+                LostValue::Unmapped {
+                    source: CardField::ExampleInSourceLang,
+                },
+                LostValue::Audio {
+                    audio_field: Some("Front Audio".into()),
+                },
+                LostValue::Audio { audio_field: None },
+            ])
+            .unwrap(),
+            json!([
+                { "kind": "missing_field", "anki_field": "Context Sentence", "source": "example" },
+                { "kind": "unmapped", "source": "example_in_source_lang" },
+                { "kind": "audio", "audio_field": "Front Audio" },
+                { "kind": "audio", "audio_field": null }
+            ])
+        );
+        let matched = auto_match(&names(&["Q", "Back", "Add Reverse", "Audio"]), "en", "de");
+        let value = serde_json::to_value(&matched).unwrap();
+        assert_eq!(
+            value,
+            json!({
+                "mapping": {
+                    "fields": [
+                        { "anki_field": "Q", "source": "front" },
+                        { "anki_field": "Back", "source": "back" }
+                    ],
+                    "audio_field": "Audio"
+                },
+                "guessed": ["Q"],
+                "unmatched": ["Add Reverse"]
+            })
+        );
+        assert_eq!(serde_json::from_value::<AutoMatch>(value).unwrap(), matched);
     }
 }
