@@ -267,6 +267,20 @@ function checkCommonOutput(label, getOut) {
       assert.match(pages['de/index.html'], /<a[^>]*href="\/"[^>]*hreflang="en"/)
     })
 
+    test('points Open Graph at its own preview image for each language', async () => {
+      for (const [page, lang] of [
+        ['index.html', 'en'],
+        ['de/index.html', 'de'],
+      ]) {
+        const image = `${SITE_URL}/assets/og-${lang}.png`
+        assert.ok(pages[page].includes(`<meta property="og:image" content="${image}" />`), page)
+        assert.ok(
+          pages[page].includes('<meta name="twitter:card" content="summary_large_image" />'),
+        )
+        await stat(path.join(outDir, 'assets', `og-${lang}.png`))
+      }
+    })
+
     test('writes the sitemap, robots.txt and the Vercel config', async () => {
       const sitemap = await readFile(path.join(outDir, 'sitemap.xml'), 'utf8')
       assert.ok(sitemap.includes(`<loc>${SITE_URL}/</loc>`))
@@ -387,6 +401,7 @@ describe('build options', () => {
     const html = await readFile(path.join(outDir, 'de', 'index.html'), 'utf8')
     assert.ok(html.includes('<link rel="canonical" href="https://example.org/de/" />'))
     assert.ok(html.includes('<meta property="og:url" content="https://example.org/de/" />'))
+    assert.ok(html.includes('content="https://example.org/assets/og-de.png"'))
     assert.ok(!html.includes(SITE_URL))
     const sitemap = await readFile(path.join(outDir, 'sitemap.xml'), 'utf8')
     assert.ok(sitemap.includes('<loc>https://example.org/de/</loc>'))
