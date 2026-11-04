@@ -24,6 +24,27 @@ docs/                      this file, test-harness strategy, signing-key custody
 scripts/                   bootstrap, run-all-checks, git hooks
 ```
 
+**Product names.** Users see the Automator as **Polywort** and Learn as **Polywort
+Learn** (`productName` and the window titles in each `tauri.conf.json`, the
+`<title>` of each `index.html`, `app.title` in each app's i18n, the log lines that
+greet and say goodbye). Until 2026-11 they were Vocabulary Automator and Vocabulary
+Learn. These kept the old names, because installs and their data depend on them, and
+`tests/product_identity.rs` in both apps pins the first three:
+
+- the bundle identifiers `com.ankiautomator.app` and `com.ankiautomator.learn`, from
+  which Tauri derives the settings folder (`config.json`) and the log folder;
+- the shared history `VocabularyAutomator/vocab.sqlite3` (§ 6, `default_db_path`);
+- the updater endpoint and the GitHub repository `vocabulary-anki-automator`;
+- the Cargo packages, crates and binaries (`vocab-automator`, `vocab-learn`, …) and
+  the npm package `vocab-automator`;
+- the User-Agents (AnkiConnect's `vocabulary-anki-automator anki-bridge/…`, the
+  providers' and the setup downloads' `vocabulary-automator/…`), the `app_state`
+  keys (`automator.*`, `learn.settings`) and the web build's IndexedDB `vocab-learn`.
+
+No Anki tag, note marker or query names the product: neither app adds tags of its
+own, and Learn's import finds notes by deck (`deck_query`). The recommended note
+type (§ 9) is named after the product, "Polywort".
+
 ## 2. Conventions (all crates)
 
 - **No network in tests, ever.** Every provider and client takes a base URL
@@ -931,7 +952,7 @@ Further rules both sides rely on:
   online, from a cache the main window shares between them
   (`src/composables/useModelFields.ts`).
 - `create_recommended_note_type` sets up the recommended note type (§ 9
-  `recommended_note_type`, "Vocabulary Automator") in the user's collection, the
+  `recommended_note_type`, "Polywort") in the user's collection, the
   one command besides the pushes that writes to it. It runs only from the button
   both settings tabs show while Anki is online (the Anki tab under the note type,
   each "My languages" entry under its own; `src/components/RecommendedNoteType.vue`),
@@ -1104,7 +1125,7 @@ pub struct AudioAttachment { pub filename: String, pub data_b64: String, pub fie
 pub fn map_card(card: &Card, direction: Direction, target: &AnkiTarget, mapping: &FieldMapping, audio: Option<&[u8]>) -> NoteSpec;
 pub fn add_note_params(note: &NoteSpec) -> serde_json::Value;     // exactly AnkiConnect's addNote "params"
 pub fn card_from_note(note: &NoteInfo, mapping: &FieldMapping, source_lang: &str, target_lang: &str, captured_at: DateTime<Utc>) -> Option<Card>;
-pub const RECOMMENDED_NOTE_TYPE: &str = "Vocabulary Automator";
+pub const RECOMMENDED_NOTE_TYPE: &str = "Polywort";
 pub struct NoteTypeSpec { pub name: String, pub fields: Vec<String>, pub css: String, pub templates: Vec<CardTemplate> }
 pub fn recommended_note_type() -> NoteTypeSpec;
 ```

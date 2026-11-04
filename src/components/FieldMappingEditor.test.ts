@@ -204,7 +204,7 @@ describe('presets', () => {
       modelFields: RECOMMENDED_FIELDS,
     })
     const button = wrapper.find('[data-test="preset-recommended"]')
-    expect(button.text()).toBe('Vocabulary Automator (recommended)')
+    expect(button.text()).toBe('Polywort (recommended)')
     await button.trigger('click')
     expect(shown(wrapper)).toEqual(recommendedMapping())
     expect(selected(wrapper, 'Sentence')).toBe('example_in_source_lang')

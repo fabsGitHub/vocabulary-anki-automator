@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Vocabulary Automator",
+  "productName": "Polywort",
   "version": "0.1.0",
   "identifier": "com.ankiautomator.app",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Vocabulary Automator",
+        "title": "Polywort",
         "width": 800,
         "height": 600
       }

@@ -9,7 +9,7 @@
 
 export const en = {
   app: {
-    title: 'Vocabulary Automator',
+    title: 'Polywort',
     subtitle: 'Select a word anywhere, press your hotkey, approve the card.',
     loading: 'Loading settings…',
     loadFailed: 'The settings could not be loaded: {error}',
@@ -368,7 +368,7 @@ export const en = {
   credits: {
     title: 'Credits and licenses',
     intro:
-      'For Chinese words, the Automator looks up pinyin, the HSK level and an example in the bundled HSK 3.0 word list. It carries dictionary data that others made and share under these licenses.',
+      'For Chinese words, Polywort looks up pinyin, the HSK level and an example in the bundled HSK 3.0 word list. It carries dictionary data that others made and share under these licenses.',
     fullText: 'Full text',
     ccCedict:
       'The English meanings, traditional characters and pinyin of the HSK words, adapted from the CC-CEDICT dictionary. Licensed under CC BY-SA 4.0, and so is the adapted data.',
@@ -376,7 +376,7 @@ export const en = {
     hsk30: 'The official HSK 3.0 word list, which picks each word’s reading. MIT License.',
   },
   help: {
-    title: 'Setting up and using the Automator',
+    title: 'Setting up and using Polywort',
     close: 'Close',
     step1Title: '1. Install Anki and AnkiConnect',
     step1Body:

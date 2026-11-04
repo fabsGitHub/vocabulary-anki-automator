@@ -1161,7 +1161,7 @@
           ]
         },
         "matches_by_name": true,
-        "model_name": "Vocabulary Automator"
+        "model_name": "Polywort"
       },
       {
         "created": false,
@@ -1199,7 +1199,7 @@
           ]
         },
         "matches_by_name": false,
-        "model_name": "Vocabulary Automator"
+        "model_name": "Polywort"
       }
     ],
     "Script": [

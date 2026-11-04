@@ -123,8 +123,8 @@ pub fn run() {
         })
         .run(tauri::generate_context!());
     if let Err(err) = result {
-        log::error!("Vocabulary Automator stopped with an error: {err}");
-        eprintln!("Vocabulary Automator stopped with an error: {err}");
+        log::error!("Polywort stopped with an error: {err}");
+        eprintln!("Polywort stopped with an error: {err}");
         std::process::exit(1);
     }
 }
@@ -147,7 +147,7 @@ pub fn keeps_running(exit_code: Option<i32>) -> bool {
 pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: &RunEvent) {
     match event {
         RunEvent::ExitRequested { code, api, .. } if keeps_running(*code) => {
-            log::info!("No window is open; Vocabulary Automator keeps running in the tray.");
+            log::info!("No window is open; Polywort keeps running in the tray.");
             api.prevent_exit();
         }
         // Not reachable through tauri::test: the mock runtime raises no
@@ -171,7 +171,7 @@ pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: &RunEvent) {
 /// Startup: state, tray, hotkeys, and a check (only a check) of the Anki
 /// setup.
 fn start(app: &mut tauri::App) -> Result<(), String> {
-    log::info!("Vocabulary Automator is starting.");
+    log::info!("Polywort is starting.");
     let handle = app.handle().clone();
     let config_path = config::config_path(&handle)?;
     app.manage(AppState::new(AppServices::production(config_path)));
@@ -187,7 +187,7 @@ fn start(app: &mut tauri::App) -> Result<(), String> {
         yes_no(status.anki_installed),
         yes_no(status.ankiconnect_installed)
     );
-    log::info!("Vocabulary Automator is ready.");
+    log::info!("Polywort is ready.");
     Ok(())
 }
 

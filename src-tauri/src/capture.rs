@@ -561,7 +561,7 @@ fn nothing_copied_message() -> String {
         "Nothing was copied. Select some text, then press the hotkey again.".to_string();
     if cfg!(target_os = "macos") {
         message.push_str(
-            " If text was selected, allow Vocabulary Automator under System Settings > \
+            " If text was selected, allow Polywort under System Settings > \
              Privacy & Security > Accessibility: macOS blocks the simulated Cmd+C without it.",
         );
     }

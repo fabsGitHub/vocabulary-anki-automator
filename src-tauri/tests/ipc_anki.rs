@@ -1087,7 +1087,7 @@ fn create_recommended_model() -> Value {
         "action": "createModel",
         "version": 6,
         "params": {
-            "modelName": "Vocabulary Automator",
+            "modelName": "Polywort",
             "inOrderFields": recommended_fields(),
             "css": spec.css,
             "isCloze": false,
@@ -1099,7 +1099,7 @@ fn create_recommended_model() -> Value {
 /// What the command returns for the recommended note type.
 fn recommended_result(created: bool, matches_by_name: bool) -> Value {
     json!({
-        "model_name": "Vocabulary Automator",
+        "model_name": "Polywort",
         "mapping": {
             "fields": [
                 { "anki_field": "Front", "source": "front" },
@@ -1132,7 +1132,7 @@ fn the_recommended_note_type_is_created_when_anki_lacks_it() {
     answer_exactly(
         &server,
         create_recommended_model(),
-        ok(json!({ "name": "Vocabulary Automator", "id": 1_730_000_000_123_i64 })),
+        ok(json!({ "name": "Polywort", "id": 1_730_000_000_123_i64 })),
     );
     let harness = Harness::with_anki(&server.uri());
     let config = config_file(&harness);
@@ -1153,18 +1153,10 @@ fn the_recommended_note_type_is_created_when_anki_lacks_it() {
 #[test]
 fn an_existing_recommended_note_type_with_every_field_is_reused() {
     let server = start();
-    answer_exactly(
-        &server,
-        model_names(),
-        ok(json!(["Basic", "Vocabulary Automator"])),
-    );
+    answer_exactly(&server, model_names(), ok(json!(["Basic", "Polywort"])));
     let mut fields = recommended_fields();
     fields.as_array_mut().unwrap().push(json!("Image"));
-    answer_exactly(
-        &server,
-        model_field_names("Vocabulary Automator"),
-        ok(fields),
-    );
+    answer_exactly(&server, model_field_names("Polywort"), ok(fields));
     let harness = Harness::with_anki(&server.uri());
 
     let result = harness.call("create_recommended_note_type", json!({}));
@@ -1182,7 +1174,7 @@ fn an_existing_recommended_note_type_with_every_field_is_reused() {
 #[test]
 fn a_reused_note_type_whose_match_differs_is_reported_as_such() {
     let server = start();
-    answer(&server, "modelNames", ok(json!(["Vocabulary Automator"])));
+    answer(&server, "modelNames", ok(json!(["Polywort"])));
     answer(
         &server,
         "modelFieldNames",
@@ -1207,7 +1199,7 @@ fn a_reused_note_type_whose_match_differs_is_reported_as_such() {
 #[test]
 fn a_note_type_of_that_name_with_other_fields_is_left_alone() {
     let server = start();
-    answer(&server, "modelNames", ok(json!(["Vocabulary Automator"])));
+    answer(&server, "modelNames", ok(json!(["Polywort"])));
     answer(
         &server,
         "modelFieldNames",
@@ -1219,7 +1211,7 @@ fn a_note_type_of_that_name_with_other_fields_is_left_alone() {
 
     assert_eq!(
         err,
-        "Anki already has a note type named “Vocabulary Automator”, but some of its fields are \
+        "Anki already has a note type named “Polywort”, but some of its fields are \
          missing: “Sentence Translation”, “Pinyin”, “HSK Level”. It was left as it is: rename it \
          in Anki (Tools → Manage Note Types) and try again, or choose it and customize the field \
          mapping."

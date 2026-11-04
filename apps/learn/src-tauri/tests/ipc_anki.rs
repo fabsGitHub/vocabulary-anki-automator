@@ -504,7 +504,7 @@ fn import_adds_new_chinese_words_and_skips_known_fronts() {
                 {
                     "card_id": null,
                     "front": "Haus",
-                    "error": "No hanzi on either side: Learn imports Chinese vocabulary."
+                    "error": "No hanzi on either side: Polywort Learn imports Chinese vocabulary."
                 },
                 {
                     "card_id": null,

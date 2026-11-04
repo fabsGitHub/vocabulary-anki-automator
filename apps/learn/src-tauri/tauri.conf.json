@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Vocabulary Learn",
+  "productName": "Polywort Learn",
   "version": "0.1.0",
   "identifier": "com.ankiautomator.learn",
   "build": {
@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "label": "main", "title": "Vocabulary Learn", "width": 960, "height": 720 }],
+    "windows": [{ "label": "main", "title": "Polywort Learn", "width": 960, "height": 720 }],
     "security": {
       "csp": {
         "default-src": "'self'",

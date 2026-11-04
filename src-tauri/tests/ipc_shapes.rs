@@ -803,13 +803,13 @@ fn shapes() -> Map<String, Value> {
             "RecommendedNoteType",
             vec![
                 json_of(RecommendedNoteType {
-                    model_name: "Vocabulary Automator".into(),
+                    model_name: "Polywort".into(),
                     mapping: FieldMapping::recommended(),
                     created: true,
                     matches_by_name: true,
                 }),
                 json_of(RecommendedNoteType {
-                    model_name: "Vocabulary Automator".into(),
+                    model_name: "Polywort".into(),
                     mapping: FieldMapping::recommended(),
                     created: false,
                     matches_by_name: false,

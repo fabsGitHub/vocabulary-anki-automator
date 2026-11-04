@@ -4,7 +4,7 @@ import type { MessageSchema } from './en'
 
 export const de: MessageSchema = {
   app: {
-    title: 'Vocabulary Automator',
+    title: 'Polywort',
     subtitle: 'Wort irgendwo markieren, Hotkey drücken, Karte bestätigen.',
     loading: 'Einstellungen werden geladen…',
     loadFailed: 'Die Einstellungen konnten nicht geladen werden: {error}',
@@ -370,7 +370,7 @@ export const de: MessageSchema = {
   credits: {
     title: 'Quellen und Lizenzen',
     intro:
-      'Für chinesische Wörter schlägt der Automator Pinyin, die HSK-Stufe und ein Beispiel in der mitgelieferten HSK-3.0-Wortliste nach. Sie enthält Wörterbuchdaten, die andere erstellt haben und unter diesen Lizenzen teilen.',
+      'Für chinesische Wörter schlägt Polywort Pinyin, die HSK-Stufe und ein Beispiel in der mitgelieferten HSK-3.0-Wortliste nach. Sie enthält Wörterbuchdaten, die andere erstellt haben und unter diesen Lizenzen teilen.',
     fullText: 'Volltext',
     ccCedict:
       'Die englischen Bedeutungen, traditionellen Schriftzeichen und das Pinyin der HSK-Wörter, übernommen und angepasst aus dem Wörterbuch CC-CEDICT. Lizenziert unter CC BY-SA 4.0, ebenso die angepassten Daten.',
