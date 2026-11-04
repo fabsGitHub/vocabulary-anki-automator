@@ -2,14 +2,15 @@
  * Client-side settings validation, mirroring what `apply_settings` refuses
  * (docs/architecture.md § 8.1): every shortcut must parse, leave normal typing
  * alone and be distinct, languages must be supported codes, `max_chars` must
- * be usable.
+ * be usable, and each learned language must be listed once, differ from the
+ * language cards are translated into and name its deck and note type.
  *
  * The backend remains the authority and its error is still shown; checking
  * here first ties each problem to the field that caused it, which a single
  * error string from the backend cannot do.
  */
 
-import type { AppConfig } from '../api'
+import type { AppConfig, FieldMapping } from '../api'
 import type { MessageKey } from '../i18n'
 import { effectiveBindings } from './fieldMapping'
 import { isSupportedLang, normalizeLang } from './language'
@@ -91,6 +92,23 @@ export function validateConfig(config: AppConfig, isMac: boolean = IS_MAC): Conf
   const email = (config.translation.contact_email ?? '').trim()
   if (email && !isPlausibleEmail(email)) add('translation.contact_email', 'validation.emailInvalid')
 
+  const native = normalizeLang(config.translation.target_lang)
+  const learned = new Set<string>()
+  config.learning.languages.forEach((language, index) => {
+    const base = `learning.languages.${index}`
+    const lang = normalizeLang(language.lang)
+    if (!isSupportedLang(lang)) add(`${base}.lang`, 'validation.languageUnsupported')
+    else if (learned.has(lang)) add(`${base}.lang`, 'validation.languageDuplicate')
+    else if (lang === native) add(`${base}.lang`, 'validation.languageIsNative')
+    learned.add(lang)
+    if (!language.deck_name.trim()) add(`${base}.deck_name`, 'validation.required')
+    if (!language.model_name.trim()) add(`${base}.model_name`, 'validation.required')
+    // `null` is matched by field name at push time; only a saved mapping can be empty.
+    if (language.field_mapping && !fillsAField(language.field_mapping)) {
+      add(`${base}.field_mapping`, 'validation.mappingEmpty')
+    }
+  })
+
   const ids = new Set<string>()
   config.hotkey_profiles.forEach((profile, index) => {
     const base = `hotkey_profiles.${index}`
@@ -106,8 +124,12 @@ export function validateConfig(config: AppConfig, isMac: boolean = IS_MAC): Conf
 
   if (!config.anki.deck_name.trim()) add('anki.deck_name', 'validation.required')
   if (!config.anki.model_name.trim()) add('anki.model_name', 'validation.required')
-  const filled = effectiveBindings(config.anki.field_mapping).filter((b) => b.anki_field.trim())
-  if (filled.length === 0) add('anki.field_mapping', 'validation.mappingEmpty')
+  if (!fillsAField(config.anki.field_mapping)) add('anki.field_mapping', 'validation.mappingEmpty')
 
   return issues
+}
+
+/** Whether `mapping` has an effective binding with a named Anki field. */
+function fillsAField(mapping: FieldMapping): boolean {
+  return effectiveBindings(mapping).some((binding) => binding.anki_field.trim())
 }

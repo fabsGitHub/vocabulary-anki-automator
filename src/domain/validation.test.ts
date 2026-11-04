@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { AppConfig, HotkeyProfile } from '../api'
+import type { AppConfig, HotkeyProfile, LearnedLanguage } from '../api'
 import { defaultConfig } from '../composables/useConfig'
+import { chineseMapping } from './fieldMapping'
 import { MAX_CHARS_LIMIT, validateConfig, type ConfigIssue } from './validation'
 
 function profile(overrides: Partial<HotkeyProfile> = {}): HotkeyProfile {
@@ -12,6 +13,17 @@ function profile(overrides: Partial<HotkeyProfile> = {}): HotkeyProfile {
     source_lang: 'zh-CN',
     target_lang: 'de',
     deck_name: null,
+    ...overrides,
+  }
+}
+
+function learned(overrides: Partial<LearnedLanguage> = {}): LearnedLanguage {
+  return {
+    lang: 'fr',
+    deck_name: 'french',
+    model_name: 'AppleStyleFinalV3',
+    field_mapping: null,
+    create_reverse: true,
     ...overrides,
   }
 }
@@ -188,6 +200,52 @@ describe('validateConfig', () => {
       'anki.deck_name',
       'anki.model_name',
       'anki.field_mapping',
+    ])
+  })
+
+  it('accepts learned languages, with a null or a saved mapping', () => {
+    expect(
+      issuesOf((c) => {
+        c.learning.languages.push(learned())
+        c.learning.languages.push(learned({ lang: 'zh', field_mapping: chineseMapping() }))
+      }),
+    ).toEqual([])
+  })
+
+  it('refuses an unsupported, a repeated and the native learned language', () => {
+    const issues = issuesOf((c) => {
+      c.learning.languages.push(learned({ lang: 'pt' }))
+      c.learning.languages.push(learned())
+      c.learning.languages.push(learned({ lang: 'FR' }))
+      c.learning.languages.push(learned({ lang: 'de' }))
+    })
+    expect(issues).toEqual([
+      { path: 'learning.languages.0.lang', key: 'validation.languageUnsupported' },
+      { path: 'learning.languages.2.lang', key: 'validation.languageDuplicate' },
+      { path: 'learning.languages.3.lang', key: 'validation.languageIsNative' },
+    ])
+  })
+
+  it('requires a learned language to name its deck and note type', () => {
+    const issues = issuesOf((c) =>
+      c.learning.languages.push(learned({ deck_name: ' ', model_name: '' })),
+    )
+    expect(issues).toEqual([
+      { path: 'learning.languages.0.deck_name', key: 'validation.required' },
+      { path: 'learning.languages.0.model_name', key: 'validation.required' },
+    ])
+  })
+
+  it('refuses a saved learned mapping that fills no field', () => {
+    const issues = issuesOf((c) =>
+      c.learning.languages.push(
+        learned({
+          field_mapping: { fields: [{ anki_field: ' ', source: 'front' }], audio_field: null },
+        }),
+      ),
+    )
+    expect(issues).toEqual([
+      { path: 'learning.languages.0.field_mapping', key: 'validation.mappingEmpty' },
     ])
   })
 })

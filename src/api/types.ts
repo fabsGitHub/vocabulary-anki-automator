@@ -179,6 +179,23 @@ export interface HotkeyProfile {
   deck_name: string | null
 }
 
+/** A language the user learns, and where its cards go (Milestone O). */
+export interface LearnedLanguage {
+  /** Canonical code (§ 3); never `translation.target_lang`. */
+  lang: string
+  deck_name: string
+  model_name: string
+  /** `null`: matched by field name against the note type at push time, never saved. */
+  field_mapping: FieldMapping | null
+  create_reverse: boolean
+}
+
+/** The languages the default hotkey detects among; empty keeps the fixed pair. */
+export interface LearningConfig {
+  /** In the order the approval window lists them. */
+  languages: LearnedLanguage[]
+}
+
 export interface TranslationConfig {
   source_lang: string
   target_lang: string
@@ -205,6 +222,7 @@ export interface AppConfig {
   translation: TranslationConfig
   anki: AnkiConfig
   consent: ConsentState
+  learning: LearningConfig
 }
 
 /** Payload of the app-wide `capture-error` event. */

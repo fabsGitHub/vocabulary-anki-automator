@@ -343,6 +343,8 @@ export const en = {
     shortcutDuplicateDefault: 'Already used by the default hotkey.',
     languageUnsupported: 'Unsupported language.',
     languagesEqual: 'Source and target language must differ.',
+    languageDuplicate: 'This language is already listed.',
+    languageIsNative: 'Cards are translated into this language; choose another one.',
     maxCharsRange: 'Enter a whole number from 1 to {max}.',
     emailInvalid: 'Not a valid e-mail address.',
     providerUnknown: 'Unknown translation service.',

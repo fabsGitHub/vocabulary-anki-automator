@@ -67,6 +67,9 @@ pub struct AppConfig {
     pub anki: AnkiConfig,
     /// Written only by `grant_consent` (Milestone E).
     pub consent: ConsentState,
+    /// Languages the default hotkey detects among (empty = detection off,
+    /// today's behaviour), each with its own deck and note type.
+    pub learning: LearningConfig,
 }
 
 /// One extra capture shortcut (Milestone H).
@@ -113,6 +116,50 @@ pub struct AnkiConfig {
     pub field_mapping: FieldMapping,
 }
 
+/// The languages the user learns (Milestone O).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LearningConfig {
+    /// In the order the approval window lists them.
+    pub languages: Vec<LearnedLanguage>,
+}
+
+/// One language the user learns, and where its cards go
+/// ([`AppConfig::filing`]).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LearnedLanguage {
+    /// Canonical code; never `translation.target_lang`.
+    pub lang: String,
+    pub deck_name: String,
+    /// The Anki note type ("model").
+    pub model_name: String,
+    /// `None`: the note type's fields are matched by name whenever a card is
+    /// pushed or checked (`FieldMapping::auto_match`); the result is never
+    /// written back, so a changed note type is matched afresh.
+    pub field_mapping: Option<FieldMapping>,
+    /// Also add the target -> source note.
+    pub create_reverse: bool,
+}
+
+/// Which mapping a [`Filing`] pushes with.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MappingChoice {
+    /// A mapping from the config, used as saved.
+    Saved(FieldMapping),
+    /// Matched from the note type's field names at push and check time.
+    Auto,
+}
+
+/// Where a card goes: deck, note type, field mapping and reverse note.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Filing {
+    pub deck: String,
+    pub model: String,
+    pub mapping: MappingChoice,
+    pub create_reverse: bool,
+}
+
 /// When the user agreed to each install action; RFC 3339 UTC timestamps.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -132,8 +179,9 @@ pub enum ConsentAction {
     AnkiconnectProvision,
 }
 
-/// The shortcut, language pair and deck one capture uses: the default profile
-/// or a [`HotkeyProfile`], resolved against the rest of the config.
+/// The shortcut and language pair one capture uses: the default profile or a
+/// [`HotkeyProfile`], resolved against the rest of the config. Where its
+/// cards go is [`AppConfig::filing`]'s decision.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaptureProfile {
     /// `None` for the default profile.
@@ -141,7 +189,6 @@ pub struct CaptureProfile {
     pub shortcut: String,
     pub source_lang: String,
     pub target_lang: String,
-    pub deck_name: String,
 }
 
 /// Why the settings could not be loaded, saved or accepted.
@@ -172,6 +219,19 @@ impl Default for AppConfig {
             translation: TranslationConfig::default(),
             anki: AnkiConfig::default(),
             consent: ConsentState::default(),
+            learning: LearningConfig::default(),
+        }
+    }
+}
+
+impl Default for LearnedLanguage {
+    fn default() -> Self {
+        Self {
+            lang: String::new(),
+            deck_name: String::new(),
+            model_name: String::new(),
+            field_mapping: None,
+            create_reverse: true,
         }
     }
 }
@@ -209,7 +269,6 @@ impl AppConfig {
             shortcut: self.hotkeys.clone(),
             source_lang: self.translation.source_lang.clone(),
             target_lang: self.translation.target_lang.clone(),
-            deck_name: self.anki.deck_name.clone(),
         }
     }
 
@@ -239,11 +298,57 @@ impl AppConfig {
             shortcut: profile.shortcut.clone(),
             source_lang: profile.source_lang.clone(),
             target_lang: profile.target_lang.clone(),
-            deck_name: profile
-                .deck_name
-                .clone()
-                .unwrap_or_else(|| self.anki.deck_name.clone()),
         }
+    }
+
+    /// Where a card captured with `profile_id` (`None`: the default hotkey)
+    /// in `source_lang` goes. The learned language of `source_lang`, if any,
+    /// brings its note type, mapping and reverse setting; a hotkey profile's
+    /// own deck still wins for the deck. Without learned languages this is
+    /// the global `anki` section, with the profile's deck. Blank names (only a
+    /// hand edit can save them) fall back to the global ones, and an unknown
+    /// `profile_id` (a profile deleted since the capture) counts as none.
+    pub fn filing(&self, profile_id: Option<&str>, source_lang: &str) -> Filing {
+        let lang = normalize_lang(source_lang);
+        let entry = self
+            .learning
+            .languages
+            .iter()
+            .find(|entry| entry.lang == lang);
+        let profile_deck = profile_id
+            .and_then(|id| self.hotkey_profiles.iter().find(|profile| profile.id == id))
+            .and_then(|profile| profile.deck_name.clone());
+        let named = |name: &String| (!name.trim().is_empty()).then(|| name.clone());
+        Filing {
+            deck: profile_deck
+                .or_else(|| entry.and_then(|entry| named(&entry.deck_name)))
+                .unwrap_or_else(|| self.anki.deck_name.clone()),
+            model: entry
+                .and_then(|entry| named(&entry.model_name))
+                .unwrap_or_else(|| self.anki.model_name.clone()),
+            mapping: match entry {
+                Some(entry) => entry
+                    .field_mapping
+                    .clone()
+                    .map_or(MappingChoice::Auto, MappingChoice::Saved),
+                None => MappingChoice::Saved(self.anki.field_mapping.clone()),
+            },
+            create_reverse: entry.map_or(self.anki.create_reverse, |entry| entry.create_reverse),
+        }
+    }
+
+    /// The languages a capture with `profile` detects among, in settings
+    /// order: the learned ones for the default hotkey, none for a hotkey
+    /// profile (it keeps its fixed pair). Empty means no detection.
+    pub fn detection_languages(&self, profile: &CaptureProfile) -> Vec<String> {
+        if profile.id.is_some() {
+            return Vec::new();
+        }
+        self.learning
+            .languages
+            .iter()
+            .map(|entry| entry.lang.clone())
+            .collect()
     }
 
     /// Canonical spelling of everything that has one: language codes through
@@ -277,6 +382,13 @@ impl AppConfig {
         anki.deck_name = anki.deck_name.trim().to_string();
         anki.model_name = anki.model_name.trim().to_string();
 
+        // Mappings stay as they are, like `anki.field_mapping`.
+        for entry in &mut self.learning.languages {
+            entry.lang = normalize_lang(&entry.lang);
+            entry.deck_name = entry.deck_name.trim().to_string();
+            entry.model_name = entry.model_name.trim().to_string();
+        }
+
         for granted_at in [
             &mut self.consent.anki_install_granted_at,
             &mut self.consent.ankiconnect_provision_granted_at,
@@ -294,7 +406,11 @@ impl AppConfig {
     /// needs a real modifier and is used once; profile ids are present and
     /// unique; languages are supported and differ within a pair; `max_chars`
     /// is in `1..=MAX_CHARS_LIMIT`; the provider is known; the AnkiConnect URL
-    /// is http(s); deck, note type and every mapped field are named.
+    /// is http(s); deck, note type and every mapped field are named. Each
+    /// learned language is supported, listed once and not the one cards are
+    /// translated into, and names its deck and note type; a saved mapping of
+    /// its own follows the global mapping's rules. Fields a note type lacks
+    /// are a warning in the approval window, never a validation problem.
     pub fn validate(&self) -> Result<(), ConfigError> {
         let mut problems = Vec::new();
 
@@ -374,16 +490,48 @@ impl AppConfig {
         if anki.model_name.is_empty() {
             problems.push("The Anki note type must not be empty.".to_string());
         }
-        if anki.field_mapping.fields.is_empty() {
-            problems.push("The field mapping must fill at least one Anki field.".to_string());
-        }
-        if anki
-            .field_mapping
-            .fields
-            .iter()
-            .any(|binding| binding.anki_field.trim().is_empty())
-        {
-            problems.push("Every mapped Anki field needs a name.".to_string());
+        check_mapping(
+            &anki.field_mapping,
+            "The field mapping must fill at least one Anki field.",
+            "Every mapped Anki field needs a name.",
+            &mut problems,
+        );
+
+        let mut learned: Vec<&str> = Vec::new();
+        for entry in &self.learning.languages {
+            let lang = entry.lang.as_str();
+            if !SUPPORTED_LANGS.contains(&lang) {
+                problems.push(format!(
+                    "Learned language \"{lang}\" is not supported (supported: {}).",
+                    SUPPORTED_LANGS.join(", ")
+                ));
+            } else if learned.contains(&lang) {
+                problems.push(format!("Learned language \"{lang}\" is listed twice."));
+            } else if lang == self.translation.target_lang {
+                problems.push(format!(
+                    "Learned language \"{lang}\" is the language cards are translated into."
+                ));
+            }
+            learned.push(lang);
+            if entry.deck_name.is_empty() {
+                problems.push(format!("Learned language \"{lang}\" needs a deck."));
+            }
+            if entry.model_name.is_empty() {
+                problems.push(format!("Learned language \"{lang}\" needs a note type."));
+            }
+            if let Some(mapping) = &entry.field_mapping {
+                check_mapping(
+                    mapping,
+                    &format!(
+                        "The field mapping of learned language \"{lang}\" must fill at least one \
+                         Anki field."
+                    ),
+                    &format!(
+                        "Every mapped Anki field of learned language \"{lang}\" needs a name."
+                    ),
+                    &mut problems,
+                );
+            }
         }
 
         if problems.is_empty() {
@@ -535,6 +683,21 @@ fn check_pair(owner: &str, source: &str, target: &str, problems: &mut Vec<String
     }
 }
 
+/// The rules every saved mapping follows: at least one binding, and every
+/// binding names its Anki field.
+fn check_mapping(mapping: &FieldMapping, empty: &str, unnamed: &str, problems: &mut Vec<String>) {
+    if mapping.fields.is_empty() {
+        problems.push(empty.to_string());
+    }
+    if mapping
+        .fields
+        .iter()
+        .any(|binding| binding.anki_field.trim().is_empty())
+    {
+        problems.push(unnamed.to_string());
+    }
+}
+
 fn profile_name(profile: &HotkeyProfile, index: usize) -> String {
     let name = if profile.label.is_empty() {
         &profile.id
@@ -576,6 +739,38 @@ mod tests {
             source_lang: "zh-CN".into(),
             target_lang: "de".into(),
             deck_name: Some("Chinese::HSK".into()),
+        }
+    }
+
+    /// French into its own deck, matched by field name.
+    fn french() -> LearnedLanguage {
+        LearnedLanguage {
+            lang: "fr".into(),
+            deck_name: "french".into(),
+            model_name: "AppleStyleFinalV3".into(),
+            field_mapping: None,
+            create_reverse: true,
+        }
+    }
+
+    /// Chinese with its own note type and mapping, without reverse notes.
+    fn chinese() -> LearnedLanguage {
+        LearnedLanguage {
+            lang: "zh-CN".into(),
+            deck_name: "chinese".into(),
+            model_name: "Chinese (HSK)".into(),
+            field_mapping: Some(FieldMapping::chinese_default()),
+            create_reverse: false,
+        }
+    }
+
+    /// The global `anki` section as a filing into `deck`.
+    fn global_filing(config: &AppConfig, deck: &str) -> Filing {
+        Filing {
+            deck: deck.into(),
+            model: config.anki.model_name.clone(),
+            mapping: MappingChoice::Saved(config.anki.field_mapping.clone()),
+            create_reverse: config.anki.create_reverse,
         }
     }
 
@@ -622,7 +817,8 @@ mod tests {
                 "consent": {
                     "anki_install_granted_at": null,
                     "ankiconnect_provision_granted_at": null
-                }
+                },
+                "learning": { "languages": [] }
             })
         );
         assert!(AppConfig::default().validate().is_ok());
@@ -646,11 +842,21 @@ mod tests {
             ConsentAction::AnkiInstall,
             Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap(),
         );
+        config.learning.languages = vec![french(), chinese()];
 
         save_config_to(&path, &config).unwrap();
         let loaded = load_config_from(&path).unwrap();
 
         assert_eq!(loaded, config);
+        let saved: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            saved["learning"]["languages"][0]["field_mapping"],
+            Value::Null
+        );
+        assert_eq!(
+            saved["learning"]["languages"][1]["field_mapping"],
+            serde_json::to_value(FieldMapping::chinese_default()).unwrap()
+        );
         assert_eq!(
             loaded.consent.anki_install_granted_at.as_deref(),
             Some("2026-10-31T12:00:00.000Z")
@@ -741,8 +947,10 @@ mod tests {
                 field_mapping: FieldMapping::apple_style_default(),
             },
             consent: ConsentState::default(),
+            learning: LearningConfig::default(),
         };
         assert_eq!(loaded, expected);
+        assert!(loaded.learning.languages.is_empty());
         assert!(loaded.validate().is_ok());
 
         // The next save writes only the new shape: no legacy section, no key.
@@ -755,6 +963,7 @@ mod tests {
                 "consent",
                 "hotkey_profiles",
                 "hotkeys",
+                "learning",
                 "translation",
                 "ui_lang"
             ]
@@ -808,6 +1017,18 @@ mod tests {
             deck_name: Some("   ".into()),
         });
         config.anki.deck_name = " Deck ".into();
+        config.learning.languages = vec![
+            LearnedLanguage {
+                lang: " EN ".into(),
+                deck_name: " english ".into(),
+                model_name: " Basic ".into(),
+                ..LearnedLanguage::default()
+            },
+            LearnedLanguage {
+                lang: "zh".into(),
+                ..chinese()
+            },
+        ];
         config.consent.anki_install_granted_at = Some("yesterday".into());
         config.consent.ankiconnect_provision_granted_at = Some("2026-10-31T12:00:00.000Z".into());
 
@@ -835,6 +1056,16 @@ mod tests {
         );
         assert_eq!(profile.deck_name, None);
         assert_eq!(config.anki.deck_name, "Deck");
+        let english = &config.learning.languages[0];
+        assert_eq!(
+            (
+                english.lang.as_str(),
+                english.deck_name.as_str(),
+                english.model_name.as_str()
+            ),
+            ("en", "english", "Basic")
+        );
+        assert_eq!(config.learning.languages[1].lang, "zh-CN");
         assert_eq!(config.consent.anki_install_granted_at, None);
         assert!(config
             .consent
@@ -914,6 +1145,45 @@ mod tests {
                 },
                 "Hotkey profile \"Chinese → English\" uses the same shortcut as hotkey profile \"Chinese → German\".",
             ),
+            (
+                "unsupported learned language",
+                |c| c.learning.languages.push(LearnedLanguage { lang: "pt".into(), ..french() }),
+                "Learned language \"pt\" is not supported (supported: en, de, fr, es, it, zh-CN).",
+            ),
+            (
+                "learned language listed twice",
+                |c| c.learning.languages.extend([french(), LearnedLanguage { deck_name: "other".into(), ..french() }]),
+                "Learned language \"fr\" is listed twice.",
+            ),
+            (
+                "learned native language",
+                |c| c.learning.languages.push(LearnedLanguage { lang: "de".into(), ..french() }),
+                "Learned language \"de\" is the language cards are translated into.",
+            ),
+            (
+                "learned language without a deck",
+                |c| c.learning.languages.push(LearnedLanguage { deck_name: String::new(), ..french() }),
+                "Learned language \"fr\" needs a deck.",
+            ),
+            (
+                "learned language without a note type",
+                |c| c.learning.languages.push(LearnedLanguage { model_name: String::new(), ..french() }),
+                "Learned language \"fr\" needs a note type.",
+            ),
+            (
+                "empty learned mapping",
+                |c| c.learning.languages.push(LearnedLanguage { field_mapping: Some(FieldMapping { fields: Vec::new(), audio_field: None }), ..french() }),
+                "The field mapping of learned language \"fr\" must fill at least one Anki field.",
+            ),
+            (
+                "unnamed learned field",
+                |c| {
+                    let mut mapping = FieldMapping::chinese_default();
+                    mapping.fields.push(FieldBinding::new("", CardField::Notes));
+                    c.learning.languages.push(LearnedLanguage { field_mapping: Some(mapping), ..chinese() });
+                },
+                "Every mapped Anki field of learned language \"zh-CN\" needs a name.",
+            ),
         ];
         for (name, mutate, expected) in cases {
             let mut config = AppConfig::default();
@@ -949,6 +1219,21 @@ mod tests {
     }
 
     #[test]
+    fn validation_accepts_learned_languages_with_and_without_a_mapping() {
+        let mut config = AppConfig::default();
+        config.learning.languages = vec![
+            LearnedLanguage {
+                lang: "en".into(),
+                deck_name: "english".into(),
+                ..french()
+            },
+            french(),
+            chinese(),
+        ];
+        assert!(config.validate().is_ok(), "{:?}", config.validate());
+    }
+
+    #[test]
     fn all_problems_are_reported_together() {
         let mut config = AppConfig::default();
         config.translation.max_chars = 0;
@@ -979,21 +1264,150 @@ mod tests {
             (default.source_lang.as_str(), default.target_lang.as_str()),
             ("en", "de")
         );
-        assert_eq!(default.deck_name, "English::AutomatedVocabulary");
+        assert_eq!(
+            config.filing(None, &default.source_lang).deck,
+            "English::AutomatedVocabulary"
+        );
 
         let chinese = config.profile(Some("zh-de")).unwrap();
         assert_eq!(chinese.source_lang, "zh-CN");
-        assert_eq!(chinese.deck_name, "Chinese::HSK");
+        assert_eq!(
+            config
+                .filing(chinese.id.as_deref(), &chinese.source_lang)
+                .deck,
+            "Chinese::HSK"
+        );
 
         let french = config.profile(Some("fr")).unwrap();
         assert_eq!(
-            french.deck_name, "English::AutomatedVocabulary",
+            config
+                .filing(french.id.as_deref(), &french.source_lang)
+                .deck,
+            "English::AutomatedVocabulary",
             "no override"
         );
 
         assert_eq!(config.profile(Some("missing")), None);
         let ids: Vec<_> = config.profiles().into_iter().map(|p| p.id).collect();
         assert_eq!(ids, [None, Some("zh-de".into()), Some("fr".into())]);
+    }
+
+    /// The migration guarantee: a file from before learned languages files
+    /// every card exactly as before, whatever its language or profile.
+    #[test]
+    fn without_learned_languages_cards_are_filed_as_before() {
+        let dir = temp_dir();
+        let path = dir.path().join(CONFIG_FILE_NAME);
+        fs::write(
+            &path,
+            r#"{
+                "hotkey_profiles": [{ "id": "zh-de", "shortcut": "Alt+H", "source_lang": "zh-CN",
+                                      "target_lang": "de", "deck_name": "Chinese::HSK" }],
+                "anki": { "deck_name": "Mine", "model_name": "Basic", "create_reverse": false }
+            }"#,
+        )
+        .unwrap();
+        let config = load_config_from(&path).unwrap();
+        assert!(config.learning.languages.is_empty());
+
+        assert_eq!(config.filing(None, "en"), global_filing(&config, "Mine"));
+        assert_eq!(config.filing(None, "zh-CN"), global_filing(&config, "Mine"));
+        assert_eq!(
+            config.filing(Some("zh-de"), "zh-CN"),
+            global_filing(&config, "Chinese::HSK")
+        );
+        assert_eq!(
+            config.filing(Some("deleted"), "zh-CN"),
+            global_filing(&config, "Mine")
+        );
+    }
+
+    #[test]
+    fn a_learned_language_brings_its_deck_note_type_mapping_and_reverse_setting() {
+        let mut config = AppConfig::default();
+        config.hotkey_profiles.push(chinese_profile());
+        config.hotkey_profiles.push(HotkeyProfile {
+            id: "fr-de".into(),
+            shortcut: "Alt+F".into(),
+            source_lang: "fr".into(),
+            target_lang: "de".into(),
+            ..HotkeyProfile::default()
+        });
+        config.learning.languages = vec![french(), chinese()];
+
+        let auto_french = Filing {
+            deck: "french".into(),
+            model: "AppleStyleFinalV3".into(),
+            mapping: MappingChoice::Auto,
+            create_reverse: true,
+        };
+        assert_eq!(config.filing(None, "fr"), auto_french);
+        assert_eq!(
+            config.filing(None, "FR"),
+            auto_french,
+            "codes are normalized"
+        );
+        assert_eq!(
+            config.filing(None, "zh"),
+            Filing {
+                deck: "chinese".into(),
+                model: "Chinese (HSK)".into(),
+                mapping: MappingChoice::Saved(FieldMapping::chinese_default()),
+                create_reverse: false,
+            }
+        );
+        // No entry for English: the global section, as before.
+        assert_eq!(
+            config.filing(None, "en"),
+            global_filing(&config, "English::AutomatedVocabulary")
+        );
+
+        // A profile's own deck wins for the deck only.
+        assert_eq!(
+            config.filing(Some("zh-de"), "zh-CN"),
+            Filing {
+                deck: "Chinese::HSK".into(),
+                ..config.filing(None, "zh-CN")
+            }
+        );
+        // A profile without a deck uses the entry's.
+        assert_eq!(config.filing(Some("fr-de"), "fr"), auto_french);
+        // A deleted profile counts as none.
+        assert_eq!(config.filing(Some("deleted"), "zh-CN").deck, "chinese");
+    }
+
+    #[test]
+    fn blank_names_of_a_hand_edited_entry_fall_back_to_the_global_ones() {
+        let mut config = AppConfig::default();
+        config.learning.languages = vec![LearnedLanguage {
+            deck_name: " ".into(),
+            model_name: String::new(),
+            ..french()
+        }];
+
+        let filing = config.filing(None, "fr");
+
+        assert_eq!(filing.deck, "English::AutomatedVocabulary");
+        assert_eq!(filing.model, "AppleStyleFinalV3");
+        assert_eq!(filing.mapping, MappingChoice::Auto);
+    }
+
+    #[test]
+    fn only_the_default_hotkey_detects_among_the_learned_languages() {
+        let mut config = AppConfig::default();
+        config.hotkey_profiles.push(chinese_profile());
+        assert!(config
+            .detection_languages(&config.default_profile())
+            .is_empty());
+
+        config.learning.languages = vec![chinese(), french()];
+
+        assert_eq!(
+            config.detection_languages(&config.default_profile()),
+            ["zh-CN", "fr"]
+        );
+        let profile = config.profile(Some("zh-de")).unwrap();
+        assert!(config.detection_languages(&profile).is_empty());
     }
 
     #[test]

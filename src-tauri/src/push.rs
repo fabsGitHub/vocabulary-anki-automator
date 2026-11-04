@@ -85,10 +85,7 @@ pub async fn submit_card(
         card.audio_front = pending.and_then(|pending| pending.card.audio_front.clone());
     }
     let profile_id = pending.and_then(|pending| pending.profile_id.as_deref());
-    let deck = config
-        .profile(profile_id)
-        .unwrap_or_else(|| config.default_profile())
-        .deck_name;
+    let deck = config.filing(profile_id, &card.source_lang).deck;
     let profile_deck = (deck != config.anki.deck_name).then_some(deck.as_str());
 
     // 1. Save first, always, together with a profile deck.

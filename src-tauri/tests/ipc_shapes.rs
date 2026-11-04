@@ -41,7 +41,8 @@ use vocab_automator_lib::{
     capture::{CaptureErrorPayload, PendingCapture},
     commands::anki::AnkiStatus,
     config::{
-        AnkiConfig, AppConfig, ConsentAction, ConsentState, HotkeyProfile, TranslationConfig,
+        AnkiConfig, AppConfig, ConsentAction, ConsentState, HotkeyProfile, LearnedLanguage,
+        LearningConfig, TranslationConfig,
     },
     push::{SubmitResult, SyncFailure, SyncReport},
     setup::SetupStatus,
@@ -348,6 +349,27 @@ fn apple_style_final_v3() -> Vec<String> {
     .to_vec()
 }
 
+/// English matched by field name, and Chinese with its own mapping and no
+/// reverse notes.
+fn learned_languages() -> Vec<LearnedLanguage> {
+    vec![
+        LearnedLanguage {
+            lang: "en".into(),
+            deck_name: "english".into(),
+            model_name: "AppleStyleFinalV3".into(),
+            field_mapping: None,
+            create_reverse: true,
+        },
+        LearnedLanguage {
+            lang: "zh-CN".into(),
+            deck_name: "chinese".into(),
+            model_name: "Chinese (HSK)".into(),
+            field_mapping: Some(FieldMapping::chinese_default()),
+            create_reverse: false,
+        },
+    ]
+}
+
 fn custom_config() -> AppConfig {
     AppConfig {
         ui_lang: "de".into(),
@@ -368,6 +390,9 @@ fn custom_config() -> AppConfig {
             field_mapping: custom_mapping(),
         },
         consent: granted_consent(),
+        learning: LearningConfig {
+            languages: learned_languages(),
+        },
     }
 }
 
@@ -590,6 +615,17 @@ fn shapes() -> Map<String, Value> {
         (
             "HotkeyProfile",
             vec![json_of(chinese_profile()), json_of(french_profile())],
+        ),
+        (
+            "LearnedLanguage",
+            learned_languages().iter().map(json_of).collect(),
+        ),
+        (
+            "LearningConfig",
+            vec![
+                json_of(LearningConfig::default()),
+                json_of(custom_config().learning),
+            ],
         ),
         (
             "TranslationConfig",

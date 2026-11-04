@@ -643,13 +643,55 @@ language pair in capture order.
       "audio_field": "Front Audio"
     }
   },
-  "consent": { "anki_install_granted_at": null, "ankiconnect_provision_granted_at": null }
+  "consent": { "anki_install_granted_at": null, "ankiconnect_provision_granted_at": null },
+  "learning": {
+    "languages": [
+      {
+        "lang": "fr",
+        "deck_name": "french",
+        "model_name": "AppleStyleFinalV3",
+        "field_mapping": null,
+        "create_reverse": true
+      }
+    ]
+  }
 }
 ```
 
 - `hotkeys` is the default profile (uses `translation.*` languages and
   `anki.deck_name`); `hotkey_profiles` add more shortcuts with their own pair
   and optional deck (Milestone H). All shortcuts must parse and be distinct.
+- `learning.languages` lists the languages the user learns (Milestone O), in the
+  order the approval window shows them, each with its own deck, note type, field
+  mapping and reverse setting. The user's own language is
+  `translation.target_lang`. A file without `learning` loads as an empty list and
+  is not rewritten on load; an empty list keeps every capture exactly as before.
+- `AppConfig::filing(profile_id, source_lang)` is the one place that decides where
+  a card goes; `entry` is the first learned language whose `lang` equals
+  `normalize_lang(source_lang)`:
+
+  | value         | precedence                                                                                                             |
+  | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+  | deck          | the hotkey profile's `deck_name` (a known `profile_id` with a deck) → `entry.deck_name` (non-blank) → `anki.deck_name` |
+  | note type     | `entry.model_name` (non-blank) → `anki.model_name`                                                                     |
+  | field mapping | with an entry: its `field_mapping`, or `Auto` when `null`; without one: `anki.field_mapping`                           |
+  | reverse note  | `entry.create_reverse` → `anki.create_reverse`                                                                         |
+
+  An unknown `profile_id` (a profile deleted since the capture) counts as none. A
+  hotkey profile with a fixed pair still takes note type, mapping and reverse
+  setting from its source language's entry; only its own deck wins.
+
+- A `null` `field_mapping` means "match the note type's fields by name"
+  (`FieldMapping::auto_match`, § 9) whenever a card is filed; the result is never
+  written back, so a changed note type is matched afresh. `anki.field_mapping` is
+  always used as saved.
+- Validation: each learned `lang` is supported, listed once and not
+  `translation.target_lang`; deck and note type are non-empty; a saved mapping of
+  its own fills at least one field and names every field, like `anki.field_mapping`.
+  Fields the note type lacks are a warning, never a validation error.
+- Downgrade: an older build ignores `learning`, but a saved mapping that uses
+  `example_in_source_lang` or `example_in_target_lang` (§ 9) makes the whole file
+  unreadable to it, so it is kept as `config.json.bak` and the defaults load.
 - Loading a legacy file maps the old `deepl` section onto `translation`
   (`api_key` is dropped), lowercases language codes and fills every new field
   with its default. `load_config_from(path)`/`save_config_to(path, cfg)` are
@@ -1114,6 +1156,16 @@ interface AutoMatch {
   mapping: FieldMapping // bindings in note-type order
   guessed: string[] // fields bound only by position
   unmatched: string[] // fields left empty (the audio field excluded)
+}
+interface LearnedLanguage {
+  lang: string
+  deck_name: string
+  model_name: string
+  field_mapping: FieldMapping | null // null: matched by field name, never saved
+  create_reverse: boolean
+}
+interface LearningConfig {
+  languages: LearnedLanguage[] // in approval-window order
 }
 ```
 

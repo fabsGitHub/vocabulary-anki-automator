@@ -158,6 +158,14 @@ const hotkeyProfile = object({
   target_lang: string,
   deck_name: nullable(string),
 })
+const learnedLanguage = object({
+  lang: string,
+  deck_name: string,
+  model_name: string,
+  field_mapping: nullable(fieldMapping),
+  create_reverse: boolean,
+})
+const learningConfig = object({ languages: array(learnedLanguage) })
 const translationConfig = object({
   source_lang: string,
   target_lang: string,
@@ -179,6 +187,7 @@ const appConfig = object({
   translation: translationConfig,
   anki: ankiConfig,
   consent: consentState,
+  learning: learningConfig,
 })
 const captureErrorPayload = object({ message: string })
 
@@ -204,6 +213,8 @@ const SCHEMAS = {
   FieldMapping: fieldMapping,
   AutoMatch: autoMatch,
   HotkeyProfile: hotkeyProfile,
+  LearnedLanguage: learnedLanguage,
+  LearningConfig: learningConfig,
   TranslationConfig: translationConfig,
   AnkiConfig: ankiConfig,
   AppConfig: appConfig,
@@ -233,6 +244,8 @@ interface Types {
   FieldMapping: T.FieldMapping
   AutoMatch: T.AutoMatch
   HotkeyProfile: T.HotkeyProfile
+  LearnedLanguage: T.LearnedLanguage
+  LearningConfig: T.LearningConfig
   TranslationConfig: T.TranslationConfig
   AnkiConfig: T.AnkiConfig
   AppConfig: T.AppConfig

@@ -19,7 +19,9 @@ import {
   type AppConfig,
   type CardField,
   type ConsentState,
+  type FieldMapping,
   type HotkeyProfile,
+  type LearnedLanguage,
 } from '../api'
 import { appleStyleMapping } from '../domain/fieldMapping'
 import { normalizeLang } from '../domain/language'
@@ -47,6 +49,7 @@ export function defaultConfig(): AppConfig {
       field_mapping: appleStyleMapping(),
     },
     consent: { anki_install_granted_at: null, ankiconnect_provision_granted_at: null },
+    learning: { languages: [] },
   }
 }
 
@@ -64,6 +67,30 @@ function blankToNull(value: string | null): string | null {
   return value !== null && value.trim() !== '' ? value.trim() : null
 }
 
+/** A mapping with every binding and the audio field in their § 8.1 types. */
+function normalizeMapping(raw: Loose<FieldMapping>): FieldMapping {
+  return {
+    fields: Array.isArray(raw.fields)
+      ? raw.fields.map((binding) => ({
+          anki_field: text(binding?.anki_field, ''),
+          source: text(binding?.source, 'front') as CardField,
+        }))
+      : [],
+    audio_field: optionalText(raw.audio_field),
+  }
+}
+
+/** `mapping` as `apply_settings` takes it: exactly its keys, a blank audio field as `null`. */
+function mappingPayload(mapping: FieldMapping): FieldMapping {
+  return {
+    fields: mapping.fields.map((binding) => ({
+      anki_field: binding.anki_field,
+      source: binding.source,
+    })),
+    audio_field: blankToNull(mapping.audio_field),
+  }
+}
+
 /**
  * A complete config from whatever `get_current_settings` returned: missing
  * sections take their defaults and language codes are made canonical, so the
@@ -76,6 +103,7 @@ export function normalizeConfig(raw: unknown): AppConfig {
   const anki = source.anki ?? {}
   const mapping = anki.field_mapping ?? null
   const consent = source.consent ?? {}
+  const learning = source.learning ?? {}
   const maxChars = Number(translation.max_chars)
 
   return {
@@ -107,21 +135,27 @@ export function normalizeConfig(raw: unknown): AppConfig {
       model_name: text(anki.model_name, base.anki.model_name),
       create_reverse:
         typeof anki.create_reverse === 'boolean' ? anki.create_reverse : base.anki.create_reverse,
-      field_mapping: mapping
-        ? {
-            fields: Array.isArray(mapping.fields)
-              ? mapping.fields.map((binding) => ({
-                  anki_field: text(binding?.anki_field, ''),
-                  source: text(binding?.source, 'front') as CardField,
-                }))
-              : [],
-            audio_field: optionalText(mapping.audio_field),
-          }
-        : base.anki.field_mapping,
+      field_mapping: mapping ? normalizeMapping(mapping) : base.anki.field_mapping,
     },
     consent: {
       anki_install_granted_at: optionalText(consent.anki_install_granted_at),
       ankiconnect_provision_granted_at: optionalText(consent.ankiconnect_provision_granted_at),
+    },
+    learning: {
+      languages: Array.isArray(learning.languages)
+        ? (learning.languages as (Loose<LearnedLanguage> | null)[]).map((entry) => {
+            const language = entry ?? {}
+            const own = language.field_mapping ?? null
+            return {
+              lang: normalizeLang(text(language.lang, '')),
+              deck_name: text(language.deck_name, ''),
+              model_name: text(language.model_name, ''),
+              field_mapping: own ? normalizeMapping(own as Loose<FieldMapping>) : null,
+              create_reverse:
+                typeof language.create_reverse === 'boolean' ? language.create_reverse : true,
+            }
+          })
+        : [],
     },
   }
 }
@@ -154,17 +188,20 @@ export function toSettingsPayload(config: AppConfig): AppConfig {
       deck_name: config.anki.deck_name.trim(),
       model_name: config.anki.model_name.trim(),
       create_reverse: config.anki.create_reverse,
-      field_mapping: {
-        fields: config.anki.field_mapping.fields.map((binding) => ({
-          anki_field: binding.anki_field,
-          source: binding.source,
-        })),
-        audio_field: blankToNull(config.anki.field_mapping.audio_field),
-      },
+      field_mapping: mappingPayload(config.anki.field_mapping),
     },
     consent: {
       anki_install_granted_at: config.consent.anki_install_granted_at,
       ankiconnect_provision_granted_at: config.consent.ankiconnect_provision_granted_at,
+    },
+    learning: {
+      languages: config.learning.languages.map((language) => ({
+        lang: normalizeLang(language.lang),
+        deck_name: language.deck_name.trim(),
+        model_name: language.model_name.trim(),
+        field_mapping: language.field_mapping ? mappingPayload(language.field_mapping) : null,
+        create_reverse: language.create_reverse,
+      })),
     },
   }
 }

@@ -273,6 +273,9 @@
         },
         "hotkey_profiles": [],
         "hotkeys": "CommandOrControl+Shift+C",
+        "learning": {
+          "languages": []
+        },
         "translation": {
           "contact_email": null,
           "max_chars": 100,
@@ -329,6 +332,44 @@
           }
         ],
         "hotkeys": "CommandOrControl+Alt+V",
+        "learning": {
+          "languages": [
+            {
+              "create_reverse": true,
+              "deck_name": "english",
+              "field_mapping": null,
+              "lang": "en",
+              "model_name": "AppleStyleFinalV3"
+            },
+            {
+              "create_reverse": false,
+              "deck_name": "chinese",
+              "field_mapping": {
+                "audio_field": "Audio",
+                "fields": [
+                  {
+                    "anki_field": "Hanzi",
+                    "source": "front"
+                  },
+                  {
+                    "anki_field": "Pinyin",
+                    "source": "pinyin"
+                  },
+                  {
+                    "anki_field": "Meaning",
+                    "source": "back"
+                  },
+                  {
+                    "anki_field": "Sentence",
+                    "source": "example"
+                  }
+                ]
+              },
+              "lang": "zh-CN",
+              "model_name": "Chinese (HSK)"
+            }
+          ]
+        },
         "translation": {
           "contact_email": "learner@example.com",
           "max_chars": 250,
@@ -545,6 +586,85 @@
         "shortcut": "Alt+F",
         "source_lang": "fr",
         "target_lang": "de"
+      }
+    ],
+    "LearnedLanguage": [
+      {
+        "create_reverse": true,
+        "deck_name": "english",
+        "field_mapping": null,
+        "lang": "en",
+        "model_name": "AppleStyleFinalV3"
+      },
+      {
+        "create_reverse": false,
+        "deck_name": "chinese",
+        "field_mapping": {
+          "audio_field": "Audio",
+          "fields": [
+            {
+              "anki_field": "Hanzi",
+              "source": "front"
+            },
+            {
+              "anki_field": "Pinyin",
+              "source": "pinyin"
+            },
+            {
+              "anki_field": "Meaning",
+              "source": "back"
+            },
+            {
+              "anki_field": "Sentence",
+              "source": "example"
+            }
+          ]
+        },
+        "lang": "zh-CN",
+        "model_name": "Chinese (HSK)"
+      }
+    ],
+    "LearningConfig": [
+      {
+        "languages": []
+      },
+      {
+        "languages": [
+          {
+            "create_reverse": true,
+            "deck_name": "english",
+            "field_mapping": null,
+            "lang": "en",
+            "model_name": "AppleStyleFinalV3"
+          },
+          {
+            "create_reverse": false,
+            "deck_name": "chinese",
+            "field_mapping": {
+              "audio_field": "Audio",
+              "fields": [
+                {
+                  "anki_field": "Hanzi",
+                  "source": "front"
+                },
+                {
+                  "anki_field": "Pinyin",
+                  "source": "pinyin"
+                },
+                {
+                  "anki_field": "Meaning",
+                  "source": "back"
+                },
+                {
+                  "anki_field": "Sentence",
+                  "source": "example"
+                }
+              ]
+            },
+            "lang": "zh-CN",
+            "model_name": "Chinese (HSK)"
+          }
+        ]
       }
     ],
     "PendingCapture": [

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AppConfig } from '../api'
+import type { AppConfig, LearnedLanguage } from '../api'
 import { callsTo, commandNames, onCommand, resetTauri } from '../test/fakeTauri'
 import { defaultConfig, normalizeConfig, toSettingsPayload, useConfig } from './useConfig'
 
@@ -38,6 +38,30 @@ function backendConfig(): AppConfig {
       },
     },
     consent: { anki_install_granted_at: null, ankiconnect_provision_granted_at: null },
+    learning: {
+      languages: [
+        {
+          lang: 'fr',
+          deck_name: 'french',
+          model_name: 'AppleStyleFinalV3',
+          field_mapping: null,
+          create_reverse: true,
+        },
+        {
+          lang: 'zh-CN',
+          deck_name: 'chinese',
+          model_name: 'Chinese (HSK)',
+          field_mapping: {
+            fields: [
+              { anki_field: 'Hanzi', source: 'front' },
+              { anki_field: 'Meaning', source: 'back' },
+            ],
+            audio_field: 'Audio',
+          },
+          create_reverse: false,
+        },
+      ],
+    },
   }
 }
 
@@ -108,6 +132,37 @@ describe('load', () => {
       anki_install_granted_at: null,
       ankiconnect_provision_granted_at: null,
     })
+    expect(config.learning).toEqual({ languages: [] })
+  })
+
+  it('reads learned languages with canonical codes, a null mapping and reverse cards by default', async () => {
+    const store = await loadedStore({
+      ...backendConfig(),
+      learning: {
+        languages: [
+          { lang: 'FR', deck_name: 'french', model_name: 'Basic', field_mapping: null },
+          { lang: 'zh', deck_name: 'chinese', model_name: 'Chinese' },
+          null,
+        ],
+      },
+    })
+    const [french, chinese, empty] = store.config.value.learning.languages
+    expect(french).toEqual({
+      lang: 'fr',
+      deck_name: 'french',
+      model_name: 'Basic',
+      field_mapping: null,
+      create_reverse: true,
+    })
+    expect(chinese.lang).toBe('zh-CN')
+    expect(chinese.field_mapping).toBeNull()
+    expect(empty).toEqual({
+      lang: '',
+      deck_name: '',
+      model_name: '',
+      field_mapping: null,
+      create_reverse: true,
+    })
   })
 
   it('reports a failed load and refuses to save the defaults over the real config', async () => {
@@ -138,7 +193,15 @@ describe('save', () => {
     expect(await store.save()).toBe(true)
     const sent = sentConfig()
     expect(Object.keys(sent).sort()).toEqual(
-      ['anki', 'consent', 'hotkey_profiles', 'hotkeys', 'translation', 'ui_lang'].sort(),
+      [
+        'anki',
+        'consent',
+        'hotkey_profiles',
+        'hotkeys',
+        'learning',
+        'translation',
+        'ui_lang',
+      ].sort(),
     )
     expect(Object.keys(sent.translation).sort()).toEqual(
       ['contact_email', 'max_chars', 'provider', 'source_lang', 'target_lang'].sort(),
@@ -152,6 +215,29 @@ describe('save', () => {
     expect(JSON.stringify(sent)).not.toMatch(/deepl|api_key|secret-key/)
     expect(sent.translation.contact_email).toBe('me@example.com')
     expect(sent.hotkey_profiles[0]).toEqual(backendConfig().hotkey_profiles[0])
+    expect(sent.learning).toEqual(backendConfig().learning)
+    expect(store.dirty.value).toBe(false)
+  })
+
+  it('keeps learned languages through a save, a null mapping included', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', null)
+    const french = store.config.value.learning.languages[0] as LearnedLanguage
+    french.lang = 'IT'
+    french.deck_name = ' italian '
+    french.model_name = ' Basic '
+    expect(store.dirty.value).toBe(true)
+
+    expect(await store.save()).toBe(true)
+    const [sentFrench, sentChinese] = sentConfig().learning.languages
+    expect(sentFrench).toEqual({
+      lang: 'it',
+      deck_name: 'italian',
+      model_name: 'Basic',
+      field_mapping: null,
+      create_reverse: true,
+    })
+    expect(sentChinese).toEqual(backendConfig().learning.languages[1])
     expect(store.dirty.value).toBe(false)
   })
 

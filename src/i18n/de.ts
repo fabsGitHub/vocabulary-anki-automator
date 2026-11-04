@@ -343,6 +343,8 @@ export const de: MessageSchema = {
     shortcutDuplicateDefault: 'Wird schon vom Standard-Hotkey verwendet.',
     languageUnsupported: 'Nicht unterstützte Sprache.',
     languagesEqual: 'Ausgangs- und Zielsprache müssen sich unterscheiden.',
+    languageDuplicate: 'Diese Sprache ist bereits aufgeführt.',
+    languageIsNative: 'In diese Sprache werden die Karten übersetzt; wählen Sie eine andere.',
     maxCharsRange: 'Geben Sie eine ganze Zahl von 1 bis {max} ein.',
     emailInvalid: 'Keine gültige E-Mail-Adresse.',
     providerUnknown: 'Unbekannter Übersetzungsdienst.',
