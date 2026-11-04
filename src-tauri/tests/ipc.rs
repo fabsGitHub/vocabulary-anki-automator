@@ -10,7 +10,8 @@ use std::fs;
 use common::{fake_audio, now, Harness, Options};
 use serde_json::{json, Value};
 use vocab_automator_lib::{
-    config::{load_config_from, AppConfig, HotkeyProfile},
+    config::{load_config_from, AppConfig, HotkeyProfile, LearnedLanguage},
+    push::LAST_SOURCE_LANG_KEY,
     setup::{ankiconnect, AnkiPaths},
 };
 use vocab_core::{
@@ -55,6 +56,17 @@ fn chinese_profile() -> HotkeyProfile {
         source_lang: "zh-CN".into(),
         target_lang: "de".into(),
         deck_name: Some("Chinese::HSK".into()),
+    }
+}
+
+/// A learned language with its own deck and note type.
+fn learned(lang: &str, deck: &str, model: &str) -> LearnedLanguage {
+    LearnedLanguage {
+        lang: lang.into(),
+        deck_name: deck.into(),
+        model_name: model.into(),
+        field_mapping: None,
+        create_reverse: true,
     }
 }
 
@@ -127,6 +139,70 @@ fn a_profile_brings_its_language_pair() {
         }
     );
     assert_eq!(card.audio_front, Some(fake_audio("zh-CN", "学习")));
+}
+
+/// The migration guarantee: without learned languages a capture asks the
+/// same providers as before and is filed under the global deck and note
+/// type.
+#[test]
+fn without_learned_languages_a_capture_is_filed_as_before() {
+    let harness = Harness::new();
+
+    capture(&harness, "serendipity", None);
+
+    let pending = pending(&harness);
+    assert_eq!(
+        pending["filing"],
+        json!({ "deck": "English::AutomatedVocabulary", "model": "AppleStyleFinalV3" })
+    );
+    assert_eq!(
+        harness.providers.calls(),
+        [
+            "translate en->de serendipity",
+            "rarity serendipity",
+            "example serendipity",
+            "translate en->de An example with serendipity.",
+            "tts en serendipity"
+        ]
+    );
+}
+
+/// The approval window names where the card goes: a profile's own deck,
+/// else its language's deck, and that language's note type.
+#[test]
+fn the_pending_capture_names_its_deck_and_note_type() {
+    let mut options = Options::default();
+    options.config.hotkey_profiles.push(chinese_profile());
+    options.config.hotkey_profiles.push(HotkeyProfile {
+        id: "fr-de".into(),
+        label: "French → German".into(),
+        shortcut: "Alt+F".into(),
+        source_lang: "fr".into(),
+        target_lang: "de".into(),
+        deck_name: None,
+    });
+    options.config.learning.languages = vec![
+        learned("zh-CN", "chinese", "Chinese (HSK)"),
+        learned("fr", "french", "Basic"),
+    ];
+    let harness = Harness::with(options);
+
+    capture(&harness, "学习", Some("zh-de"));
+    assert_eq!(
+        pending(&harness)["filing"],
+        json!({ "deck": "Chinese::HSK", "model": "Chinese (HSK)" })
+    );
+    capture(&harness, "bonjour", Some("fr-de"));
+    assert_eq!(
+        pending(&harness)["filing"],
+        json!({ "deck": "french", "model": "Basic" })
+    );
+    capture(&harness, "house", None);
+    assert_eq!(
+        pending(&harness)["filing"],
+        json!({ "deck": "English::AutomatedVocabulary", "model": "AppleStyleFinalV3" }),
+        "English is not learned: the globals"
+    );
 }
 
 /// Milestone H: a phrase is captured and translated; only the single-word
@@ -241,6 +317,37 @@ fn an_offline_anki_is_a_result_not_an_error() {
     assert_eq!(
         harness.providers.tts_calls(),
         ["tts en serendipity", "tts de glücklicher Zufall"]
+    );
+}
+
+/// Detection's tie-break needs the language of the last approved card, but
+/// an old config must not write anything new.
+#[test]
+fn the_approved_language_is_remembered_only_with_learned_languages() {
+    let harness = Harness::new();
+    capture(&harness, "serendipity", None);
+    approve(&harness, pending_card(&harness));
+    assert_eq!(
+        harness
+            .open_store()
+            .get_state(LAST_SOURCE_LANG_KEY)
+            .unwrap(),
+        None
+    );
+
+    let mut options = Options::default();
+    options.config.learning.languages = vec![learned("en", "english", "AppleStyleFinalV3")];
+    let harness = Harness::with(options);
+    capture(&harness, "serendipity", None);
+    let result = approve(&harness, pending_card(&harness));
+    assert_eq!(result["synced_to_anki"], false);
+    assert_eq!(
+        harness
+            .open_store()
+            .get_state(LAST_SOURCE_LANG_KEY)
+            .unwrap()
+            .as_deref(),
+        Some("en")
     );
 }
 

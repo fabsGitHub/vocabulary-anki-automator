@@ -43,7 +43,13 @@ function capture(
   overrides: Partial<PendingCapture> = {},
   cardOverrides: Partial<Card> = {},
 ): PendingCapture {
-  return { card: card(cardOverrides), warnings: [], profile_id: null, ...overrides }
+  return {
+    card: card(cardOverrides),
+    warnings: [],
+    profile_id: null,
+    filing: { deck: 'English::AutomatedVocabulary', model: 'AppleStyleFinalV3' },
+    ...overrides,
+  }
 }
 
 const SYNCED: SubmitResult = {
@@ -522,9 +528,23 @@ describe('what the window shows', () => {
         }),
       ),
     )
-    await mountWindow(capture({ profile_id: 'zh-de' }))
+    await mountWindow(
+      capture({ profile_id: 'zh-de', filing: { deck: 'Chinese::HSK', model: 'Chinese (HSK)' } }),
+    )
     expect(wrapper?.text()).toContain('Hotkey: Chinese → German')
-    expect(wrapper?.text()).toContain('Deck: Chinese::HSK')
+    expect(wrapper?.find('[data-test="deck"]').text()).toBe('Deck: Chinese::HSK')
+    expect(wrapper?.find('[data-test="model"]').text()).toBe('Note type: Chinese (HSK)')
+  })
+
+  it('takes the deck and note type from the capture, not from the settings', async () => {
+    onCommand(
+      'get_current_settings',
+      settings((config) => (config.anki.deck_name = 'Somewhere::Else')),
+    )
+    await mountWindow(capture({ filing: { deck: 'french', model: 'Basic' } }))
+    expect(wrapper?.find('[data-test="deck"]').text()).toBe('Deck: french')
+    expect(wrapper?.find('[data-test="model"]').text()).toBe('Note type: Basic')
+    expect(wrapper?.text()).not.toContain('Somewhere::Else')
   })
 
   it('uses the UI language from the settings', async () => {

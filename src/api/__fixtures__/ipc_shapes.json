@@ -687,6 +687,10 @@
           ],
           "target_lang": "de"
         },
+        "filing": {
+          "deck": "English::AutomatedVocabulary",
+          "model": "AppleStyleFinalV3"
+        },
         "profile_id": null,
         "warnings": [
           {
@@ -758,8 +762,22 @@
           "tags": [],
           "target_lang": "de"
         },
+        "filing": {
+          "deck": "Chinese::HSK",
+          "model": "Chinese (HSK)"
+        },
         "profile_id": "zh-de",
         "warnings": []
+      }
+    ],
+    "PendingFiling": [
+      {
+        "deck": "English::AutomatedVocabulary",
+        "model": "AppleStyleFinalV3"
+      },
+      {
+        "deck": "Chinese::HSK",
+        "model": "Chinese (HSK)"
       }
     ],
     "PipelineStage": [

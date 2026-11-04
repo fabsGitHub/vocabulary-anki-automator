@@ -38,7 +38,7 @@ use common::Harness;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Map, Value};
 use vocab_automator_lib::{
-    capture::{CaptureErrorPayload, PendingCapture},
+    capture::{CaptureErrorPayload, PendingCapture, PendingFiling},
     commands::anki::AnkiStatus,
     config::{
         AnkiConfig, AppConfig, ConsentAction, ConsentState, HotkeyProfile, LearnedLanguage,
@@ -247,6 +247,20 @@ fn chinese_card() -> Card {
     }
 }
 
+fn english_filing() -> PendingFiling {
+    PendingFiling {
+        deck: "English::AutomatedVocabulary".into(),
+        model: "AppleStyleFinalV3".into(),
+    }
+}
+
+fn chinese_filing() -> PendingFiling {
+    PendingFiling {
+        deck: "Chinese::HSK".into(),
+        model: "Chinese (HSK)".into(),
+    }
+}
+
 fn provider_errors() -> Vec<ProviderError> {
     vec![
         ProviderError::Network {
@@ -434,13 +448,19 @@ fn shapes() -> Map<String, Value> {
                     card: english_card(),
                     warnings: warnings(),
                     profile_id: None,
+                    filing: english_filing(),
                 }),
                 json_of(PendingCapture {
                     card: chinese_card(),
                     warnings: Vec::new(),
                     profile_id: Some("zh-de".into()),
+                    filing: chinese_filing(),
                 }),
             ],
+        ),
+        (
+            "PendingFiling",
+            vec![json_of(english_filing()), json_of(chinese_filing())],
         ),
         (
             "CaptureOrigin",

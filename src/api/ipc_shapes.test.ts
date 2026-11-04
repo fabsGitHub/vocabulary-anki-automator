@@ -88,10 +88,12 @@ const pipelineStage = literal(
   'annotate',
 )
 const pipelineWarning = object({ stage: pipelineStage, error: providerError })
+const pendingFiling = object({ deck: string, model: string })
 const pendingCapture = object({
   card,
   warnings: array(pipelineWarning),
   profile_id: nullable(string),
+  filing: pendingFiling,
 })
 const captureOrigin = literal('capture', 'curriculum', 'anki_import')
 const storedCapture = object({
@@ -198,6 +200,7 @@ const SCHEMAS = {
   PipelineStage: pipelineStage,
   PipelineWarning: pipelineWarning,
   PendingCapture: pendingCapture,
+  PendingFiling: pendingFiling,
   CaptureOrigin: captureOrigin,
   StoredCapture: storedCapture,
   SubmitResult: submitResult,
@@ -229,6 +232,7 @@ interface Types {
   PipelineStage: T.PipelineStage
   PipelineWarning: T.PipelineWarning
   PendingCapture: T.PendingCapture
+  PendingFiling: T.PendingFiling
   CaptureOrigin: T.CaptureOrigin
   StoredCapture: T.StoredCapture
   SubmitResult: T.SubmitResult

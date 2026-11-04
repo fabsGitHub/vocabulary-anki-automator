@@ -245,6 +245,7 @@ export const en = {
     languagePair: '{source} → {target}',
     profile: 'Hotkey: {label}',
     deck: 'Deck: {deck}',
+    model: 'Note type: {model}',
     front: 'Front (word)',
     back: 'Back (translation)',
     exampleSource: 'Example sentence',

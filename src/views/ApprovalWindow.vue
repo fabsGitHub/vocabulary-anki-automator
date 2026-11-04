@@ -53,8 +53,6 @@ const profile = computed(() => {
   return id ? (settings.value?.hotkey_profiles.find((p) => p.id === id) ?? null) : null
 })
 
-const deck = computed(() => profile.value?.deck_name || settings.value?.anki.deck_name || null)
-
 const hskLabel = computed(() => {
   const level = chinese.value?.hsk_level ?? null
   if (level === null) return t('approval.notInHsk')
@@ -152,7 +150,12 @@ onBeforeUnmount(() => {
           <span v-if="profile" class="badge badge-muted">{{
             t('approval.profile', { label: profile.label })
           }}</span>
-          <span v-if="deck" class="badge badge-muted">{{ t('approval.deck', { deck }) }}</span>
+          <span v-if="pending?.filing.deck" class="badge badge-muted" data-test="deck">{{
+            t('approval.deck', { deck: pending.filing.deck })
+          }}</span>
+          <span v-if="pending?.filing.model" class="badge badge-muted" data-test="model">{{
+            t('approval.model', { model: pending.filing.model })
+          }}</span>
         </div>
       </header>
 

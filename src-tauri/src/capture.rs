@@ -62,6 +62,19 @@ pub struct PendingCapture {
     pub warnings: Vec<PipelineWarning>,
     /// The hotkey profile it was captured with; `None` for the default one.
     pub profile_id: Option<String>,
+    /// The deck and note type the card will be filed under (from
+    /// [`AppConfig::filing`]).
+    #[serde(default)]
+    pub filing: PendingFiling,
+}
+
+/// Where a pending card will go, for the approval window to show. The push
+/// decides again with the config of that moment.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingFiling {
+    pub deck: String,
+    /// The Anki note type ("model").
+    pub model: String,
 }
 
 /// Payload of `capture-error`.
@@ -167,10 +180,15 @@ pub async fn run_capture<R: Runtime>(
         outcome.card.target_lang,
         outcome.warnings.len()
     );
+    let filing = config.filing(profile.id.as_deref(), &outcome.card.source_lang);
     let pending = PendingCapture {
         card: outcome.card,
         warnings: outcome.warnings,
         profile_id: profile.id.clone(),
+        filing: PendingFiling {
+            deck: filing.deck,
+            model: filing.model,
+        },
     };
     state.pending().set(pending.clone());
     present_preview(app, &pending);
@@ -534,11 +552,19 @@ mod tests {
             card,
             warnings: Vec::new(),
             profile_id: Some("de-en".into()),
+            filing: PendingFiling {
+                deck: "german".into(),
+                model: "Basic".into(),
+            },
         };
         let json = serde_json::to_value(&pending).unwrap();
         let keys: Vec<_> = json.as_object().unwrap().keys().cloned().collect();
-        assert_eq!(keys, ["card", "profile_id", "warnings"]);
+        assert_eq!(keys, ["card", "filing", "profile_id", "warnings"]);
         assert_eq!(json["profile_id"], "de-en");
+        assert_eq!(
+            json["filing"],
+            serde_json::json!({ "deck": "german", "model": "Basic" })
+        );
         assert_eq!(json["card"]["captured_at"], "2026-10-31T12:00:00Z");
         assert_eq!(
             serde_json::from_value::<PendingCapture>(json).unwrap(),

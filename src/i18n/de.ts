@@ -243,6 +243,7 @@ export const de: MessageSchema = {
     languagePair: '{source} → {target}',
     profile: 'Hotkey: {label}',
     deck: 'Stapel: {deck}',
+    model: 'Notiztyp: {model}',
     front: 'Vorderseite (Wort)',
     back: 'Rückseite (Übersetzung)',
     exampleSource: 'Beispielsatz',

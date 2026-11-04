@@ -2,8 +2,9 @@
 //! wiremock AnkiConnect on 127.0.0.1 (docs/test-harness-strategy.md): the
 //! exact `createDeck`/`addNote` bodies an approval sends, the capture row it
 //! leaves behind, duplicates, the retry of unsynced captures into the deck
-//! they were approved for, and the status probes. Nothing here talks to a real
-//! Anki or leaves the machine.
+//! they were approved for, learned languages filed into their own deck and
+//! note type, and the status probes. Nothing here talks to a real Anki or
+//! leaves the machine.
 
 mod common;
 
@@ -12,10 +13,14 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use anki_bridge::FieldMapping;
 use common::{b64, fake_audio, Harness, Options, UNREACHABLE_ANKI};
 use serde_json::{json, Value};
 use tauri::async_runtime::block_on;
-use vocab_automator_lib::{config::HotkeyProfile, push::deck_key};
+use vocab_automator_lib::{
+    config::{HotkeyProfile, LearnedLanguage},
+    push::deck_key,
+};
 use vocab_core::store::Store;
 use wiremock::{
     matchers::{body_json, method},
@@ -96,6 +101,63 @@ fn capture(harness: &Harness, text: &str, profile: Option<&str>) -> Value {
 
 fn approve(harness: &Harness, card: Value) -> Value {
     harness.call("execute_card_generation", json!({ "card": card }))
+}
+
+fn model_field_names(model: &str) -> Value {
+    json!({ "action": "modelFieldNames", "version": 6, "params": { "modelName": model } })
+}
+
+/// The fields of the user's AppleStyleFinalV3 note type.
+fn apple_style_final_v3() -> Value {
+    json!([
+        "Front",
+        "Back",
+        "English Sentence",
+        "German Sentence",
+        "Audio"
+    ])
+}
+
+/// A learned language filed into `deck` on AppleStyleFinalV3, its fields
+/// matched by name.
+fn learned(lang: &str, deck: &str) -> LearnedLanguage {
+    LearnedLanguage {
+        lang: lang.into(),
+        deck_name: deck.into(),
+        model_name: "AppleStyleFinalV3".into(),
+        field_mapping: None,
+        create_reverse: true,
+    }
+}
+
+fn french_profile(id: &str, deck: Option<&str>) -> HotkeyProfile {
+    HotkeyProfile {
+        id: id.into(),
+        label: id.into(),
+        shortcut: format!("Alt+{}", id.len()),
+        source_lang: "fr".into(),
+        target_lang: "de".into(),
+        deck_name: deck.map(str::to_string),
+    }
+}
+
+/// The deck each request of `requests` names.
+fn decks(requests: &[Value]) -> Vec<&str> {
+    requests
+        .iter()
+        .filter_map(|body| match body["action"].as_str().unwrap() {
+            "createDeck" => body["params"]["deck"].as_str(),
+            "addNote" => body["params"]["note"]["deckName"].as_str(),
+            _ => None,
+        })
+        .collect()
+}
+
+fn actions(requests: &[Value]) -> Vec<&str> {
+    requests
+        .iter()
+        .map(|body| body["action"].as_str().unwrap())
+        .collect()
 }
 
 fn serendipity_forward() -> Value {
@@ -567,4 +629,211 @@ fn suggest_field_mapping_matches_the_note_type_s_field_names() {
         json!({ "model": "Nope", "sourceLang": "en", "targetLang": "de" }),
     );
     assert_eq!(err, "AnkiConnect error: model was not found: Nope");
+}
+
+/// An English learned language without a saved mapping: the note type's
+/// fields are read first and matched by name, so the example halves and the
+/// audio reach the fields named after them, on both notes.
+#[test]
+fn a_learned_language_without_a_mapping_is_matched_by_field_name() {
+    let server = start();
+    answer_exactly(
+        &server,
+        model_field_names("AppleStyleFinalV3"),
+        ok(apple_style_final_v3()),
+    );
+    answer_exactly(&server, create_deck("english"), ok(json!(1)));
+    let note = |front: &str, back: &str, audio: Vec<u8>, suffix: &str| {
+        add_note(json!({
+            "deckName": "english",
+            "modelName": "AppleStyleFinalV3",
+            "fields": {
+                "Front": front,
+                "Back": back,
+                "English Sentence": "An example with serendipity.",
+                "German Sentence": "[de] An example with serendipity."
+            },
+            "options": { "allowDuplicate": false, "duplicateScope": "deck" },
+            "tags": [],
+            "audio": [{
+                "data": b64(&audio),
+                "filename": format!("vocab_{STAMP}_{suffix}.mp3"),
+                "fields": ["Audio"]
+            }]
+        }))
+    };
+    let forward = note(
+        "serendipity",
+        "glücklicher Zufall",
+        fake_audio("en", "serendipity"),
+        "fwd",
+    );
+    let reverse = note(
+        "glücklicher Zufall",
+        "serendipity",
+        fake_audio("de", "glücklicher Zufall"),
+        "rev",
+    );
+    answer_exactly(&server, forward.clone(), ok(json!(101)));
+    answer_exactly(&server, reverse.clone(), ok(json!(102)));
+    let mut options = Options::default();
+    options.config.anki.connect_url = server.uri();
+    options.config.learning.languages = vec![learned("en", "english")];
+    let harness = Harness::with(options);
+    let card = capture(&harness, "serendipity", None);
+
+    let result = approve(&harness, card);
+
+    assert_eq!(result["note_ids"], json!([101, 102]));
+    assert_eq!(
+        sent(&server),
+        [
+            model_field_names("AppleStyleFinalV3"),
+            create_deck("english"),
+            forward,
+            reverse
+        ]
+    );
+}
+
+#[test]
+fn a_learned_language_with_a_saved_mapping_does_not_ask_for_the_fields() {
+    let server = start();
+    answer(&server, "createDeck", ok(json!(1)));
+    answer(&server, "addNote", ok(json!(7)));
+    let mut options = Options::default();
+    options.config.anki.connect_url = server.uri();
+    options.config.learning.languages = vec![LearnedLanguage {
+        field_mapping: Some(FieldMapping::apple_style_default()),
+        create_reverse: false,
+        ..learned("en", "english")
+    }];
+    let harness = Harness::with(options);
+    let card = capture(&harness, "serendipity", None);
+
+    let result = approve(&harness, card);
+
+    assert_eq!(result["note_ids"], json!([7]));
+    let requests = sent(&server);
+    assert_eq!(actions(&requests), ["createDeck", "addNote"]);
+    assert_eq!(decks(&requests), ["english", "english"]);
+    assert_eq!(
+        requests[1]["params"]["note"]["fields"]["Context Sentence"],
+        "An example with serendipity.<br>[de] An example with serendipity."
+    );
+}
+
+#[test]
+fn a_missing_note_type_keeps_the_capture_for_the_retry_and_names_it() {
+    let server = start();
+    answer(
+        &server,
+        "modelFieldNames",
+        anki_error("model was not found: AppleStyleFinalV3"),
+    );
+    let mut options = Options::default();
+    options.config.anki.connect_url = server.uri();
+    options.config.learning.languages = vec![learned("en", "english")];
+    let harness = Harness::with(options);
+    let card = capture(&harness, "serendipity", None);
+
+    let result = approve(&harness, card);
+
+    assert_eq!(result["capture_id"], 1);
+    assert_eq!(result["synced_to_anki"], false);
+    assert_eq!(
+        result["anki_error"],
+        "AnkiConnect error: model was not found: AppleStyleFinalV3"
+    );
+    assert_eq!(actions(&sent(&server)), ["modelFieldNames"]);
+    assert!(
+        !harness
+            .open_store()
+            .get_capture(1)
+            .unwrap()
+            .unwrap()
+            .synced_to_anki
+    );
+}
+
+/// The retry files each capture by its language: one `modelFieldNames` for
+/// the shared note type, each language's deck, and a profile's own deck
+/// where one was remembered.
+#[test]
+fn the_retry_files_each_capture_by_its_language() {
+    let mut options = Options::default();
+    options.config.learning.languages = vec![learned("en", "english"), learned("fr", "french")];
+    options.config.hotkey_profiles = vec![
+        french_profile("fr-de", None),
+        french_profile("fr-mined", Some("French::Mined")),
+    ];
+    let harness = Harness::with(options);
+    // Anki is offline while the three cards are approved.
+    for (text, profile) in [
+        ("house", None),
+        ("bonjour", Some("fr-de")),
+        ("merci", Some("fr-mined")),
+    ] {
+        let card = capture(&harness, text, profile);
+        assert_eq!(approve(&harness, card)["synced_to_anki"], false, "{text}");
+    }
+    let store = harness.open_store();
+    assert_eq!(
+        store.get_state(&deck_key(2)).unwrap(),
+        None,
+        "the entry's deck"
+    );
+    assert_eq!(
+        store.get_state(&deck_key(3)).unwrap().as_deref(),
+        Some("French::Mined")
+    );
+
+    // Anki comes back.
+    let server = start();
+    answer(&server, "modelFieldNames", ok(apple_style_final_v3()));
+    answer(&server, "createDeck", ok(json!(1)));
+    answer(&server, "addNote", ok(json!(55)));
+    let mut settings = harness.call("get_current_settings", json!({}));
+    settings["anki"]["connect_url"] = json!(server.uri());
+    harness.call("apply_settings", json!({ "newCfg": settings }));
+
+    let report = harness.call("sync_pending_captures", json!({}));
+
+    assert_eq!(report, json!({ "attempted": 3, "synced": 3, "failed": [] }));
+    let requests = sent(&server);
+    assert_eq!(
+        actions(&requests)
+            .iter()
+            .filter(|action| **action == "modelFieldNames")
+            .count(),
+        1,
+        "the note type's fields are read once"
+    );
+    assert_eq!(requests[0], model_field_names("AppleStyleFinalV3"));
+    assert_eq!(
+        decks(&requests),
+        [
+            "english",
+            "english",
+            "english",
+            "french",
+            "french",
+            "french",
+            "French::Mined",
+            "French::Mined",
+            "French::Mined"
+        ]
+    );
+    // Each card is matched for its own pair: the French card leaves the
+    // English sentence field alone.
+    let english_note = &requests[2]["params"]["note"]["fields"];
+    assert_eq!(english_note["English Sentence"], "An example with house.");
+    let french_note = &requests[5]["params"]["note"]["fields"];
+    assert_eq!(french_note["Front"], "bonjour");
+    assert_eq!(french_note.get("English Sentence"), None);
+    assert!(harness
+        .open_store()
+        .list_unsynced_captures()
+        .unwrap()
+        .is_empty());
 }

@@ -10,6 +10,7 @@
 //! | `config`    | B2, H      | `config.json`: shape, legacy migration, validation          |
 //! | `state`     | B3, F, N4  | runtime state and the injected services                     |
 //! | `capture`   | B3, D, H   | hotkey -> clipboard -> pipeline -> approval window          |
+//! | `filing`    | O          | the field mapping a card is pushed with                     |
 //! | `shortcuts` | H          | the default hotkey plus one per hotkey profile              |
 //! | `push`      | B3, F, J5  | save-then-push of approved cards, retry of unsynced ones     |
 //! | `setup`     | E          | consent-gated, pinned and verified Anki/AnkiConnect install |
@@ -21,6 +22,7 @@
 pub mod capture;
 pub mod commands;
 pub mod config;
+pub mod filing;
 pub mod push;
 pub mod setup;
 pub mod shortcuts;

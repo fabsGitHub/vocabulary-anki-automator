@@ -55,12 +55,20 @@ export interface PipelineWarning {
   error: ProviderError
 }
 
+/** Where a pending card will be filed (`AppConfig::filing` on the backend). */
+export interface PendingFiling {
+  deck: string
+  /** The Anki note type. */
+  model: string
+}
+
 /** The capture waiting in the approval window. */
 export interface PendingCapture {
   card: Card
   warnings: PipelineWarning[]
   /** The hotkey profile that captured it; `null` for the default hotkey. */
   profile_id: string | null
+  filing: PendingFiling
 }
 
 export type CaptureOrigin = 'capture' | 'curriculum' | 'anki_import'
