@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest'
 import type { AppConfig, LearnedLanguage } from '../api'
 import { defaultConfig } from '../composables/useConfig'
 import { SUPPORTED_LANGS } from './language'
-import { DEFAULT_DECKS, availableLanguages, learnedEntry, newLearnedLanguage } from './learning'
+import {
+  DEFAULT_DECKS,
+  availableLanguages,
+  defaultReverse,
+  learnedEntry,
+  newLearnedLanguage,
+  switchLanguage,
+} from './learning'
 
 function config(languages: Partial<LearnedLanguage>[] = [], native = 'de'): AppConfig {
   const value = defaultConfig()
@@ -74,6 +81,59 @@ describe('newLearnedLanguage', () => {
     expect(
       newLearnedLanguage(config(['en', 'fr', 'es', 'it', 'zh-CN'].map((lang) => ({ lang })))),
     ).toBeNull()
+  })
+})
+
+describe('defaultReverse', () => {
+  it('is off for Chinese and the global setting otherwise', () => {
+    const value = config()
+    for (const global of [true, false]) {
+      value.anki.create_reverse = global
+      expect(defaultReverse(value, 'fr')).toBe(global)
+      expect(defaultReverse(value, 'zh')).toBe(false)
+    }
+  })
+})
+
+describe('switchLanguage', () => {
+  it('brings the new language’s deck and reverse default along while they are the old defaults', () => {
+    const value = config([{ lang: 'en', deck_name: 'english', create_reverse: true }])
+    const entry = value.learning.languages[0]
+
+    switchLanguage(value, entry, 'zh-CN')
+    expect(entry).toMatchObject({ lang: 'zh-CN', deck_name: 'chinese', create_reverse: false })
+
+    switchLanguage(value, entry, 'fr')
+    expect(entry).toMatchObject({ lang: 'fr', deck_name: 'french', create_reverse: true })
+  })
+
+  it('keeps a deck, reverse setting, note type and mapping the user chose', () => {
+    const value = config([
+      {
+        lang: 'en',
+        deck_name: 'Vocabulary',
+        model_name: 'Basic',
+        field_mapping: { fields: [{ anki_field: 'Front', source: 'front' }], audio_field: null },
+        create_reverse: false,
+      },
+    ])
+    const entry = value.learning.languages[0]
+    const before = structuredClone(entry)
+
+    switchLanguage(value, entry, 'zh-CN')
+    expect(entry).toEqual({ ...before, lang: 'zh-CN' })
+
+    // Off for Chinese is its default, so on is the user's choice.
+    entry.create_reverse = true
+    switchLanguage(value, entry, 'es')
+    expect(entry).toEqual({ ...before, lang: 'es', create_reverse: true })
+  })
+
+  it('leaves the deck alone for a language it has no default deck for', () => {
+    const value = config([{ lang: 'pt', deck_name: 'french' }])
+    const entry = value.learning.languages[0]
+    switchLanguage(value, entry, 'es')
+    expect(entry).toMatchObject({ lang: 'es', deck_name: 'french' })
   })
 })
 

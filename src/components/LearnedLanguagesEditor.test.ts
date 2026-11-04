@@ -197,7 +197,7 @@ describe('the list of languages', () => {
     expect(cards()).toHaveLength(1)
   })
 
-  it('edits an entry, and changing its language changes nothing else', async () => {
+  it('edits an entry, and changing its language keeps what was edited', async () => {
     await mountEditor(settings([entry()]))
     const first = card(0)
     await first.find('[data-test="learned-deck"]').setValue('Französisch')
@@ -210,6 +210,34 @@ describe('the list of languages', () => {
     )
     expect(store.issues.value).toEqual([])
     expect(first.find('[data-test="learned-deck"]').attributes('placeholder')).toBe('e.g. spanish')
+  })
+
+  it('brings the deck and reverse default of a new language along while they are untouched', async () => {
+    await mountEditor()
+    expect(store.config.value.anki.create_reverse).toBe(true)
+    await wrapper?.find('[data-test="add-language"]').trigger('click')
+    expect(store.config.value.learning.languages[0]).toMatchObject({
+      lang: 'en',
+      deck_name: 'english',
+      create_reverse: true,
+    })
+
+    await card(0).find('#learned-0-lang').setValue('zh-CN')
+    expect(store.config.value.learning.languages[0]).toMatchObject({
+      lang: 'zh-CN',
+      deck_name: 'chinese',
+      create_reverse: false,
+    })
+    expect(card(0).find<HTMLInputElement>('[data-test="learned-deck"]').element.value).toBe(
+      'chinese',
+    )
+
+    await card(0).find('#learned-0-lang').setValue('en')
+    expect(store.config.value.learning.languages[0]).toMatchObject({
+      lang: 'en',
+      deck_name: 'english',
+      create_reverse: store.config.value.anki.create_reverse,
+    })
   })
 
   it('offers only languages that are neither the native one nor taken by another entry', async () => {

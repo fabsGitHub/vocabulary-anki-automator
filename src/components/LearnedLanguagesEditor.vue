@@ -5,9 +5,11 @@
  * its own field mapping and reverse card (docs/architecture.md § 8.1). The
  * list order is the order of the approval window's language chips.
  *
- * A new entry is prefilled by `newLearnedLanguage` and starts with the
- * mapping `null`: the note type's fields are matched by name whenever a card
- * is pushed, so a changed note type is matched again. While Anki is online
+ * A new entry is prefilled by `newLearnedLanguage`, and a change of its
+ * language brings the new language's deck and reverse default along while the
+ * old ones are untouched (`switchLanguage`). It starts with the mapping
+ * `null`: the note type's fields are matched by name whenever a card is
+ * pushed, so a changed note type is matched again. While Anki is online
  * the entry previews that match (`suggest_field_mapping`); the preview lives
  * here, never in the form, so it dirties nothing. "Customize" saves a copy of
  * the match (offline: of the global mapping) for the usual mapping editor,
@@ -34,7 +36,12 @@ import { useIssueText } from '../composables/useIssueText'
 import { useModelFields } from '../composables/useModelFields'
 import { bindsSource } from '../domain/fieldMapping'
 import { isChinese, isSupportedLang, normalizeLang } from '../domain/language'
-import { DEFAULT_DECKS, availableLanguages, newLearnedLanguage } from '../domain/learning'
+import {
+  DEFAULT_DECKS,
+  availableLanguages,
+  newLearnedLanguage,
+  switchLanguage,
+} from '../domain/learning'
 import { LANGUAGE_NAME_KEYS } from '../i18n'
 
 const { t } = useI18n()
@@ -212,9 +219,10 @@ function issue(index: number, field: keyof LearnedLanguage): string | null {
           <label :for="`learned-${index}-lang`">{{ t('learning.language') }}</label>
           <LanguageSelect
             :id="`learned-${index}-lang`"
-            v-model="entry.lang"
+            :model-value="entry.lang"
             :options="availableLanguages(config, index)"
             :invalid="!!issue(index, 'lang')"
+            @update:model-value="(lang: string) => switchLanguage(config, entry, lang)"
           />
           <span v-if="issue(index, 'lang')" class="field-error">{{ issue(index, 'lang') }}</span>
         </div>
