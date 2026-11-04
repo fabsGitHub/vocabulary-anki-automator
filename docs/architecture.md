@@ -870,7 +870,14 @@ Further rules both sides rely on:
 - `suggest_field_mapping` only reads from Anki and writes no config: the Anki tab's
   "Match by field name" replaces the form's mapping and audio field with the result
   (a user edit, so the form becomes dirty) and lists its `guessed` and `unmatched`
-  fields; nothing is saved until the user saves the form.
+  fields; nothing is saved until the user saves the form. The "My languages" tab
+  calls it to preview the match of every entry whose mapping is `null`, for the
+  entry's language and `translation.target_lang`, without touching the form; only
+  "Customize" copies the result into the entry (offline: a copy of
+  `anki.field_mapping`), and "Match by field name again" sets the mapping back to
+  `null`. The settings tabs read a note type's fields (`anki_model_field_names`)
+  once while Anki stays online, from a cache the main window shares between them
+  (`src/composables/useModelFields.ts`).
 
 ### 8.3 Windows and capabilities
 

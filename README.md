@@ -30,7 +30,12 @@ schedule when the daily queue reaches it.
 
 1. Select a word or phrase in any app and press the hotkey
    (default `CommandOrControl+Shift+C`; hotkey profiles add more shortcuts, each
-   with its own language pair and deck).
+   with its own language pair and deck). With languages listed under **My
+   languages** (any of English, German, French, Spanish, Italian and Chinese),
+   one hotkey recognizes which of them the text is in and files each card in that
+   language's deck and note type; a short word that exists in several of them can
+   be switched with one click in the approval window. Chinese is recognized by its
+   characters, the others offline with [lingua](https://github.com/pemistahl/lingua-rs).
 2. The capture pipeline builds a card: translation with
    [MyMemory](https://mymemory.translated.net/) (free, no key; an optional contact
    e-mail raises the daily quota), a rarity check and synonym (Datamuse, English),
@@ -38,16 +43,18 @@ schedule when the daily queue reaches it.
    Chinese) and pronunciation audio (Google Translate TTS). Chinese text gets pinyin
    and its HSK level. A failing provider leaves its field empty and shows a warning;
    it never loses the capture.
-3. The approval window shows the card for editing. **Approve** saves it to the
+3. The approval window shows the card for editing, and warns when the note type
+   would drop a value such as the audio or the example. **Approve** saves it to the
    local history first and then sends it to Anki through the AnkiConnect add-on
    (optionally with a reverse card). If Anki is not running, the card stays in the
    history and **Sync pending to Anki** sends it later.
 
-The settings window covers languages, hotkeys and profiles, deck, note type and
-field mapping, and the UI language (English or German). It can also install Anki
-(macOS, Windows) and AnkiConnect for you, but only after you agree to it in a
-consent dialog; both downloads are pinned and checksum-verified before anything
-is installed.
+The settings window covers your languages, hotkeys and profiles, deck, note type
+and field mapping (which it can match to a note type's fields by name, e.g.
+"English Sentence" gets the English example and "Audio" the pronunciation), and
+the UI language (English or German). It can also install Anki (macOS, Windows)
+and AnkiConnect for you, but only after you agree to it in a consent dialog; both
+downloads are pinned and checksum-verified before anything is installed.
 
 On macOS the hotkey copies the selection with a simulated `Cmd+C`, which needs
 the Accessibility permission (System Settings > Privacy & Security >
