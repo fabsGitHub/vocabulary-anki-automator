@@ -109,8 +109,11 @@ from the repository root or `site/`: neither is the site.
 
 The artwork comes from `branding/` at the repository root (see its README). The header mark,
 `src/partials/mark.svg`, is the path of `branding/glyph.svg` filled with `currentColor`, so the
-stylesheet colours it, and `src/assets/favicon.svg` is a copy of `branding/favicon.svg`. When
-the branding changes, update both files.
+stylesheet colours it, and `src/assets/favicon.svg` is a copy of `branding/favicon.svg`.
+`og/render.mjs` draws `apple-touch-icon.png` from `branding/icon.svg`, cropped to the icon's
+body and filled to the corners (iOS rounds them itself), and puts the mark and the headline
+with its selected word on the social previews. When the branding changes, update the two SVG
+files and run `node site/og/render.mjs`.
 
 The colours are the tokens at the top of `src/styles.css`, taken from the icon: raspberry for
 the brand and the primary buttons, violet for the selected word in the hero, text selections
