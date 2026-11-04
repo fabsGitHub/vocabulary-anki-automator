@@ -2,13 +2,19 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { effectScope } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AnkiStatus, RecommendedNoteType as NoteType } from '../api'
+import type { AnkiConfig, AnkiStatus, RecommendedNoteType as NoteType } from '../api'
 import {
   ANKI_CONNECTION_KEY,
   useAnkiConnection,
   type AnkiConnection,
 } from '../composables/useAnkiConnection'
-import { recommendedMapping } from '../domain/fieldMapping'
+import {
+  CONFIG_STORE_KEY,
+  defaultConfig,
+  useConfig,
+  type ConfigStore,
+} from '../composables/useConfig'
+import { recommendedMapping, selectRecommendedNoteType } from '../domain/fieldMapping'
 import { i18n, setLocale } from '../i18n'
 import {
   callsTo,
@@ -53,16 +59,33 @@ const CREATED: NoteType = {
 let wrapper: VueWrapper | null = null
 let scope: ReturnType<typeof effectScope> | null = null
 let connection: AnkiConnection
+let store: ConfigStore
 let used: NoteType[] = []
 
-async function mountButton(status: AnkiStatus, modelName = 'AppleStyleFinalV3') {
+/**
+ * The button for the Anki tab's note type, `modelName` in the form; the
+ * saved settings name `saved` (by default the same note type).
+ */
+async function mountButton(
+  status: AnkiStatus,
+  modelName = 'AppleStyleFinalV3',
+  saved: Partial<AnkiConfig> = {},
+) {
   onCommand('anki_status', status)
   onCommand('get_setup_status', SETUP)
+  const config = defaultConfig()
+  onCommand('get_current_settings', {
+    ...config,
+    anki: { ...config.anki, model_name: modelName, ...saved },
+  })
   scope = effectScope()
   scope.run(() => {
     connection = useAnkiConnection()
+    store = useConfig({ isMac: false })
   })
   await connection.check()
+  await store.load()
+  store.config.value.anki.model_name = modelName
   invokeCalls.length = 0
   used = []
   wrapper = mount(RecommendedNoteType, {
@@ -71,12 +94,16 @@ async function mountButton(status: AnkiStatus, modelName = 'AppleStyleFinalV3') 
       onUse: (noteType: NoteType) => {
         used.push(noteType)
         // The parent selects the note type, as both settings tabs do.
+        selectRecommendedNoteType(store.config.value.anki, noteType)
         void wrapper?.setProps({ modelName: noteType.model_name })
       },
     },
     global: {
       plugins: [i18n],
-      provide: { [ANKI_CONNECTION_KEY as symbol]: connection },
+      provide: {
+        [ANKI_CONNECTION_KEY as symbol]: connection,
+        [CONFIG_STORE_KEY as symbol]: store,
+      },
     },
   })
   await flushPromises()
@@ -118,7 +145,9 @@ describe('when it is offered', () => {
   it('offers to use it when Anki already has it', async () => {
     await mountButton(WITH_RECOMMENDED)
     expect(button().text()).toBe('Use the recommended note type')
-    expect(find('note-type-hint').text()).toContain('Anki already has the note type')
+    expect(find('note-type-hint').text()).toBe(
+      'Anki already has a note type named “Vocabulary Automator”. It is selected here if it has every recommended field, and it is never changed.',
+    )
   })
 
   it('is hidden where the note type is already selected', async () => {
@@ -126,8 +155,8 @@ describe('when it is offered', () => {
     expect(find('recommended-note-type').exists()).toBe(false)
   })
 
-  it('offers to create it where it is selected but Anki lacks it', async () => {
-    await mountButton(ONLINE, 'Vocabulary Automator')
+  it('offers to create it where it is selected but Anki lacks it, without asking to save', async () => {
+    await mountButton(ONLINE, 'Vocabulary Automator', { field_mapping: null })
     expect(button().text()).toBe('Create the recommended note type')
     onCommand('create_recommended_note_type', CREATED)
     onCommand('anki_status', WITH_RECOMMENDED)
@@ -135,7 +164,22 @@ describe('when it is offered', () => {
     await flushPromises()
     expect(used).toEqual([CREATED])
     expect(button().exists()).toBe(false)
+    expect(store.dirty.value).toBe(false)
+    expect(find('note-type-result').text()).toBe(
+      '“Vocabulary Automator” was added to Anki. It is selected here, and the saved settings already use it.',
+    )
     expect(find('note-type-result').classes()).toContain('success')
+  })
+
+  it('says it was already selected where only the unsaved form selects it', async () => {
+    await mountButton(ONLINE, 'Vocabulary Automator', { model_name: 'AppleStyleFinalV3' })
+    expect(store.dirty.value).toBe(true)
+    onCommand('create_recommended_note_type', CREATED)
+    await button().trigger('click')
+    await flushPromises()
+    expect(find('note-type-result').text()).toBe(
+      '“Vocabulary Automator” was added to Anki. It is already selected here.',
+    )
   })
 
   it('is disabled while another Anki operation runs', async () => {
@@ -179,9 +223,10 @@ describe('a click', () => {
     // Selected now: the offer is gone, the result stays.
     expect(button().exists()).toBe(false)
     expect(find('note-type-result').text()).toBe(
-      '“Vocabulary Automator” was added to Anki and is selected here. Save the settings to use it.',
+      '“Vocabulary Automator” was added to Anki. It is selected here; save the settings to use it.',
     )
     expect(find('note-type-result').classes()).toContain('success')
+    expect(store.dirty.value).toBe(true)
   })
 
   it('says so when Anki already had the note type', async () => {
@@ -191,8 +236,23 @@ describe('a click', () => {
     await flushPromises()
     expect(used).toHaveLength(1)
     expect(find('note-type-result').text()).toBe(
-      '“Vocabulary Automator” is selected here. Save the settings to use it.',
+      'Anki already has “Vocabulary Automator”, with every recommended field. It is selected here; save the settings to use it.',
     )
+  })
+
+  it('drops the request to save once the settings are saved', async () => {
+    await mountButton(ONLINE)
+    onCommand('create_recommended_note_type', CREATED)
+    onCommand('anki_status', WITH_RECOMMENDED)
+    await button().trigger('click')
+    await flushPromises()
+    expect(find('note-type-result').text()).toContain('save the settings')
+
+    onCommand('apply_settings', null)
+    expect(await store.save()).toBe(true)
+    await flushPromises()
+    expect(find('note-type-result').exists()).toBe(false)
+    expect(find('recommended-note-type').exists()).toBe(false)
   })
 
   it('shows the error and selects nothing when the note type cannot be set up', async () => {

@@ -248,10 +248,14 @@ export const de: MessageSchema = {
     createHint:
       'Legt in Anki den Notiztyp „{name}“ an, mit einem Feld für alles, was eine Karte enthält: Wort, Übersetzung, Beispiel und seine Übersetzung, Aussprache, Pinyin, HSK-Stufe und Notizen.',
     useHint:
-      'Anki hat den Notiztyp „{name}“ schon, mit einem Feld für alles, was eine Karte enthält.',
-    created:
-      '„{name}“ wurde in Anki angelegt und ist hier ausgewählt. Speichern Sie die Einstellungen, um ihn zu verwenden.',
-    reused: '„{name}“ ist hier ausgewählt. Speichern Sie die Einstellungen, um ihn zu verwenden.',
+      'Anki hat schon einen Notiztyp namens „{name}“. Er wird hier ausgewählt, wenn er alle empfohlenen Felder hat, und nie verändert.',
+    created: '„{name}“ wurde in Anki angelegt.',
+    reused: 'Anki hat „{name}“ schon, mit allen empfohlenen Feldern.',
+    saveToUse:
+      'Der Notiztyp ist hier ausgewählt; speichern Sie die Einstellungen, um ihn zu verwenden.',
+    alreadySelected: 'Der Notiztyp ist hier schon ausgewählt.',
+    inUse:
+      'Der Notiztyp ist hier ausgewählt, und die gespeicherten Einstellungen verwenden ihn schon.',
     failed: 'Der Notiztyp konnte nicht eingerichtet werden: {error}',
   },
   history: {

@@ -345,7 +345,9 @@ describe('the recommended note type', () => {
       targetLang: 'de',
     })
     expect(exists('create-note-type')).toBe(false)
-    expect(find('note-type-result')?.text()).toContain('was added to Anki and is selected here.')
+    expect(find('note-type-result')?.text()).toBe(
+      '“Vocabulary Automator” was added to Anki. It is selected here; save the settings to use it.',
+    )
 
     // Nothing is saved until the user saves.
     expect(callsTo('apply_settings')).toHaveLength(0)
@@ -355,6 +357,8 @@ describe('the recommended note type', () => {
     expect(callsTo('apply_settings')[0].args?.newCfg).toMatchObject({
       anki: { model_name: 'Vocabulary Automator', field_mapping: null },
     })
+    await flushPromises()
+    expect(exists('note-type-result')).toBe(false)
   })
 
   it('saves the mapping of a reused note type whose fields match differently', async () => {
@@ -364,7 +368,7 @@ describe('the recommended note type', () => {
     expect(store.config.value.anki.model_name).toBe('Vocabulary Automator')
     expect(store.config.value.anki.field_mapping).toEqual(recommendedMapping())
     expect(find('note-type-result')?.text()).toBe(
-      '“Vocabulary Automator” is selected here. Save the settings to use it.',
+      'Anki already has “Vocabulary Automator”, with every recommended field. It is selected here; save the settings to use it.',
     )
   })
 

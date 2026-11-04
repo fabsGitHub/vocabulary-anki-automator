@@ -950,8 +950,12 @@ Further rules both sides rely on:
   mapping; the user saves the form. The button runs as the Anki connection's
   `note_type` activity, so it never overlaps a rescan, launch or install, and the
   note type lists are read again afterwards. When Anki already lists the note type,
-  the button says "Use" instead of "Create". The mapping is also the first preset
-  of the mapping editor.
+  the button says "Use" instead of "Create", and its hint says that note type is
+  used only if it has every recommended field. The line after a success asks the
+  user to save only when the click changed the form and the form differs from the
+  saved settings; otherwise it says the note type was already selected there (the
+  form already differed) or that the saved settings already use it. A save clears
+  that line. The mapping is also the first preset of the mapping editor.
 
 ### 8.3 Windows and capabilities
 

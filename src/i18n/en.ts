@@ -248,9 +248,13 @@ export const en = {
     creating: 'Creating the note type…',
     createHint:
       'Adds the note type “{name}” to Anki, with a field for everything a card holds: word, translation, example and its translation, pronunciation, pinyin, HSK level and notes.',
-    useHint: 'Anki already has the note type “{name}”, with a field for everything a card holds.',
-    created: '“{name}” was added to Anki and is selected here. Save the settings to use it.',
-    reused: '“{name}” is selected here. Save the settings to use it.',
+    useHint:
+      'Anki already has a note type named “{name}”. It is selected here if it has every recommended field, and it is never changed.',
+    created: '“{name}” was added to Anki.',
+    reused: 'Anki already has “{name}”, with every recommended field.',
+    saveToUse: 'It is selected here; save the settings to use it.',
+    alreadySelected: 'It is already selected here.',
+    inUse: 'It is selected here, and the saved settings already use it.',
     failed: 'The note type could not be set up: {error}',
   },
   history: {
