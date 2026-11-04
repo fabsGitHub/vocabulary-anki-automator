@@ -13,7 +13,7 @@
  * the entry previews that match (`suggest_field_mapping`); the preview lives
  * here, never in the form, so it dirties nothing. "Customize" saves a copy of
  * the match (offline: of the global mapping) for the usual mapping editor,
- * and "Match by field name again" goes back to `null`. A Chinese entry is
+ * and "Stop customizing" goes back to `null`. A Chinese entry is
  * checked for a Pinyin field in the mapping it will use: the saved one, or
  * else the preview (offline, an entry matched by name stays silent).
  */

@@ -100,7 +100,7 @@ export const de: MessageSchema = {
     mappingOffline:
       'Verbinden Sie Anki, um zu sehen, wie die Felder von „{model}“ zugeordnet werden.',
     customize: 'Anpassen',
-    rematch: 'Wieder nach Feldnamen zuordnen',
+    rematch: 'Nicht mehr anpassen',
     audioTo: 'Aussprache → {field}',
     noAudio: 'Kein Feld für die Aussprache',
   },

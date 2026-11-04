@@ -103,7 +103,7 @@ export const en = {
       'Each field of “{model}” is filled according to its name: “Audio” gets the pronunciation, “English Sentence” the English example, and so on. Nothing is saved until you customize it.',
     mappingOffline: 'Connect to Anki to see how the fields of “{model}” are matched.',
     customize: 'Customize',
-    rematch: 'Match by field name again',
+    rematch: 'Stop customizing',
     audioTo: 'Pronunciation → {field}',
     noAudio: 'No field for the pronunciation',
   },

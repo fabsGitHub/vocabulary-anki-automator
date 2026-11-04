@@ -881,7 +881,7 @@ Further rules both sides rely on:
   calls it to preview the match of every entry whose mapping is `null`, for the
   entry's language and `translation.target_lang`, without touching the form; only
   "Customize" copies the result into the entry (offline: a copy of
-  `anki.field_mapping`), and "Match by field name again" sets the mapping back to
+  `anki.field_mapping`), and "Stop customizing" sets the mapping back to
   `null`. The settings tabs read a note type's fields (`anki_model_field_names`)
   once while Anki stays online, from a cache the main window shares between them
   (`src/composables/useModelFields.ts`).
