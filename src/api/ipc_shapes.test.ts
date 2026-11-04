@@ -323,6 +323,7 @@ interface Results {
   AppConfig: T.AppConfig
   null: null
   'PendingCapture | null': T.PendingCapture | null
+  PendingCapture: T.PendingCapture
   SubmitResult: T.SubmitResult
   AnkiStatus: T.AnkiStatus
   'string[]': string[]
@@ -344,6 +345,7 @@ const RETURNS = {
   discardPendingPayload: 'null',
   executeCardGeneration: 'SubmitResult',
   captureText: 'null',
+  rerunPendingCapture: 'PendingCapture',
   ankiStatus: 'AnkiStatus',
   ankiModelFieldNames: 'string[]',
   suggestFieldMapping: 'AutoMatch',
@@ -380,6 +382,7 @@ const CALLS: Record<Wrapper, () => Promise<unknown>> = {
   discardPendingPayload: () => commands.discardPendingPayload(),
   executeCardGeneration: () => commands.executeCardGeneration(sample('Card')),
   captureText: () => commands.captureText('house', null),
+  rerunPendingCapture: () => commands.rerunPendingCapture('en', 'message'),
   ankiStatus: () => commands.ankiStatus(),
   ankiModelFieldNames: () => commands.ankiModelFieldNames('Basic'),
   suggestFieldMapping: () => commands.suggestFieldMapping('Basic', 'en', 'de'),

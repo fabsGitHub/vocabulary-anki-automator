@@ -246,6 +246,20 @@ impl PendingPayload {
         *lock(&self.current) = None;
     }
 
+    /// Replaces the pending capture with `capture` if it is still
+    /// `generation`, keeping that generation: a re-run is the same capture,
+    /// so a submission started for it still clears it.
+    pub fn replace_if(&self, generation: u64, capture: PendingCapture) -> bool {
+        let mut current = lock(&self.current);
+        match current.as_mut() {
+            Some((g, pending)) if *g == generation => {
+                *pending = capture;
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// Clears the pending capture if it is still `generation`.
     pub fn clear_if(&self, generation: u64) -> bool {
         let mut current = lock(&self.current);
@@ -328,6 +342,25 @@ mod tests {
         assert_eq!(payload.get().unwrap().card.front, "second");
         assert!(payload.clear_if(second));
         assert_eq!(payload.get(), None);
+    }
+
+    #[test]
+    fn replace_if_keeps_the_generation_and_only_replaces_that_capture() {
+        let payload = PendingPayload::default();
+        let first = payload.set(pending("message"));
+
+        assert!(payload.replace_if(first, pending("message, again")));
+        let (generation, capture) = payload.snapshot().unwrap();
+        assert_eq!(generation, first, "the same capture");
+        assert_eq!(capture.card.front, "message, again");
+
+        let second = payload.set(pending("newer"));
+        assert!(!payload.replace_if(first, pending("late")));
+        assert_eq!(payload.get().unwrap().card.front, "newer");
+
+        payload.clear();
+        assert!(!payload.replace_if(second, pending("late")));
+        assert_eq!(payload.get(), None, "a discarded capture stays discarded");
     }
 
     #[test]

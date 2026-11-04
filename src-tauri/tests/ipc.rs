@@ -645,6 +645,191 @@ fn without_a_database_an_offline_anki_means_the_card_stays_pending() {
     );
 }
 
+fn rerun(harness: &Harness, source_lang: &str, text: &str) -> Result<Value, Value> {
+    harness.invoke(
+        "rerun_pending_capture",
+        json!({ "sourceLang": source_lang, "text": text }),
+    )
+}
+
+/// A wrong guess is fixed in the approval window: the same capture, built
+/// again for the chosen language and filed in its deck.
+#[test]
+fn a_capture_is_switched_to_the_language_the_user_picks() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+    let before = pending(&harness);
+    assert_eq!(before["card"]["source_lang"], "fr");
+    let calls_before = harness.providers.calls().len();
+
+    let switched = rerun(&harness, "en", "message").expect("the re-run succeeds");
+
+    assert_eq!(switched["card"]["source_lang"], "en");
+    assert_eq!(switched["card"]["target_lang"], "de");
+    assert_eq!(
+        switched["card"]["captured_at"],
+        before["card"]["captured_at"]
+    );
+    assert_eq!(switched["profile_id"], Value::Null);
+    assert_eq!(
+        switched["detection"],
+        json!({
+            "lang": "en",
+            "method": "chosen",
+            "confident": true,
+            "script": "latin",
+            "candidates": ["en", "fr"],
+            "ranked": before["detection"]["ranked"]
+        })
+    );
+    assert_eq!(
+        switched["filing"],
+        json!({ "deck": "english", "model": "AppleStyleFinalV3" })
+    );
+    assert_eq!(
+        harness.events("translation-payload"),
+        std::slice::from_ref(&switched)
+    );
+    assert_eq!(pending(&harness), switched);
+    assert_eq!(
+        harness.providers.calls()[calls_before..],
+        [
+            "translate en->de message",
+            "rarity message",
+            "example message",
+            "translate en->de An example with message.",
+            "tts en message"
+        ]
+    );
+}
+
+/// The front the user edited is what is captured again.
+#[test]
+fn a_re_run_captures_the_edited_front() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+
+    let switched = rerun(&harness, "en", " messages ").expect("the re-run succeeds");
+
+    assert_eq!(switched["card"]["front"], "messages");
+    assert_eq!(
+        harness.providers.tts_calls().last().map(String::as_str),
+        Some("tts en messages")
+    );
+}
+
+/// Every refusal leaves the pending capture alone and shows nothing new.
+#[test]
+fn a_re_run_is_refused_when_it_cannot_apply() {
+    let mut options = learner();
+    options.config.translation.max_chars = 20;
+    let harness = Harness::with(options);
+    assert_eq!(
+        rerun(&harness, "en", "message"),
+        Err(json!("There is no card to switch."))
+    );
+
+    capture(&harness, "message", None);
+    let before = pending(&harness);
+    for (lang, text, error) in [
+        (
+            "de",
+            "message",
+            "Cards are translated into de; choose another language.",
+        ),
+        ("pt", "message", "\"pt\" is not a supported language."),
+        (
+            "en",
+            "学习",
+            "Text with Chinese characters is always captured as Chinese.",
+        ),
+        (
+            "en",
+            "   ",
+            "Nothing to capture: the selected text is empty.",
+        ),
+        (
+            "en",
+            "a selection that is far too long",
+            "The selection is 32 characters long, but captures are limited to 20 characters. \
+             Select less text or raise the limit in the settings.",
+        ),
+    ] {
+        assert_eq!(
+            rerun(&harness, lang, text),
+            Err(json!(error)),
+            "{lang} {text}"
+        );
+        assert_eq!(pending(&harness), before, "{lang} {text}");
+    }
+    {
+        let state = harness.state();
+        let capturing = state.begin_capture().expect("no capture runs");
+        assert_eq!(
+            rerun(&harness, "en", "message"),
+            Err(json!("A capture is already running."))
+        );
+        drop(capturing);
+        let submitting = state.begin_submit().expect("no submission runs");
+        assert_eq!(
+            rerun(&harness, "en", "message"),
+            Err(json!("The card is being saved."))
+        );
+        drop(submitting);
+    }
+    harness.call("discard_pending_payload", json!({}));
+    assert_eq!(
+        rerun(&harness, "en", "message"),
+        Err(json!("There is no card to switch."))
+    );
+    assert!(harness.events("translation-payload").is_empty());
+    assert!(
+        harness.events("capture-error").is_empty(),
+        "the window shows re-run errors itself"
+    );
+}
+
+/// A re-run holds the submission guard, so an approval meanwhile is refused
+/// rather than saving the card that is being replaced.
+#[test]
+fn approving_while_a_re_run_holds_the_card_is_refused() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+    let state = harness.state();
+    let _rerunning = state.begin_submit().expect("no submission runs");
+
+    let err = harness.call_err(
+        "execute_card_generation",
+        json!({ "card": pending_card(&harness) }),
+    );
+
+    assert_eq!(err, "This card is already being saved.");
+    assert!(!pending(&harness).is_null());
+}
+
+/// The audio of an edited front is recorded in the language switched to.
+#[test]
+fn an_edited_front_after_a_switch_is_spoken_in_the_new_language() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+    let switched = rerun(&harness, "en", "message").expect("the re-run succeeds");
+    let card = common::with_field(switched["card"].clone(), "front", json!("messages"));
+
+    approve(&harness, card);
+
+    let row = stored(&harness, 1);
+    assert_eq!(row.card.source_lang, "en");
+    assert_eq!(row.card.audio_front, Some(fake_audio("en", "messages")));
+    assert_eq!(
+        harness
+            .open_store()
+            .get_state(LAST_SOURCE_LANG_KEY)
+            .unwrap()
+            .as_deref(),
+        Some("en")
+    );
+}
+
 #[test]
 fn discarding_clears_the_capture_and_hides_the_preview() {
     let harness = Harness::new();

@@ -58,6 +58,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::capture::discard_pending_payload,
             commands::capture::execute_card_generation,
             commands::capture::capture_text,
+            commands::capture::rerun_pending_capture,
             commands::anki::anki_status,
             commands::anki::anki_model_field_names,
             commands::anki::suggest_field_mapping,

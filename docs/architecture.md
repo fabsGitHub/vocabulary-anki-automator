@@ -778,6 +778,7 @@ language pair in capture order.
 | `discard_pending_payload`     | —                                                       | `null` (clears state, hides `preview`)                                                                  |
 | `execute_card_generation`     | `card: Card`                                            | `SubmitResult`                                                                                          |
 | `capture_text`                | `text: string, profileId: string \| null`               | `null` (runs the pipeline as if the hotkey had copied `text`; the internal capture event for tests/E2E) |
+| `rerun_pending_capture`       | `sourceLang: string, text: string`                      | `PendingCapture` (the pending card captured again as `sourceLang`; also sent as `translation-payload`)  |
 | `anki_status`                 | —                                                       | `AnkiStatus`                                                                                            |
 | `anki_model_field_names`      | `model: string`                                         | `string[]`                                                                                              |
 | `suggest_field_mapping`       | `model: string, sourceLang: string, targetLang: string` | `AutoMatch` (`modelFieldNames`, then `FieldMapping::auto_match`; saves nothing)                         |
@@ -851,6 +852,21 @@ Further rules both sides rely on:
   every config; the approval window calls it after showing a capture, so a slow
   Anki never delays the capture, and shows the result as a warning that does not
   block approving.
+- `rerun_pending_capture(sourceLang, text)` is the approval window's language
+  switch: it runs `text` (the window's front) through the pipeline again as
+  `sourceLang`, with the pending card's `target_lang`, `captured_at`, tags and
+  hotkey profile, files it anew (`AppConfig::filing`) and replaces the pending
+  capture with the result, keeping its generation (it is the same capture), then
+  emits it as `translation-payload` and returns it. A detection becomes method
+  `chosen`, confident, with the same candidates and scores; no detection stays
+  `null`. It holds the capture and the submission guard throughout, so a hotkey
+  meanwhile is ignored and `execute_card_generation` is refused ("already being
+  saved"). It refuses, emitting nothing and changing nothing: an unsupported code,
+  a running capture or submission, nothing pending, the card's `target_lang`, Han
+  text as anything but `zh-CN` (the pipeline would read it as Chinese anyway), a
+  pipeline refusal (its `capture-error` message, returned instead of emitted), and
+  a capture saved or discarded meanwhile. Each re-run spends the translation,
+  example and TTS requests again.
 - `suggest_field_mapping` only reads from Anki and writes no config: the Anki tab's
   "Match by field name" replaces the form's mapping and audio field with the result
   (a user edit, so the form becomes dirty) and lists its `guessed` and `unmatched`

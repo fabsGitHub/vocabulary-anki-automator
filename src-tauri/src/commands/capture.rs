@@ -1,5 +1,5 @@
 //! `get_pending_payload`, `discard_pending_payload`,
-//! `execute_card_generation`, `capture_text`.
+//! `execute_card_generation`, `capture_text`, `rerun_pending_capture`.
 
 use tauri::{AppHandle, Manager, Runtime, State};
 use vocab_core::Card;
@@ -74,6 +74,20 @@ pub async fn capture_text<R: Runtime>(
     // A refused capture has been reported as `capture-error`, as on the hotkey path.
     let _ = capture::run_capture(&app, &state, text, &profile).await;
     Ok(())
+}
+
+/// Captures the pending card's `text` again as `source_lang`, the language
+/// the user switched to in the approval window, and returns the new pending
+/// capture (also sent as `translation-payload`). See
+/// [`capture::rerun_capture`].
+#[tauri::command]
+pub async fn rerun_pending_capture<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    source_lang: String,
+    text: String,
+) -> Result<PendingCapture, String> {
+    capture::rerun_capture(&app, &state, &source_lang, text).await
 }
 
 pub(crate) fn hide_preview<R: Runtime>(app: &AppHandle<R>) {

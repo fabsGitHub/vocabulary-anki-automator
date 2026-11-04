@@ -248,6 +248,8 @@ export const de: MessageSchema = {
     switchTo: 'Als {lang} erfassen',
     detectedUnsure: '{lang}?',
     targetLang: '→ {lang}',
+    switching: 'Die Karte wird für {lang} neu erstellt…',
+    switchFailed: 'Wechsel zu {lang} fehlgeschlagen: {error}',
     unsureHint:
       'Das kann mehr als eine Ihrer Sprachen sein. Es wurde als {lang} gelesen. Falls das nicht stimmt, wählen Sie die richtige Sprache: Übersetzung, Beispiel, Aussprache und Stapel werden neu ermittelt.',
     fallbackHint: 'Keine Ihrer Sprachen passt zu diesem Text. Er wurde als {lang} gelesen.',

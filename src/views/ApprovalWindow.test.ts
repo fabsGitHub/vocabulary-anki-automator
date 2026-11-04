@@ -699,6 +699,142 @@ describe('the detected language', () => {
   })
 })
 
+describe('switching the language', () => {
+  /** What `rerun_pending_capture` returns for "message" captured as English. */
+  function english(front = 'message'): PendingCapture {
+    return capture(
+      {
+        detection: unsure({ lang: 'en', method: 'chosen', confident: true }),
+        filing: { deck: 'english', model: 'AppleStyleFinalV3' },
+      },
+      { front, back: 'Nachricht', example_source: `An example with ${front}.`, notes: '' },
+    )
+  }
+
+  const chip = (code: string) => wrapper?.find(`[data-test="language-${code}"]`)
+
+  it('captures the edited front again in the chosen language and shows the result', async () => {
+    onCommand('rerun_pending_capture', english('messages'))
+    await mountWindow(french())
+    await wrapper?.find('[data-test="front"]').setValue('messages')
+
+    await chip('en')?.trigger('click')
+    await flushPromises()
+
+    const calls = callsTo('rerun_pending_capture')
+    expect(calls).toHaveLength(1)
+    expect(calls[0].args).toEqual({ sourceLang: 'en', text: 'messages' })
+    expect(field('front').value).toBe('messages')
+    expect(field('example-source').value).toBe('An example with messages.')
+    expect(chip('en')?.attributes('aria-pressed')).toBe('true')
+    expect(chip('en')?.text()).toBe('English')
+    expect(wrapper?.find('[data-test="deck"]').text()).toBe('Deck: english')
+    expect(wrapper?.find('[data-test="language-hint"]').exists()).toBe(false)
+  })
+
+  it('shows the switched card once when the event arrives before the result', async () => {
+    onCommand('rerun_pending_capture', () => {
+      emitEvent('translation-payload', english())
+      return english()
+    })
+    await mountWindow(french())
+
+    await chip('en')?.trigger('click')
+    await flushPromises()
+
+    expect(field('front').value).toBe('message')
+    expect(chip('en')?.attributes('aria-pressed')).toBe('true')
+    expect(callsTo('check_pending_fields'), 'the switched card is checked once').toHaveLength(2)
+    expect(document.activeElement).toBe(chip('en')?.element)
+  })
+
+  it('announces the switch and blocks the card until it is done', async () => {
+    const rerun = deferred<PendingCapture>()
+    onCommand('rerun_pending_capture', () => rerun.promise)
+    onCommand('execute_card_generation', SYNCED)
+    onCommand('discard_pending_payload', null)
+    await mountWindow(french())
+
+    await chip('en')?.trigger('click')
+    expect(chip('en')?.text()).toBe('Fetching the card in English…')
+    expect(chip('en')?.attributes('aria-pressed')).toBe('true')
+    expect(chip('fr')?.attributes('aria-pressed')).toBe('false')
+    expect(wrapper?.find('[data-test="switching"]').attributes('role')).toBe('status')
+    for (const name of ['approve', 'discard', 'language-en', 'language-fr']) {
+      expect(wrapper?.find(`[data-test="${name}"]`).attributes('disabled'), name).toBeDefined()
+    }
+    expect(field('front').readOnly).toBe(true)
+    await wrapper?.find('[data-test="approve"]').trigger('click')
+    press('Enter')
+    press('Escape')
+    await chip('fr')?.trigger('click')
+    await flushPromises()
+    expect(callsTo('execute_card_generation')).toHaveLength(0)
+    expect(callsTo('discard_pending_payload')).toHaveLength(0)
+    expect(callsTo('rerun_pending_capture')).toHaveLength(1)
+
+    rerun.resolve(english())
+    await flushPromises()
+    expect(wrapper?.find('[data-test="switching"]').exists()).toBe(false)
+    expect(wrapper?.find('[data-test="approve"]').attributes('disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(chip('en')?.element)
+  })
+
+  it('leaves the focus on the empty back after a switch', async () => {
+    const switched = english()
+    switched.card.back = ''
+    onCommand('rerun_pending_capture', switched)
+    await mountWindow(french())
+
+    await chip('en')?.trigger('click')
+    await flushPromises()
+
+    expect(document.activeElement).toBe(field('back'))
+  })
+
+  it('ignores a late result when a newer capture arrived meanwhile', async () => {
+    const rerun = deferred<PendingCapture>()
+    onCommand('rerun_pending_capture', () => rerun.promise)
+    await mountWindow(french())
+    await chip('en')?.trigger('click')
+
+    emitEvent(
+      'translation-payload',
+      capture({}, { front: 'house', back: 'Haus', captured_at: '2026-10-31T12:09:00.000Z' }),
+    )
+    await flushPromises()
+    rerun.resolve(english())
+    await flushPromises()
+
+    expect(field('front').value).toBe('house')
+    expect(wrapper?.find('[data-test="language-chips"]').exists()).toBe(false)
+  })
+
+  it('names the language and the error when the switch fails', async () => {
+    onCommand('rerun_pending_capture', () => {
+      throw 'The card was saved or discarded in the meantime.'
+    })
+    await mountWindow(french())
+
+    await chip('en')?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper?.find('[data-test="approval-error"]').text()).toBe(
+      'Could not switch to English: The card was saved or discarded in the meantime.',
+    )
+    expect(field('front').value).toBe('message')
+    expect(chip('fr')?.text()).toBe('French?')
+    expect(wrapper?.find('[data-test="approve"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('does not fetch the card again for the language it already is in', async () => {
+    await mountWindow(french())
+    await chip('fr')?.trigger('click')
+    await flushPromises()
+    expect(callsTo('rerun_pending_capture')).toHaveLength(0)
+  })
+})
+
 describe('the field check', () => {
   const LOST: FieldCheck = {
     status: 'checked',

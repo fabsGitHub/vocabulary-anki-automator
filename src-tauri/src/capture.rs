@@ -16,7 +16,9 @@
 //! With learned languages configured, the default hotkey chooses the source
 //! language per capture before the pipeline runs (`vocab_core::detect`, with
 //! lingua through [`LinguaGuesser`]); the pipeline itself is unchanged, and so
-//! is every capture while the list is empty.
+//! is every capture while the list is empty. When the guess is wrong, the
+//! approval window re-runs the pending capture for the language the user
+//! picks ([`rerun_capture`]).
 
 use std::{
     future::Future,
@@ -31,8 +33,8 @@ use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuild
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use vocab_core::{
     curriculum::CurriculumIndex,
-    detect::{detect, Detection},
-    language::normalize_lang,
+    detect::{detect, Detection, DetectionMethod},
+    language::{contains_cjk, normalize_lang, SUPPORTED_LANGS},
     pipeline::{CapturePipeline, CaptureRequest, PipelineError, PipelineWarning},
     providers::{ProviderRegistry, StandardProviders},
     Card,
@@ -178,10 +180,6 @@ pub async fn run_capture<R: Runtime>(
 ) -> Result<(), PipelineError> {
     let config = state.config();
     let detection = detect_source(state, &config, profile, &text);
-    let pipeline = CapturePipeline::new(
-        state.providers().registry(&config),
-        config.translation.max_chars,
-    );
     let request = CaptureRequest {
         text,
         source_lang: detection
@@ -191,14 +189,120 @@ pub async fn run_capture<R: Runtime>(
         captured_at: state.now(),
         tags: Vec::new(),
     };
-    let outcome = match pipeline.run(request).await {
-        Ok(outcome) => outcome,
+    let pending = match build_pending(state, &config, request, profile.id.clone()).await {
+        Ok(pending) => PendingCapture {
+            detection,
+            ..pending
+        },
         Err(err) => {
             log::info!("Capture refused: {err}");
             emit_capture_error(app, pipeline_error_message(&err));
             return Err(err);
         }
     };
+    state.pending().set(pending.clone());
+    present_preview(app, &pending);
+    Ok(())
+}
+
+/// Captures the pending card's text again as `source_lang`, the language the
+/// user picked in the approval window, and shows the result in its place
+/// (docs/architecture.md § 8.2): translation, example, audio and filing are
+/// fetched again; `captured_at`, tags and hotkey profile stay. `text` is the
+/// window's front, so an edit of it survives. Errors are returned for the
+/// window to show, never emitted as `capture-error`, and leave the pending
+/// capture as it was.
+///
+/// Both the capture and the submission guard are held throughout: a hotkey
+/// pressed meanwhile is ignored, and an approval waits for the new card
+/// instead of saving the old one. Han text cannot be re-run as another
+/// language, because the pipeline would read it as Chinese anyway.
+pub async fn rerun_capture<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &AppState,
+    source_lang: &str,
+    text: String,
+) -> Result<PendingCapture, String> {
+    let lang = normalize_lang(source_lang);
+    if !SUPPORTED_LANGS.contains(&lang.as_str()) {
+        return Err(format!(
+            "\"{}\" is not a supported language.",
+            source_lang.trim()
+        ));
+    }
+    let Some(_capturing) = state.begin_capture() else {
+        return Err("A capture is already running.".to_string());
+    };
+    let Some(_submitting) = state.begin_submit() else {
+        return Err("The card is being saved.".to_string());
+    };
+    let Some((generation, previous)) = state.pending().snapshot() else {
+        return Err("There is no card to switch.".to_string());
+    };
+    if lang == previous.card.target_lang {
+        return Err(format!(
+            "Cards are translated into {lang}; choose another language."
+        ));
+    }
+    if contains_cjk(&text) && lang != "zh-CN" {
+        return Err("Text with Chinese characters is always captured as Chinese.".to_string());
+    }
+    let config = state.config();
+    let request = CaptureRequest {
+        text,
+        source_lang: lang,
+        target_lang: previous.card.target_lang.clone(),
+        captured_at: previous.card.captured_at,
+        tags: previous.card.tags.clone(),
+    };
+    let mut pending = build_pending(state, &config, request, previous.profile_id.clone())
+        .await
+        .map_err(|err| pipeline_error_message(&err))?;
+    pending.detection = previous
+        .detection
+        .map(|found| chosen(found, &pending.card.source_lang));
+    if !state.pending().replace_if(generation, pending.clone()) {
+        return Err("The card was saved or discarded in the meantime.".to_string());
+    }
+    log::info!(
+        "Switched the pending capture to {}.",
+        pending.card.source_lang
+    );
+    present_preview(app, &pending);
+    Ok(pending)
+}
+
+/// `found` after the user chose `lang` in the approval window: certain, and
+/// still offering the same languages (plus `lang`, should it be new).
+fn chosen(found: Detection, lang: &str) -> Detection {
+    let mut candidates = found.candidates;
+    if !candidates.iter().any(|code| code == lang) {
+        candidates.push(lang.to_string());
+    }
+    Detection {
+        lang: lang.to_string(),
+        method: DetectionMethod::Chosen,
+        confident: true,
+        script: found.script,
+        candidates,
+        ranked: found.ranked,
+    }
+}
+
+/// Runs `request` through the pipeline and files the result for
+/// `profile_id`; the caller adds the detection. Shared by a capture and its
+/// re-run.
+async fn build_pending(
+    state: &AppState,
+    config: &AppConfig,
+    request: CaptureRequest,
+    profile_id: Option<String>,
+) -> Result<PendingCapture, PipelineError> {
+    let pipeline = CapturePipeline::new(
+        state.providers().registry(config),
+        config.translation.max_chars,
+    );
+    let outcome = pipeline.run(request).await?;
     log::info!(
         "Captured {} characters ({} -> {}), {} warning(s).",
         outcome.card.front.chars().count(),
@@ -206,20 +310,17 @@ pub async fn run_capture<R: Runtime>(
         outcome.card.target_lang,
         outcome.warnings.len()
     );
-    let filing = config.filing(profile.id.as_deref(), &outcome.card.source_lang);
-    let pending = PendingCapture {
+    let filing = config.filing(profile_id.as_deref(), &outcome.card.source_lang);
+    Ok(PendingCapture {
         card: outcome.card,
         warnings: outcome.warnings,
-        profile_id: profile.id.clone(),
-        detection,
+        profile_id,
+        detection: None,
         filing: PendingFiling {
             deck: filing.deck,
             model: filing.model,
         },
-    };
-    state.pending().set(pending.clone());
-    present_preview(app, &pending);
-    Ok(())
+    })
 }
 
 /// Which of the learned languages `text` is in, for a capture with

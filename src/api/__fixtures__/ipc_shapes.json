@@ -45,6 +45,15 @@
       "returns": "null"
     },
     {
+      "args": [
+        "sourceLang",
+        "text"
+      ],
+      "command": "rerun_pending_capture",
+      "function": "rerunPendingCapture",
+      "returns": "PendingCapture"
+    },
+    {
       "args": [],
       "command": "anki_status",
       "function": "ankiStatus",

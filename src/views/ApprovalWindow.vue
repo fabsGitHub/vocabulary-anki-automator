@@ -6,7 +6,8 @@
  * component adds what is about the window itself: keys, audio, focus, and
  * the UI language, re-read per capture because this webview never sees the
  * main window's language switch. A detected source language shows as chips,
- * one per language the text could be in, with a hint when the guess is unsure.
+ * one per language the text could be in, with a hint when the guess is unsure;
+ * a click on another chip captures the card again in that language.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -19,11 +20,22 @@ import { LANGUAGE_NAME_KEYS, setLocale } from '../i18n'
 
 const { t, te } = useI18n()
 const approval = useApproval()
-const { pending, draft, phase, result, error, captureError, fieldCheck, chinese, frontEdited } =
-  approval
+const {
+  pending,
+  draft,
+  phase,
+  result,
+  error,
+  captureError,
+  fieldCheck,
+  switchingTo,
+  chinese,
+  frontEdited,
+} = approval
 
 const settings = ref<AppConfig | null>(null)
 const backInput = ref<HTMLInputElement | null>(null)
+const chipGroup = ref<HTMLElement | null>(null)
 const editable = computed(() => phase.value === 'editing')
 
 const warnings = computed(() =>
@@ -59,13 +71,22 @@ interface LanguageChip {
   classes: string
 }
 
-/** One chip per language the text could be in; none when there is nothing to switch to. */
+/**
+ * One chip per language the text could be in; none when there is nothing to
+ * switch to. While switching, the chosen language is the active chip.
+ */
 const languageChips = computed<LanguageChip[]>(() => {
   const found = detection.value
   if (!found || found.candidates.length < 2) return []
+  const target = switchingTo.value
   return found.candidates.map((code) => {
-    const active = code === found.lang
     const name = languageName(code)
+    if (target !== null) {
+      return code === target
+        ? { code, active: true, label: t('approval.switching', { lang: name }), classes: 'badge' }
+        : { code, active: false, label: name, classes: 'badge badge-muted' }
+    }
+    const active = code === found.lang
     if (!active) return { code, active, label: name, classes: 'badge badge-muted' }
     return found.confident
       ? { code, active, label: name, classes: 'badge' }
@@ -78,16 +99,27 @@ const languageChips = computed<LanguageChip[]>(() => {
   })
 })
 
-/** Why the detected language may be wrong; `null` when it is certain. */
+/** Why the detected language may be wrong; `null` when it is certain or being switched. */
 const languageHint = computed(() => {
   const found = detection.value
-  if (!found || found.confident) return null
+  if (!found || found.confident || phase.value === 'switching') return null
   const lang = languageName(found.lang)
   if (found.method !== 'fallback') return t('approval.unsureHint', { lang })
   return found.script === 'latin' || found.script === 'none'
     ? t('approval.fallbackHint', { lang })
     : t('approval.foreignScript', { lang })
 })
+
+/**
+ * Captures the card again as `code`; afterwards focus goes to the new active
+ * chip, unless the back is empty (then the back field has it).
+ */
+async function switchTo(code: string): Promise<void> {
+  const shown = await approval.switchLanguage(code, languageName(code))
+  if (!shown || !pending.value?.card.back.trim()) return
+  await nextTick()
+  chipGroup.value?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus()
+}
 
 const profile = computed(() => {
   const id = pending.value?.profile_id
@@ -220,6 +252,7 @@ onBeforeUnmount(() => {
         <div class="approval-meta">
           <template v-if="languageChips.length > 0 && pending">
             <div
+              ref="chipGroup"
               class="language-chips"
               role="group"
               :aria-label="t('approval.languageGroup')"
@@ -234,6 +267,8 @@ onBeforeUnmount(() => {
                 :title="t('approval.switchTo', { lang: languageName(chip.code) })"
                 :aria-label="t('approval.switchTo', { lang: languageName(chip.code) })"
                 :data-test="`language-${chip.code}`"
+                :disabled="phase !== 'editing'"
+                @click="switchTo(chip.code)"
               >
                 {{ chip.label }}
               </button>
@@ -255,6 +290,9 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
+      <p v-if="switchingTo" class="input-hint" role="status" data-test="switching">
+        {{ t('approval.switching', { lang: languageName(switchingTo) }) }}
+      </p>
       <p v-if="languageHint" class="notice warning" role="status" data-test="language-hint">
         {{ languageHint }}
       </p>
@@ -395,7 +433,7 @@ onBeforeUnmount(() => {
             type="button"
             class="btn btn-secondary"
             data-test="discard"
-            :disabled="phase === 'submitting'"
+            :disabled="phase === 'submitting' || phase === 'switching'"
             @click="approval.discard()"
           >
             {{ t('approval.discard') }}

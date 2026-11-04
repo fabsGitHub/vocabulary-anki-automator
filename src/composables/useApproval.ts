@@ -17,6 +17,11 @@
  * in the background: AnkiConnect drops values whose field the note type lacks
  * without an error, and this is the last chance to say so. A check that
  * answers for an older capture is dropped, like a late save.
+ *
+ * A detected language can be switched: `rerun_pending_capture` builds the
+ * card again for the chosen language from the current front. Its result also
+ * arrives as `translation-payload`, in either order; whichever comes first is
+ * shown, and the other is a re-delivery of the same capture.
  */
 
 import {
@@ -38,6 +43,7 @@ import {
   hideCurrentWindow,
   onCaptureError,
   onTranslationPayload,
+  rerunPendingCapture,
   type Card,
   type FieldCheck,
   type PendingCapture,
@@ -48,11 +54,12 @@ import {
 import type { MessageKey } from '../i18n'
 
 /**
- * `waiting`: nothing to approve. `editing`: a capture is shown. `submitting`:
- * the approved card is being saved. `saved`: it is in the local history, but
- * Anki could not be reached; only closing is left.
+ * `waiting`: nothing to approve. `editing`: a capture is shown. `switching`:
+ * it is being captured again in another language. `submitting`: the approved
+ * card is being saved. `saved`: it is in the local history, but Anki could
+ * not be reached; only closing is left.
  */
-export type ApprovalPhase = 'waiting' | 'editing' | 'submitting' | 'saved'
+export type ApprovalPhase = 'waiting' | 'editing' | 'switching' | 'submitting' | 'saved'
 
 /** The editable part of the card. */
 export interface CardDraft {
@@ -79,12 +86,19 @@ export interface Approval {
   captureError: Ref<string | null>
   /** What a push of the shown capture would drop; `null` until checked or with nothing shown. */
   fieldCheck: Ref<FieldCheck | null>
+  /** The language being switched to while `phase` is `switching`. */
+  switchingTo: Ref<string | null>
   /** Pinyin and HSK level when the capture is Chinese. */
   chinese: ComputedRef<Extract<ScriptMetadata, { kind: 'chinese' }> | null>
   /** The front differs from the captured one, so its TTS audio is stale. */
   frontEdited: ComputedRef<boolean>
   /** Listens for captures, then fetches the one that may already be waiting. */
   start(): Promise<void>
+  /**
+   * Captures the shown card's front again as `lang` (`name` is its display
+   * name, for the error). Resolves to whether the switched card is on screen.
+   */
+  switchLanguage(lang: string, name: string): Promise<boolean>
   /** Saves the edited card; hides the window when Anki took it. */
   approve(): Promise<void>
   /** Drops the pending capture; the backend hides the window. */
@@ -112,6 +126,7 @@ export function useApproval(): Approval {
   const error = ref<ApprovalError | null>(null)
   const captureError = ref<string | null>(null)
   const fieldCheck = ref<FieldCheck | null>(null)
+  const switchingTo = ref<string | null>(null)
 
   const chinese = computed(() => {
     const metadata = pending.value?.card.script_metadata
@@ -133,6 +148,7 @@ export function useApproval(): Approval {
     result.value = null
     error.value = null
     fieldCheck.value = null
+    switchingTo.value = null
     if (capture) {
       captureError.value = null
       Object.assign(draft, {
@@ -202,6 +218,36 @@ export function useApproval(): Approval {
     }
   }
 
+  async function switchLanguage(lang: string, name: string): Promise<boolean> {
+    const capture = pending.value
+    if (phase.value !== 'editing' || !capture) return false
+    // Already this language: nothing would change but the quota spent.
+    if (lang === capture.card.source_lang) return true
+    const mine = sequence
+    phase.value = 'switching'
+    switchingTo.value = lang
+    error.value = null
+
+    let switched: PendingCapture
+    try {
+      switched = await rerunPendingCapture(lang, draft.front)
+    } catch (err) {
+      if (mine === sequence) {
+        phase.value = 'editing'
+        switchingTo.value = null
+        error.value = {
+          key: 'approval.switchFailed',
+          params: { lang: name, error: errorMessage(err) },
+        }
+      }
+      return false
+    }
+    // The event may have shown it already, or a newer capture replaced it.
+    if (mine !== sequence) return sameCapture(pending.value, switched)
+    show(switched)
+    return true
+  }
+
   async function approve(): Promise<void> {
     const capture = pending.value
     if (phase.value !== 'editing' || !capture) return
@@ -243,7 +289,8 @@ export function useApproval(): Approval {
   }
 
   async function discard(): Promise<void> {
-    if (phase.value === 'submitting' || phase.value === 'saved' || discarding) return
+    const busy = phase.value === 'switching' || phase.value === 'submitting'
+    if (busy || phase.value === 'saved' || discarding) return
     discarding = true
     const mine = sequence
     try {
@@ -278,9 +325,11 @@ export function useApproval(): Approval {
     error,
     captureError,
     fieldCheck,
+    switchingTo,
     chinese,
     frontEdited,
     start,
+    switchLanguage,
     approve,
     discard,
     close,

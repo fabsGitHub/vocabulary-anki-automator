@@ -98,6 +98,12 @@ const COMMANDS: &[(&str, &str, &[&str], &str)] = &[
         &["text", "profileId"],
         "null",
     ),
+    (
+        "rerunPendingCapture",
+        "rerun_pending_capture",
+        &["sourceLang", "text"],
+        "PendingCapture",
+    ),
     ("ankiStatus", "anki_status", &[], "AnkiStatus"),
     (
         "ankiModelFieldNames",
@@ -941,7 +947,14 @@ fn run_every_command() -> (Results, Harness) {
         json!({ "status": "unchecked" }),
         "Anki is offline"
     );
+    // The approval window's language switch: from here on the card is French.
+    let switched = call(
+        "rerun_pending_capture",
+        json!({ "sourceLang": "fr", "text": "serendipity" }),
+    );
+    assert_eq!(switched["card"]["source_lang"], "fr");
     let pending = call("get_pending_payload", json!({}));
+    assert_eq!(pending, switched);
     let submitted = call(
         "execute_card_generation",
         json!({ "card": pending["card"] }),
