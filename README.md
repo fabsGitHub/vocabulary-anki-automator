@@ -167,6 +167,14 @@ Provenance, licenses, known gaps (no German meanings or example sentences yet)
 and how to regenerate it are in
 [crates/vocab-core/data/README.md](crates/vocab-core/data/README.md).
 
+## Website
+
+`site/` holds the product page (English and German) with the macOS download: static HTML
+that a Node script without npm packages renders for a static Vercel project.
+`npm run site:build` renders it into `site/dist`, `npm run site:preview` serves that locally
+and `npm run site:test` checks it. [site/README.md](site/README.md) covers publishing a
+`.dmg` and deploying.
+
 ## Documentation
 
 | Read                                                                 | For                                                                 |
