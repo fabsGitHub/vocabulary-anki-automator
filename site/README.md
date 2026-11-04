@@ -58,23 +58,25 @@ names, so the paths on the page stay right.
 
    ```bash
    rustup target add aarch64-apple-darwin x86_64-apple-darwin
-   APPLE_SIGNING_IDENTITY=- npm run tauri build -- --target universal-apple-darwin --bundles dmg \
-     --config '{"bundle":{"createUpdaterArtifacts":false}}'
+   CI=true npm run tauri build -- --target universal-apple-darwin --bundles app,dmg \
+     --config '{"bundle":{"createUpdaterArtifacts":false,"macOS":{"signingIdentity":"-"}}}'
    ```
 
-   `APPLE_SIGNING_IDENTITY=-` signs ad hoc (there is no Developer ID yet). The `--config`
-   override skips the updater artifacts, whose signing key only CI holds
-   ([docs/signing-key-custody.md](../docs/signing-key-custody.md)).
+   `signingIdentity` `-` signs ad hoc (there is no Developer ID yet), and the `--config`
+   override also skips the updater artifacts, whose signing key only CI holds
+   ([docs/signing-key-custody.md](../docs/signing-key-custody.md)). `CI=true` keeps the disk
+   image script from scripting Finder to lay out the window.
 
-2. Check the app before you publish it:
+2. Check the app before you publish it (the workspace's `target/` is at the repository root):
 
    ```bash
-   APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/Polywort.app"
-   codesign -dv "$APP" 2>&1 | grep Signature   # Signature=adhoc
-   lipo -archs "$APP"/Contents/MacOS/*         # x86_64 arm64
+   APP="target/universal-apple-darwin/release/bundle/macos/Polywort.app"
+   codesign -dv "$APP" 2>&1 | grep -E "Signature|flags"   # Signature=adhoc, flags …(adhoc,runtime)
+   codesign --verify --deep --strict "$APP"                # no output means valid
+   lipo -archs "$APP"/Contents/MacOS/*                     # x86_64 arm64
    ```
 
-3. Copy `src-tauri/target/universal-apple-darwin/release/bundle/dmg/Polywort_<version>_universal.dmg`
+3. Copy `target/universal-apple-darwin/release/bundle/dmg/Polywort_<version>_universal.dmg`
    into `site/downloads/`, remove older images from there, and run `npm run site:build`.
 
 The build copies the newest `.dmg` in `site/downloads/` to `dist/downloads/` under a name
@@ -105,6 +107,10 @@ other project, `vocabulary-automator` (the name before the rename) included, can
 `site/dist/.vercel` and run `vercel link` again with `--project`. The
 production URL is <https://polywort.vercel.app>, the build's default `SITE_URL`. Never deploy
 from the repository root or `site/`: neither is the site.
+
+`vercel link` also writes a `.env.local` with a short-lived project token (and a `.gitignore`)
+into `site/dist`. The build writes a `.vercelignore` that keeps `.env*` out of every upload, and
+the next build deletes both files; do not open or copy the token.
 
 ## Mark, icons and colours
 
