@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * Edits one field mapping, bound with `v-model:mapping` (Milestones H and
- * J5): the Anki tab's `anki.field_mapping`.
+ * Edits one saved field mapping, bound with `v-model:mapping` (Milestones H
+ * and J5): a customized `anki.field_mapping` or learned language's mapping,
+ * inside `MappingChoiceEditor`.
  *
  * With Anki online it lists every field of the note type and binds each to a
  * card value or to nothing; offline it can still edit the bindings already

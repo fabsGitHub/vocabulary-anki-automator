@@ -2,7 +2,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { effectScope } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AnkiStatus, AppConfig, AutoMatch, SetupStatus } from '../api'
+import type { AnkiStatus, AppConfig, AutoMatch, FieldMapping, SetupStatus } from '../api'
 import {
   ANKI_CONNECTION_KEY,
   useAnkiConnection,
@@ -14,7 +14,7 @@ import {
   useConfig,
   type ConfigStore,
 } from '../composables/useConfig'
-import { chineseMapping } from '../domain/fieldMapping'
+import { appleStyleMapping, chineseMapping, withBinding } from '../domain/fieldMapping'
 import { i18n, setLocale } from '../i18n'
 import { callsTo, commandNames, invokeCalls, onCommand, resetTauri } from '../test/fakeTauri'
 import AnkiConnectionView from './AnkiConnectionView.vue'
@@ -54,8 +54,8 @@ let scope: ReturnType<typeof effectScope> | null = null
 let store: ConfigStore
 let connection: AnkiConnection
 
-async function mountTab(): Promise<VueWrapper> {
-  onCommand('get_current_settings', defaultConfig())
+async function mountTab(config: AppConfig = defaultConfig()): Promise<VueWrapper> {
+  onCommand('get_current_settings', config)
   scope = effectScope()
   scope.run(() => {
     store = useConfig({ isMac: false })
@@ -79,6 +79,39 @@ async function mountTab(): Promise<VueWrapper> {
 
 const state = () => wrapper?.find('[data-test="anki-state"]').attributes('data-state')
 const dialog = () => wrapper?.find('[role="dialog"]')
+const find = (test: string) => wrapper?.find(`[data-test="${test}"]`)
+const exists = (test: string) => find(test)?.exists() ?? false
+const previewRows = () =>
+  wrapper
+    ?.findAll('[data-test="mapping-preview"] tbody tr')
+    .map((row) => row.findAll('td').map((cell) => cell.text()))
+
+/** The default config with a global mapping the user customized. */
+function customized(
+  mapping: FieldMapping = withBinding(appleStyleMapping(), 'Notes', 'hsk_level'),
+) {
+  const config = defaultConfig()
+  config.anki.field_mapping = mapping
+  return config
+}
+
+const APPLE_V3_FIELDS = ['Front', 'Back', 'English Sentence', 'German Sentence', 'Audio']
+const CLASSIC_FIELDS = ['Front', 'Back', 'Context Sentence', 'Notes', 'Front Audio']
+
+/** What `suggest_field_mapping` answers for the user's AppleStyleFinalV3, en -> de (ipc_anki.rs). */
+const APPLE_V3_MATCH: AutoMatch = {
+  mapping: {
+    fields: [
+      { anki_field: 'Front', source: 'front' },
+      { anki_field: 'Back', source: 'back' },
+      { anki_field: 'English Sentence', source: 'example_in_source_lang' },
+      { anki_field: 'German Sentence', source: 'example_in_target_lang' },
+    ],
+    audio_field: 'Audio',
+  },
+  guessed: [],
+  unmatched: [],
+}
 
 beforeEach(() => {
   resetTauri()
@@ -195,13 +228,12 @@ describe('online', () => {
   beforeEach(() => {
     onCommand('anki_status', ONLINE)
     onCommand('anki_model_field_names', ({ model }: { model: string }) =>
-      model === 'Chinese'
-        ? ['Hanzi', 'Pinyin', 'Meaning', 'Sentence', 'Audio']
-        : ['Front', 'Back', 'Context Sentence', 'Notes', 'Front Audio'],
+      model === 'Chinese' ? ['Hanzi', 'Pinyin', 'Meaning', 'Sentence', 'Audio'] : CLASSIC_FIELDS,
     )
+    onCommand('suggest_field_mapping', APPLE_V3_MATCH)
   })
 
-  it("lists Anki's note types and the selected one's fields, through the backend only", async () => {
+  it("lists Anki's note types and previews the match by field name, through the backend only", async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     await mountTab()
     expect(state()).toBe('online')
@@ -209,16 +241,33 @@ describe('online', () => {
       ?.findAll('[data-test="model-select"] option')
       .map((o) => o.attributes('value'))
     expect(models).toEqual(ONLINE.models)
+    expect(callsTo('suggest_field_mapping').map((call) => call.args)).toEqual([
+      { model: 'AppleStyleFinalV3', sourceLang: 'en', targetLang: 'de' },
+    ])
+    expect(callsTo('anki_model_field_names')).toHaveLength(0)
+    expect(find('mapping-badge')?.text()).toBe('Matched by field name')
+
+    await wrapper?.find('[data-test="model-select"]').setValue('Chinese')
+    await flushPromises()
+    expect(callsTo('suggest_field_mapping').map((call) => call.args)).toEqual([
+      { model: 'AppleStyleFinalV3', sourceLang: 'en', targetLang: 'de' },
+      { model: 'Chinese', sourceLang: 'en', targetLang: 'de' },
+    ])
+    expect(store.config.value.anki.field_mapping).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    fetchSpy.mockRestore()
+  })
+
+  it("edits a customized mapping against the selected note type's fields", async () => {
+    await mountTab(customized())
+    expect(callsTo('suggest_field_mapping')).toHaveLength(0)
     expect(callsTo('anki_model_field_names').map((call) => call.args)).toEqual([
       { model: 'AppleStyleFinalV3' },
     ])
-    expect(wrapper?.findAll('tr[data-field]').map((tr) => tr.attributes('data-field'))).toEqual([
-      'Front',
-      'Back',
-      'Context Sentence',
-      'Notes',
-      'Front Audio',
-    ])
+    expect(exists('mapping-badge')).toBe(false)
+    expect(wrapper?.findAll('tr[data-field]').map((tr) => tr.attributes('data-field'))).toEqual(
+      CLASSIC_FIELDS,
+    )
 
     await wrapper?.find('[data-test="model-select"]').setValue('Chinese')
     await flushPromises()
@@ -226,9 +275,7 @@ describe('online', () => {
       { model: 'AppleStyleFinalV3' },
       { model: 'Chinese' },
     ])
-    expect(wrapper?.find('[data-test="missing-fields"]').exists()).toBe(true)
-    expect(fetchSpy).not.toHaveBeenCalled()
-    fetchSpy.mockRestore()
+    expect(exists('missing-fields')).toBe(true)
   })
 
   it('keeps a configured note type Anki does not have, marked as missing', async () => {
@@ -237,6 +284,23 @@ describe('online', () => {
     await flushPromises()
     const options = wrapper?.findAll('[data-test="model-select"] option').map((o) => o.text())
     expect(options).toContain('Gone (not in Anki)')
+  })
+
+  it('J5: warns when the match by name of a Chinese capture fills no Pinyin field', async () => {
+    onCommand('suggest_field_mapping', ({ model }: { model: string }) =>
+      model === 'Chinese'
+        ? { mapping: chineseMapping(), guessed: [], unmatched: [] }
+        : APPLE_V3_MATCH,
+    )
+    await mountTab()
+    store.config.value.translation.source_lang = 'zh-CN'
+    await flushPromises()
+    expect(find('chinese-warning')?.text()).toContain('Hanzi, Pinyin, Meaning and Audio')
+
+    await wrapper?.find('[data-test="model-select"]').setValue('Chinese')
+    await flushPromises()
+    expect(exists('chinese-warning')).toBe(false)
+    expect(store.config.value.anki.field_mapping).toBeNull()
   })
 })
 
@@ -254,16 +318,44 @@ describe('the settings this tab owns', () => {
     expect(wrapper?.text()).toContain('Required.')
   })
 
-  it('edits anki.field_mapping through the mapping editor', async () => {
+  it('matches by field name until customized, and saves no mapping for it', async () => {
     await mountTab()
+    expect(store.config.value.anki.field_mapping).toBeNull()
+    expect(find('mapping-badge')?.text()).toBe('Matched by field name')
+    expect(find('mapping-offline')?.text()).toBe(
+      'Connect to Anki to see how the fields of “AppleStyleFinalV3” are matched.',
+    )
+    expect(exists('match-by-name')).toBe(false)
+
+    onCommand('apply_settings', null)
+    store.config.value.anki.deck_name = 'english'
+    expect(await store.save()).toBe(true)
+    expect(callsTo('apply_settings')[0].args?.newCfg).toMatchObject({
+      anki: { deck_name: 'english', field_mapping: null },
+    })
+  })
+
+  it('edits anki.field_mapping once customized, offline from the Apple-style preset', async () => {
+    await mountTab()
+    await find('customize-mapping')?.trigger('click')
+    expect(store.config.value.anki.field_mapping).toEqual(appleStyleMapping())
+    expect(exists('mapping-badge')).toBe(false)
+    // The preset itself is what "matched by name" stands for: nothing to save yet.
+    expect(store.dirty.value).toBe(false)
+
     await wrapper?.find('tr[data-field="Notes"] select').setValue('hsk_level')
-    expect(store.config.value.anki.field_mapping.fields).toContainEqual({
+    expect(store.config.value.anki.field_mapping?.fields).toContainEqual({
       anki_field: 'Notes',
       source: 'hsk_level',
     })
-    await wrapper?.find('[data-test="preset-chinese"]').trigger('click')
-    expect(store.config.value.anki.field_mapping).toEqual(chineseMapping())
     expect(store.dirty.value).toBe(true)
+    await find('preset-chinese')?.trigger('click')
+    expect(store.config.value.anki.field_mapping).toEqual(chineseMapping())
+
+    await find('rematch-mapping')?.trigger('click')
+    expect(store.config.value.anki.field_mapping).toBeNull()
+    expect(find('mapping-badge')?.text()).toBe('Matched by field name')
+    expect(store.dirty.value).toBe(false)
   })
 
   it('says it covers only other languages while languages are listed under "My languages"', async () => {
@@ -283,15 +375,18 @@ describe('the settings this tab owns', () => {
     )
   })
 
-  it('toggles the reverse card', async () => {
+  it('toggles the reverse card, matched by name or customized', async () => {
     await mountTab()
     expect(store.config.value.anki.create_reverse).toBe(true)
-    await wrapper?.find('[data-test="create-reverse"]').setValue(false)
+    await find('create-reverse')?.setValue(false)
     expect(store.config.value.anki.create_reverse).toBe(false)
+    await find('customize-mapping')?.trigger('click')
+    await find('create-reverse')?.setValue(true)
+    expect(store.config.value.anki.create_reverse).toBe(true)
   })
 
   it('J5: asks for a Chinese note type when Chinese is captured without a pinyin field', async () => {
-    await mountTab()
+    await mountTab(customized())
     store.config.value.translation.source_lang = 'zh-CN'
     await flushPromises()
     const warning = wrapper?.find('[data-test="chinese-warning"]')
@@ -301,8 +396,15 @@ describe('the settings this tab owns', () => {
     expect(wrapper?.find('[data-test="chinese-warning"]').exists()).toBe(false)
   })
 
-  it('J5: also warns when only a hotkey profile captures Chinese', async () => {
+  it('J5: cannot tell offline whether a mapping matched by name reaches a Pinyin field', async () => {
     await mountTab()
+    store.config.value.translation.source_lang = 'zh-CN'
+    await flushPromises()
+    expect(exists('chinese-warning')).toBe(false)
+  })
+
+  it('J5: also warns when only a hotkey profile captures Chinese', async () => {
+    await mountTab(customized())
     expect(wrapper?.find('[data-test="chinese-warning"]').exists()).toBe(false)
     store.config.value.hotkey_profiles.push({
       id: 'zh-de',
@@ -318,32 +420,61 @@ describe('the settings this tab owns', () => {
 })
 
 describe('match by field name', () => {
-  const APPLE_V3_FIELDS = ['Front', 'Back', 'English Sentence', 'German Sentence', 'Audio']
-  const APPLE_V3_MATCH: AutoMatch = {
-    mapping: {
-      fields: [
-        { anki_field: 'Front', source: 'front' },
-        { anki_field: 'Back', source: 'back' },
-        { anki_field: 'English Sentence', source: 'example_in_source_lang' },
-        { anki_field: 'German Sentence', source: 'example_in_target_lang' },
-      ],
-      audio_field: 'Audio',
-    },
-    guessed: [],
-    unmatched: [],
-  }
-
-  it("fixes the default mapping for the user's AppleStyleFinalV3 note type", async () => {
+  it("fills the user's AppleStyleFinalV3 note type without a click", async () => {
     onCommand('anki_status', ONLINE)
     onCommand('anki_model_field_names', APPLE_V3_FIELDS)
     onCommand('suggest_field_mapping', APPLE_V3_MATCH)
     await mountTab()
+    expect(previewRows()).toEqual([
+      ['Front', 'Word (front)'],
+      ['Back', 'Translation (back)'],
+      ['English Sentence', 'Example in the language learned'],
+      ['German Sentence', 'Example in your language'],
+    ])
+    expect(find('preview-audio')?.text()).toBe('Pronunciation → Audio')
+    expect(exists('missing-fields')).toBe(false)
+    expect(store.config.value.anki.field_mapping).toBeNull()
+    expect(store.dirty.value).toBe(false)
+
+    await find('customize-mapping')?.trigger('click')
+    await flushPromises()
+    expect(store.config.value.anki.field_mapping).toEqual(APPLE_V3_MATCH.mapping)
+    expect(store.config.value.anki.field_mapping).not.toBe(APPLE_V3_MATCH.mapping)
+    expect(store.dirty.value).toBe(true)
+    expect(wrapper?.findAll('tr[data-field]').map((tr) => tr.attributes('data-field'))).toEqual(
+      APPLE_V3_FIELDS,
+    )
+    expect(exists('missing-fields')).toBe(false)
+  })
+
+  it('previews the classic note type as the Apple-style preset, which customizing leaves unsaved', async () => {
+    onCommand('anki_status', ONLINE)
+    onCommand('anki_model_field_names', CLASSIC_FIELDS)
+    onCommand('suggest_field_mapping', { mapping: appleStyleMapping(), guessed: [], unmatched: [] })
+    await mountTab()
+    expect(previewRows()?.map(([field]) => field)).toEqual([
+      'Front',
+      'Back',
+      'Context Sentence',
+      'Notes',
+    ])
+    expect(find('preview-audio')?.text()).toBe('Pronunciation → Front Audio')
+    await find('customize-mapping')?.trigger('click')
+    expect(store.config.value.anki.field_mapping).toEqual(appleStyleMapping())
+    expect(store.dirty.value).toBe(false)
+  })
+
+  it('re-matches a customized mapping that does not fit with one click', async () => {
+    onCommand('anki_status', ONLINE)
+    onCommand('anki_model_field_names', APPLE_V3_FIELDS)
+    onCommand('suggest_field_mapping', APPLE_V3_MATCH)
+    await mountTab(customized())
     expect(
       wrapper?.findAll('[data-test="missing-fields"] code').map((code) => code.text()),
     ).toEqual(['Context Sentence', 'Notes', 'Front Audio'])
     expect(store.dirty.value).toBe(false)
 
-    await wrapper?.find('[data-test="match-by-name"]').trigger('click')
+    await find('match-by-name')?.trigger('click')
     await flushPromises()
 
     expect(callsTo('suggest_field_mapping').map((call) => call.args)).toEqual([
@@ -351,14 +482,14 @@ describe('match by field name', () => {
     ])
     expect(store.config.value.anki.field_mapping).toEqual(APPLE_V3_MATCH.mapping)
     expect(store.dirty.value).toBe(true)
-    expect(wrapper?.find('[data-test="missing-fields"]').exists()).toBe(false)
+    expect(exists('missing-fields')).toBe(false)
   })
 
-  it('is disabled while Anki is offline', async () => {
+  it('is disabled for a customized mapping while Anki is offline', async () => {
     onCommand('anki_status', OFFLINE)
     onCommand('get_setup_status', setup())
-    await mountTab()
-    const button = wrapper?.find('[data-test="match-by-name"]')
+    await mountTab(customized())
+    const button = find('match-by-name')
     expect(button?.attributes('disabled')).toBeDefined()
     expect(button?.attributes('title')).toBe('Connect to Anki to match the fields by name.')
   })

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AnkiStatus, AppConfig } from '../api'
 import { defaultConfig } from '../composables/useConfig'
+import { chineseMapping } from '../domain/fieldMapping'
 import { i18n, setLocale } from '../i18n'
 import { callsTo, emitEvent, onCommand, resetTauri } from '../test/fakeTauri'
 import MainWindow from './MainWindow.vue'
@@ -154,17 +155,19 @@ describe('MainWindow', () => {
   })
 
   it('reads a note type once for the Anki and "My languages" tabs', async () => {
+    // Both mappings customized: only those are edited against the fields.
     onCommand(
       'get_current_settings',
-      settings((config) =>
+      settings((config) => {
+        config.anki.field_mapping = chineseMapping()
         config.learning.languages.push({
           lang: 'fr',
           deck_name: 'french',
           model_name: 'AppleStyleFinalV3',
-          field_mapping: config.anki.field_mapping,
+          field_mapping: chineseMapping(),
           create_reverse: true,
-        }),
-      ),
+        })
+      }),
     )
     await mountMain()
     await tab('anki')?.trigger('click')

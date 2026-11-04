@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import mapperSource from '../../crates/anki-bridge/src/mapper.rs?raw'
-import type { AppConfig, CardField, FieldMapping } from '../api'
+import type { AppConfig, AutoMatch, CardField, FieldMapping } from '../api'
 import { defaultConfig } from '../composables/useConfig'
 import {
   CARD_FIELDS,
@@ -11,6 +11,7 @@ import {
   chineseMapping,
   copyMapping,
   effectiveBindings,
+  globalMapping,
   lacksPinyin,
   missingFields,
   needsChineseNoteType,
@@ -156,7 +157,7 @@ describe('missingFields (mirrors FieldMapping::missing_fields)', () => {
   })
 })
 
-describe('sameMapping and copyMapping', () => {
+describe('sameMapping, globalMapping and copyMapping', () => {
   it('compare bindings in order, and the audio field', () => {
     expect(sameMapping(appleStyleMapping(), appleStyleMapping())).toBe(true)
     const reordered = appleStyleMapping()
@@ -166,6 +167,14 @@ describe('sameMapping and copyMapping', () => {
     expect(sameMapping(withBinding(appleStyleMapping(), 'Notes', null), appleStyleMapping())).toBe(
       false,
     )
+  })
+
+  it('treat only the exact Apple-style preset as a global mapping never chosen (AppConfig::normalize)', () => {
+    expect(globalMapping(appleStyleMapping())).toBeNull()
+    expect(globalMapping(null)).toBeNull()
+    expect(globalMapping(chineseMapping())).toEqual(chineseMapping())
+    const noAudio = withAudioField(appleStyleMapping(), null)
+    expect(globalMapping(noAudio)).toBe(noAudio)
   })
 
   it('copy without sharing a binding', () => {
@@ -189,18 +198,36 @@ describe('lacksPinyin', () => {
 })
 
 describe('needsChineseNoteType (J5)', () => {
+  /** What matching AppleStyleFinalV3 by name gives: no field takes the pinyin. */
+  const APPLE_V3_MATCH: AutoMatch = {
+    mapping: {
+      fields: [
+        { anki_field: 'Front', source: 'front' },
+        { anki_field: 'Back', source: 'back' },
+      ],
+      audio_field: 'Audio',
+    },
+    guessed: [],
+    unmatched: [],
+  }
+  const CHINESE_MATCH: AutoMatch = { mapping: chineseMapping(), guessed: [], unmatched: [] }
+
   function config(edit: (c: AppConfig) => void): AppConfig {
     const c = defaultConfig()
+    c.anki.field_mapping = appleStyleMapping()
     edit(c)
     return c
   }
 
+  const chineseSource = (c: AppConfig) => (c.translation.source_lang = 'zh-CN')
+
   it('is off for non-Chinese setups', () => {
     expect(needsChineseNoteType(defaultConfig())).toBe(false)
+    expect(needsChineseNoteType(defaultConfig(), APPLE_V3_MATCH)).toBe(false)
   })
 
   it('warns when the default source is Chinese and nothing receives the pinyin', () => {
-    expect(needsChineseNoteType(config((c) => (c.translation.source_lang = 'zh-CN')))).toBe(true)
+    expect(needsChineseNoteType(config(chineseSource))).toBe(true)
   })
 
   it('warns when only a profile captures Chinese', () => {
@@ -215,6 +242,18 @@ describe('needsChineseNoteType (J5)', () => {
       }),
     )
     expect(needsChineseNoteType(withProfile)).toBe(true)
+  })
+
+  it('checks a mapping matched by name through its preview, and stays silent without one', () => {
+    const matched = config((c) => {
+      chineseSource(c)
+      c.anki.field_mapping = null
+    })
+    expect(needsChineseNoteType(matched)).toBe(false)
+    expect(needsChineseNoteType(matched, APPLE_V3_MATCH)).toBe(true)
+    expect(needsChineseNoteType(matched, CHINESE_MATCH)).toBe(false)
+    // A saved mapping wins over any preview.
+    expect(needsChineseNoteType(config(chineseSource), CHINESE_MATCH)).toBe(true)
   })
 
   it('is satisfied by the Chinese preset or any pinyin binding', () => {

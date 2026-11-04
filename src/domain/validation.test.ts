@@ -203,6 +203,12 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('accepts a global mapping matched by field name (null), since it is never empty', () => {
+    expect(defaultConfig().anki.field_mapping).toBeNull()
+    expect(issuesOf(() => {})).toEqual([])
+    expect(issuesOf((c) => (c.anki.field_mapping = chineseMapping()))).toEqual([])
+  })
+
   it('accepts learned languages, with a null or a saved mapping', () => {
     expect(
       issuesOf((c) => {

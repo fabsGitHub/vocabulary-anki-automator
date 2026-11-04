@@ -216,7 +216,7 @@ const ankiConfig = object({
   deck_name: string,
   model_name: string,
   create_reverse: boolean,
-  field_mapping: fieldMapping,
+  field_mapping: nullable(fieldMapping),
 })
 const appConfig = object({
   ui_lang: string,

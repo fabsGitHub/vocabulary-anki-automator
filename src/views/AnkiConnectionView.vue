@@ -6,6 +6,12 @@
  * listed under "My languages", these apply only to text in other languages,
  * which the tab says.
  *
+ * The field mapping is matched by field name until the user customizes it
+ * (`null`, the default), with the same preview, "Customize" and "Stop
+ * customizing" as each "My languages" entry (`MappingChoiceEditor`); the
+ * preview is for the main language pair, and each card is matched for its
+ * own. Offline, "Customize" starts from the Apple-style preset.
+ *
  * Deck and note type stay editable while Anki is offline, as free text; the
  * lists Anki reports replace the text fields once it is online.
  */
@@ -13,12 +19,13 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ConsentDialog from '../components/ConsentDialog.vue'
-import FieldMappingEditor from '../components/FieldMappingEditor.vue'
+import MappingChoiceEditor from '../components/MappingChoiceEditor.vue'
 import { useAnkiConnectionContext } from '../composables/useAnkiConnection'
+import { useAutoMatches, type AutoMatchRequest } from '../composables/useAutoMatches'
 import { useConfigStore } from '../composables/useConfig'
 import { useIssueText } from '../composables/useIssueText'
 import { useModelFields } from '../composables/useModelFields'
-import { needsChineseNoteType } from '../domain/fieldMapping'
+import { appleStyleMapping, needsChineseNoteType } from '../domain/fieldMapping'
 
 const { t } = useI18n()
 const store = useConfigStore()
@@ -43,10 +50,22 @@ const modelOptions = computed(() => {
   const current = config.value.anki.model_name
   return current && !models.value.includes(current) ? [...models.value, current] : models.value
 })
-const chineseWarning = computed(() => needsChineseNoteType(config.value))
+const matched = computed(() => config.value.anki.field_mapping === null)
 
-const modelFields = useModelFields(() => [config.value.anki.model_name])
+/** A customized mapping is edited against the note type's fields. */
+const modelFields = useModelFields(() => (matched.value ? [] : [config.value.anki.model_name]))
 const fields = computed(() => modelFields.state(config.value.anki.model_name))
+
+const matchRequest = (): AutoMatchRequest => ({
+  model: config.value.anki.model_name,
+  sourceLang: config.value.translation.source_lang,
+  targetLang: config.value.translation.target_lang,
+})
+const autoMatches = useAutoMatches(() => (matched.value ? [matchRequest()] : []))
+const suggestion = computed(() => autoMatches.state(matchRequest()))
+
+const chineseWarning = computed(() => needsChineseNoteType(config.value, suggestion.value.match))
+const fallback = appleStyleMapping()
 </script>
 
 <template>
@@ -223,14 +242,18 @@ const fields = computed(() => modelFields.state(config.value.anki.model_name))
     </section>
 
     <section class="pane-layout">
-      <FieldMappingEditor
+      <div v-if="matched" class="pane-title-row">
+        <h3 class="pane-title">{{ t('mapping.title') }}</h3>
+        <span class="badge badge-muted" data-test="mapping-badge">{{ t('mapping.auto') }}</span>
+      </div>
+      <MappingChoiceEditor
         v-model:mapping="config.anki.field_mapping"
         :model-name="config.anki.model_name"
-        :model-fields="fields.fields"
-        :fields-loading="fields.loading"
-        :fields-error="fields.error"
         :source-lang="config.translation.source_lang"
         :target-lang="config.translation.target_lang"
+        :suggestion="suggestion"
+        :fields="fields"
+        :fallback="fallback"
         :issue="issueText('anki.field_mapping')"
       >
         <template #notices>
@@ -253,7 +276,7 @@ const fields = computed(() => modelFields.state(config.value.anki.model_name))
             <span>{{ t('mapping.createReverse') }}</span>
           </label>
         </template>
-      </FieldMappingEditor>
+      </MappingChoiceEditor>
     </section>
 
     <ConsentDialog

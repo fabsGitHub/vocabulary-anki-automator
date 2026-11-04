@@ -2,8 +2,9 @@
  * Client-side settings validation, mirroring what `apply_settings` refuses
  * (docs/architecture.md § 8.1): every shortcut must parse, leave normal typing
  * alone and be distinct, languages must be supported codes, `max_chars` must
- * be usable, and each learned language must be listed once, differ from the
- * language cards are translated into and name its deck and note type.
+ * be usable, each learned language must be listed once, differ from the
+ * language cards are translated into and name its deck and note type, and
+ * every saved mapping (not one matched by field name) must fill a field.
  *
  * The backend remains the authority and its error is still shown; checking
  * here first ties each problem to the field that caused it, which a single
@@ -124,7 +125,10 @@ export function validateConfig(config: AppConfig, isMac: boolean = IS_MAC): Conf
 
   if (!config.anki.deck_name.trim()) add('anki.deck_name', 'validation.required')
   if (!config.anki.model_name.trim()) add('anki.model_name', 'validation.required')
-  if (!fillsAField(config.anki.field_mapping)) add('anki.field_mapping', 'validation.mappingEmpty')
+  // Like a learned language's: `null` is matched by field name, only a saved mapping can be empty.
+  if (config.anki.field_mapping && !fillsAField(config.anki.field_mapping)) {
+    add('anki.field_mapping', 'validation.mappingEmpty')
+  }
 
   return issues
 }

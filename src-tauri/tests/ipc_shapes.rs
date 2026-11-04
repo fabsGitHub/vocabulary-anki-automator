@@ -437,7 +437,7 @@ fn custom_mapping() -> FieldMapping {
     }
 }
 
-/// The fields of the user's AppleStyleFinalV3 note type, which the default
+/// The fields of the user's AppleStyleFinalV3 note type, which the old default
 /// mapping does not fit.
 fn apple_style_final_v3() -> Vec<String> {
     [
@@ -507,7 +507,7 @@ fn custom_config() -> AppConfig {
             deck_name: "Vocabulary::Mined".into(),
             model_name: "Basic".into(),
             create_reverse: false,
-            field_mapping: custom_mapping(),
+            field_mapping: Some(custom_mapping()),
         },
         consent: granted_consent(),
         learning: LearningConfig {

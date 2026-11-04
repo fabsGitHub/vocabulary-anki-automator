@@ -2238,8 +2238,8 @@ mod auto_match_tests {
         );
     }
 
-    /// The user's real situation: the default mapping on their note type.
-    /// The example is reported once, as the missing "Context Sentence".
+    /// The user's report: the old default mapping on their note type. The
+    /// example is reported once, as the missing "Context Sentence".
     #[test]
     fn today_s_default_mapping_loses_example_and_audio_on_apple_v3() {
         let default = FieldMapping::apple_style_default();
@@ -2298,10 +2298,10 @@ mod auto_match_tests {
         );
     }
 
-    /// Why a global mapping nobody customized may be matched by field name
-    /// instead: on the classic note type the match is exactly the default
-    /// mapping, for every language pair a capture can have, so those users'
-    /// notes would stay as they are.
+    /// Why the Automator matches a global mapping nobody customized by field
+    /// name: on the classic note type the match is exactly the old default,
+    /// for every language pair a capture can have, so those users' notes stay
+    /// as they were.
     #[test]
     fn the_classic_note_type_matches_the_old_default_for_every_pair() {
         let classic = names(&["Front", "Back", "Context Sentence", "Notes", "Front Audio"]);

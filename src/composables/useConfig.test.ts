@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppConfig, LearnedLanguage } from '../api'
+import { appleStyleMapping, withBinding } from '../domain/fieldMapping'
 import { callsTo, commandNames, onCommand, resetTauri } from '../test/fakeTauri'
 import { defaultConfig, normalizeConfig, toSettingsPayload, useConfig } from './useConfig'
 
@@ -126,7 +127,8 @@ describe('load', () => {
     expect(config.translation.target_lang).toBe('zh-CN')
     expect(config.translation.contact_email).toBeNull()
     expect(config.hotkey_profiles).toEqual([])
-    expect(config.anki.field_mapping).toEqual(defaultConfig().anki.field_mapping)
+    expect(config.anki.field_mapping).toBeNull()
+    expect(defaultConfig().anki.field_mapping).toBeNull()
     expect(config.anki.create_reverse).toBe(true)
     expect(config.consent).toEqual({
       anki_install_granted_at: null,
@@ -163,6 +165,15 @@ describe('load', () => {
       field_mapping: null,
       create_reverse: true,
     })
+  })
+
+  it('loads the Apple-style preset as a global mapping never chosen, as the backend does', async () => {
+    const store = await loadedStore({
+      ...backendConfig(),
+      anki: { ...backendConfig().anki, field_mapping: appleStyleMapping() },
+    })
+    expect(store.config.value.anki.field_mapping).toBeNull()
+    expect(store.dirty.value).toBe(false)
   })
 
   it('reports a failed load and refuses to save the defaults over the real config', async () => {
@@ -249,12 +260,36 @@ describe('save', () => {
     onCommand('apply_settings', null)
     store.config.value.translation.contact_email = ''
     store.config.value.hotkey_profiles[0].deck_name = '   '
-    store.config.value.anki.field_mapping.audio_field = ' '
+    const mapping = store.config.value.anki.field_mapping
+    if (!mapping) throw new Error('backendConfig() saves a global mapping')
+    mapping.audio_field = ' '
     await store.save()
     const sent = sentConfig()
     expect(sent.translation.contact_email).toBeNull()
     expect(sent.hotkey_profiles[0].deck_name).toBeNull()
-    expect(sent.anki.field_mapping.audio_field).toBeNull()
+    expect(sent.anki.field_mapping?.audio_field).toBeNull()
+  })
+
+  it('sends null for a global mapping matched by name, and for one customized to the Apple-style preset', async () => {
+    const store = await loadedStore({
+      ...backendConfig(),
+      anki: { ...backendConfig().anki, field_mapping: null },
+    })
+    onCommand('apply_settings', null)
+    expect(store.config.value.anki.field_mapping).toBeNull()
+
+    // Customizing a match that equals the preset changes nothing a save sends.
+    store.config.value.anki.field_mapping = appleStyleMapping()
+    expect(store.dirty.value).toBe(false)
+    store.config.value.anki.field_mapping = withBinding(appleStyleMapping(), 'Notes', null)
+    expect(store.dirty.value).toBe(true)
+    store.config.value.anki.deck_name = 'Mined'
+    store.config.value.anki.field_mapping = appleStyleMapping()
+
+    expect(await store.save()).toBe(true)
+    expect(sentConfig().anki.field_mapping).toBeNull()
+    expect(sentConfig().anki.deck_name).toBe('Mined')
+    expect(store.dirty.value).toBe(false)
   })
 
   it('does not call apply_settings while a field is invalid', async () => {

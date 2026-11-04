@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * One field mapping that is either matched by field name or customized,
- * bound with `v-model:mapping` (docs/architecture.md § 8.1): each "My
- * languages" entry's own mapping.
+ * bound with `v-model:mapping` (docs/architecture.md § 8.1): the Anki tab's
+ * `anki.field_mapping` and each "My languages" entry's own mapping.
  *
  * `null` means the note type's fields are matched by name whenever a card is
  * pushed, so a changed note type is matched again and nothing is saved.

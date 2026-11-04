@@ -1,12 +1,13 @@
 //! The field mapping a [`Filing`] pushes with (docs/architecture.md § 8.1):
-//! the saved one, or, for a learned language without one, the note type's
-//! fields matched by name (`FieldMapping::auto_match`). And the approval
-//! window's check of what that mapping would drop ([`check_fields`]).
+//! the saved one, or, where none was saved (a learned language without one,
+//! or a global mapping never customized), the note type's fields matched by
+//! name (`FieldMapping::auto_match`). And the approval window's check of what
+//! that mapping would drop ([`check_fields`]).
 //!
 //! The match is made whenever a card is pushed and never written back, so a
 //! note type whose fields changed is matched afresh. It needs the fields from
-//! Anki first, one `modelFieldNames` request; a saved mapping needs none, so a
-//! config without learned languages sends exactly what it always did.
+//! Anki first, one `modelFieldNames` request; a saved mapping needs none and
+//! sends exactly `createDeck` and the notes.
 //!
 //! AnkiConnect drops a value whose field the note type lacks without an
 //! error, so the check is the only place the user learns about it before the

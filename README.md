@@ -50,9 +50,9 @@ schedule when the daily queue reaches it.
    history and **Sync pending to Anki** sends it later.
 
 The settings window covers your languages, hotkeys and profiles, deck, note type
-and field mapping (which it can match to a note type's fields by name, e.g.
-"English Sentence" gets the English example and "Audio" the pronunciation), and
-the UI language (English or German). It can also install Anki (macOS, Windows)
+and field mapping (matched to the note type's fields by name until you customize
+it, e.g. "English Sentence" gets the English example and "Audio" the
+pronunciation), and the UI language (English or German). It can also install Anki (macOS, Windows)
 and AnkiConnect for you, but only after you agree to it in a consent dialog; both
 downloads are pinned and checksum-verified before anything is installed.
 

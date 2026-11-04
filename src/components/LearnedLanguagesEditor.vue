@@ -9,11 +9,13 @@
  * language brings the new language's deck and reverse default along while the
  * old ones are untouched (`switchLanguage`). It starts with the mapping
  * `null`: the note type's fields are matched by name whenever a card is
- * pushed, so a changed note type is matched again. `MappingChoiceEditor`
- * previews that match while Anki is online and offers "Customize" (offline:
- * a copy of the global mapping) and "Stop customizing". A Chinese entry is
- * checked for a Pinyin field in the mapping it will use: the saved one, or
- * else the preview (offline, an entry matched by name stays silent).
+ * pushed, so a changed note type is matched again. `MappingChoiceEditor`,
+ * shared with the Anki tab's global mapping, previews that match while Anki
+ * is online and offers "Customize" (offline: a copy of the global mapping,
+ * or the Apple-style preset while that one is matched by name too) and
+ * "Stop customizing". A Chinese entry is checked for a Pinyin field in the
+ * mapping it will use: the saved one, or else the preview (offline, an entry
+ * matched by name stays silent).
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -26,7 +28,7 @@ import { useAutoMatches, type AutoMatchRequest } from '../composables/useAutoMat
 import { useConfigStore } from '../composables/useConfig'
 import { useIssueText } from '../composables/useIssueText'
 import { useModelFields } from '../composables/useModelFields'
-import { lacksPinyin } from '../domain/fieldMapping'
+import { appleStyleMapping, lacksPinyin } from '../domain/fieldMapping'
 import { isChinese, isSupportedLang, normalizeLang } from '../domain/language'
 import {
   DEFAULT_DECKS,
@@ -65,8 +67,8 @@ const autoMatches = useAutoMatches(() =>
   languages.value.filter((entry) => entry.field_mapping === null).map(matchRequest),
 )
 
-/** What "Customize" copies offline: the global mapping. */
-const fallback = computed(() => config.value.anki.field_mapping)
+/** What "Customize" copies offline: the global mapping, or the preset it stands for. */
+const fallback = computed(() => config.value.anki.field_mapping ?? appleStyleMapping())
 
 /** Each entry with what the template shows next to it. */
 const cards = computed(() =>

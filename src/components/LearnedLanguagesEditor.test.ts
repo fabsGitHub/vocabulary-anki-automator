@@ -320,6 +320,15 @@ describe('offline', () => {
     expect(store.dirty.value).toBe(true)
     expect(card(0).find('[data-test="mapping-badge"]').text()).toBe('Customized')
   })
+
+  it('Customize starts from the Apple-style preset while the global mapping is matched by name too', async () => {
+    await mountEditor(settings([entry()]))
+    expect(store.config.value.anki.field_mapping).toBeNull()
+    await card(0).find('[data-test="customize-mapping"]').trigger('click')
+    expect(store.config.value.learning.languages[0].field_mapping).toEqual(appleStyleMapping())
+    // An entry's own mapping is a choice even when it equals the preset.
+    expect(store.dirty.value).toBe(true)
+  })
 })
 
 describe('online', () => {

@@ -1,8 +1,9 @@
 /**
  * Previews of matching a note type's fields by name (`suggest_field_mapping`)
- * for every mapping that is `null`, so matched at push time: each such entry
- * of "My languages" (docs/architecture.md § 8.2). A preview lives here, never
- * in the form, so it dirties nothing; "Customize" copies it into the form.
+ * for every mapping that is `null`, so matched at push time: the Anki tab's
+ * global mapping and each such entry of "My languages" (docs/architecture.md
+ * § 8.2). A preview lives here, never in the form, so it dirties nothing;
+ * "Customize" copies it into the form.
  *
  * Each caller keeps its own cache, keyed by note type and language pair, so
  * two entries with the same note type and pair share one request. A pair

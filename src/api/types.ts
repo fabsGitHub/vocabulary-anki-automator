@@ -270,7 +270,11 @@ export interface AnkiConfig {
   deck_name: string
   model_name: string
   create_reverse: boolean
-  field_mapping: FieldMapping
+  /**
+   * `null` (the default): matched by field name against the note type at push
+   * time, never saved. The backend also stores the Apple-style preset as `null`.
+   */
+  field_mapping: FieldMapping | null
 }
 
 /** `config.json` (§ 8.1), exactly as `get_current_settings` returns and `apply_settings` takes it. */

@@ -8,7 +8,10 @@
 //!   and uppercase language codes. That section is read through a serde alias,
 //!   the key is dropped like any unknown field, codes are normalized and every
 //!   field added since gets its default, so upgrading keeps every setting and
-//!   the next save writes the new shape.
+//!   the next save writes the new shape. The one exception is the global
+//!   field mapping: every file saved before it could be left unset holds the
+//!   old built-in default, which the user never chose, so that value loads as
+//!   unset and is matched by field name ([`AppConfig::normalize`]).
 //! - **Lenient load, strict save.** A file that a hand edit made invalid still
 //!   loads, so the user's deck, note type and consent survive (a shortcut that
 //!   does not parse is simply not registered). `apply_settings` refuses to save
@@ -115,8 +118,12 @@ pub struct AnkiConfig {
     /// Also add the target -> source note.
     pub create_reverse: bool,
     /// Which card value goes into which field of `model_name` (Milestones H
-    /// and J5).
-    pub field_mapping: FieldMapping,
+    /// and J5). `None`, the default: the note type's fields are matched by
+    /// name whenever a card is pushed or checked, exactly as for a
+    /// [`LearnedLanguage`] without a mapping. A missing key and a saved
+    /// `FieldMapping::apple_style_default()` both load as `None`
+    /// ([`AppConfig::normalize`]).
+    pub field_mapping: Option<FieldMapping>,
 }
 
 /// The languages the user learns (Milestone O).
@@ -259,7 +266,7 @@ impl Default for AnkiConfig {
             model_name: "AppleStyleFinalV3".to_string(),
             // The pre-refactor app always added both directions.
             create_reverse: true,
-            field_mapping: FieldMapping::default(),
+            field_mapping: None,
         }
     }
 }
@@ -308,9 +315,11 @@ impl AppConfig {
     /// in `source_lang` goes. The learned language of `source_lang`, if any,
     /// brings its note type, mapping and reverse setting; a hotkey profile's
     /// own deck still wins for the deck. Without learned languages this is
-    /// the global `anki` section, with the profile's deck. Blank names (only a
-    /// hand edit can save them) fall back to the global ones, and an unknown
-    /// `profile_id` (a profile deleted since the capture) counts as none.
+    /// the global `anki` section, with the profile's deck. A mapping that is
+    /// `None`, the entry's or the global one, is [`MappingChoice::Auto`].
+    /// Blank names (only a hand edit can save them) fall back to the global
+    /// ones, and an unknown `profile_id` (a profile deleted since the capture)
+    /// counts as none.
     pub fn filing(&self, profile_id: Option<&str>, source_lang: &str) -> Filing {
         let lang = normalize_lang(source_lang);
         let entry = self
@@ -329,13 +338,10 @@ impl AppConfig {
             model: entry
                 .and_then(|entry| named(&entry.model_name))
                 .unwrap_or_else(|| self.anki.model_name.clone()),
-            mapping: match entry {
-                Some(entry) => entry
-                    .field_mapping
-                    .clone()
-                    .map_or(MappingChoice::Auto, MappingChoice::Saved),
-                None => MappingChoice::Saved(self.anki.field_mapping.clone()),
-            },
+            mapping: entry
+                .map_or(&self.anki.field_mapping, |entry| &entry.field_mapping)
+                .clone()
+                .map_or(MappingChoice::Auto, MappingChoice::Saved),
             create_reverse: entry.map_or(self.anki.create_reverse, |entry| entry.create_reverse),
         }
     }
@@ -355,9 +361,10 @@ impl AppConfig {
     }
 
     /// Canonical spelling of everything that has one: language codes through
-    /// `normalize_lang`, trimmed text, blank optional values as `None`, and
-    /// consent timestamps that do not parse as RFC 3339 dropped (a consent
-    /// must say when it was given). Applied on every load and save.
+    /// `normalize_lang`, trimmed text, blank optional values as `None`, a
+    /// global field mapping equal to `FieldMapping::apple_style_default()` as
+    /// `None`, and consent timestamps that do not parse as RFC 3339 dropped (a
+    /// consent must say when it was given). Applied on every load and save.
     pub fn normalize(&mut self) {
         self.ui_lang = self.ui_lang.trim().to_string();
         self.hotkeys = self.hotkeys.trim().to_string();
@@ -384,8 +391,17 @@ impl AppConfig {
         anki.connect_url = anki.connect_url.trim().to_string();
         anki.deck_name = anki.deck_name.trim().to_string();
         anki.model_name = anki.model_name.trim().to_string();
+        // Until the global mapping could be unset, every saved config held
+        // this default whether or not the user ever looked at it, so it is no
+        // choice: it is matched by field name like a missing one. On the
+        // AppleStyleFinalV3 note type it was made for, the match is this same
+        // mapping (`auto_match`'s tests pin that), so nothing changes there.
+        if anki.field_mapping.as_ref() == Some(&FieldMapping::apple_style_default()) {
+            anki.field_mapping = None;
+        }
 
-        // Mappings stay as they are, like `anki.field_mapping`.
+        // A learned language's own mapping stays as saved: entries had `None`
+        // from the start, so a saved one is always a choice.
         for entry in &mut self.learning.languages {
             entry.lang = normalize_lang(&entry.lang);
             entry.deck_name = entry.deck_name.trim().to_string();
@@ -409,11 +425,13 @@ impl AppConfig {
     /// needs a real modifier and is used once; profile ids are present and
     /// unique; languages are supported and differ within a pair; `max_chars`
     /// is in `1..=MAX_CHARS_LIMIT`; the provider is known; the AnkiConnect URL
-    /// is http(s); deck, note type and every mapped field are named. Each
-    /// learned language is supported, listed once and not the one cards are
-    /// translated into, and names its deck and note type; a saved mapping of
-    /// its own follows the global mapping's rules. Fields a note type lacks
-    /// are a warning in the approval window, never a validation problem.
+    /// is http(s); deck and note type are named, and a saved global mapping
+    /// fills a field and names every one. Each learned language is supported,
+    /// listed once and not the one cards are translated into, and names its
+    /// deck and note type; a saved mapping of its own follows the global
+    /// mapping's rules. A mapping matched by field name (`None`) needs no
+    /// check. Fields a note type lacks are a warning in the approval window,
+    /// never a validation problem.
     pub fn validate(&self) -> Result<(), ConfigError> {
         let mut problems = Vec::new();
 
@@ -493,12 +511,14 @@ impl AppConfig {
         if anki.model_name.is_empty() {
             problems.push("The Anki note type must not be empty.".to_string());
         }
-        check_mapping(
-            &anki.field_mapping,
-            "The field mapping must fill at least one Anki field.",
-            "Every mapped Anki field needs a name.",
-            &mut problems,
-        );
+        if let Some(mapping) = &anki.field_mapping {
+            check_mapping(
+                mapping,
+                "The field mapping must fill at least one Anki field.",
+                "Every mapped Anki field needs a name.",
+                &mut problems,
+            );
+        }
 
         let mut learned: Vec<&str> = Vec::new();
         for entry in &self.learning.languages {
@@ -767,14 +787,30 @@ mod tests {
         }
     }
 
-    /// The global `anki` section as a filing into `deck`.
+    /// The global `anki` section, its mapping never customized, as a filing
+    /// into `deck`.
     fn global_filing(config: &AppConfig, deck: &str) -> Filing {
+        assert_eq!(config.anki.field_mapping, None);
         Filing {
             deck: deck.into(),
             model: config.anki.model_name.clone(),
-            mapping: MappingChoice::Saved(config.anki.field_mapping.clone()),
+            mapping: MappingChoice::Auto,
             create_reverse: config.anki.create_reverse,
         }
+    }
+
+    /// `FieldMapping::apple_style_default()` as the builds before the global
+    /// mapping could be unset wrote it into every saved config.
+    fn old_default_mapping_json() -> Value {
+        json!({
+            "fields": [
+                { "anki_field": "Front", "source": "front" },
+                { "anki_field": "Back", "source": "back" },
+                { "anki_field": "Context Sentence", "source": "example" },
+                { "anki_field": "Notes", "source": "notes" }
+            ],
+            "audio_field": "Front Audio"
+        })
     }
 
     fn keys(value: &Value) -> Vec<&str> {
@@ -807,15 +843,7 @@ mod tests {
                     "deck_name": "English::AutomatedVocabulary",
                     "model_name": "AppleStyleFinalV3",
                     "create_reverse": true,
-                    "field_mapping": {
-                        "fields": [
-                            { "anki_field": "Front", "source": "front" },
-                            { "anki_field": "Back", "source": "back" },
-                            { "anki_field": "Context Sentence", "source": "example" },
-                            { "anki_field": "Notes", "source": "notes" }
-                        ],
-                        "audio_field": "Front Audio"
-                    }
+                    "field_mapping": null
                 },
                 "consent": {
                     "anki_install_granted_at": null,
@@ -840,7 +868,7 @@ mod tests {
         config.translation.max_chars = 250;
         config.translation.contact_email = Some("me@example.com".into());
         config.anki.create_reverse = false;
-        config.anki.field_mapping = FieldMapping::chinese_default();
+        config.anki.field_mapping = Some(FieldMapping::chinese_default());
         config.consent.grant(
             ConsentAction::AnkiInstall,
             Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap(),
@@ -852,6 +880,10 @@ mod tests {
 
         assert_eq!(loaded, config);
         let saved: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            saved["anki"]["field_mapping"],
+            serde_json::to_value(FieldMapping::chinese_default()).unwrap()
+        );
         assert_eq!(
             saved["learning"]["languages"][0]["field_mapping"],
             Value::Null
@@ -947,7 +979,7 @@ mod tests {
                 deck_name: "Vocabulary::Mined".into(),
                 model_name: "Basic (and reversed card)".into(),
                 create_reverse: true,
-                field_mapping: FieldMapping::apple_style_default(),
+                field_mapping: None,
             },
             consent: ConsentState::default(),
             learning: LearningConfig::default(),
@@ -1101,11 +1133,19 @@ mod tests {
             ("non-http url", |c| c.anki.connect_url = "file:///etc/passwd".into(), "is not an http:// URL"),
             ("empty deck", |c| c.anki.deck_name = String::new(), "deck name must not be empty"),
             ("empty model", |c| c.anki.model_name = String::new(), "note type must not be empty"),
-            ("empty mapping", |c| c.anki.field_mapping.fields.clear(), "at least one Anki field"),
+            (
+                "empty mapping",
+                |c| c.anki.field_mapping = Some(FieldMapping { fields: Vec::new(), audio_field: None }),
+                "The field mapping must fill at least one Anki field.",
+            ),
             (
                 "unnamed field",
-                |c| c.anki.field_mapping.fields.push(FieldBinding::new(" ", CardField::Notes)),
-                "Every mapped Anki field needs a name",
+                |c| {
+                    let mut mapping = FieldMapping::chinese_default();
+                    mapping.fields.push(FieldBinding::new(" ", CardField::Notes));
+                    c.anki.field_mapping = Some(mapping);
+                },
+                "Every mapped Anki field needs a name.",
             ),
             (
                 "profile without id",
@@ -1296,7 +1336,10 @@ mod tests {
     }
 
     /// The migration guarantee: a file from before learned languages files
-    /// every card exactly as before, whatever its language or profile.
+    /// every card into the deck, note type and reverse setting it always did,
+    /// whatever its language or profile. Its mapping, never chosen, is
+    /// matched by field name, which on the classic note type gives the old
+    /// default back (`mapper.rs`'s auto-match tests, `ipc_anki.rs`).
     #[test]
     fn without_learned_languages_cards_are_filed_as_before() {
         let dir = temp_dir();
@@ -1322,6 +1365,93 @@ mod tests {
         assert_eq!(
             config.filing(Some("deleted"), "zh-CN"),
             global_filing(&config, "Mine")
+        );
+    }
+
+    /// The user's file (no `field_mapping` key) and the files older builds
+    /// wrote (the built-in default, or `null`): none of them is a choice, so
+    /// all match the note type by field name, and the next save writes
+    /// `null`.
+    #[test]
+    fn a_global_mapping_never_chosen_is_matched_by_field_name() {
+        assert_eq!(
+            old_default_mapping_json(),
+            serde_json::to_value(FieldMapping::apple_style_default()).unwrap()
+        );
+        let files = [
+            (
+                "no key",
+                json!({ "anki": { "connect_url": "http://127.0.0.1:8765", "deck_name": "english",
+                                  "model_name": "AppleStyleFinalV3" } }),
+            ),
+            (
+                "null",
+                json!({ "anki": { "deck_name": "english", "field_mapping": null } }),
+            ),
+            (
+                "the old default",
+                json!({ "anki": { "deck_name": "english",
+                                  "field_mapping": old_default_mapping_json() } }),
+            ),
+        ];
+        for (name, file) in files {
+            let dir = temp_dir();
+            let path = dir.path().join(CONFIG_FILE_NAME);
+            fs::write(&path, file.to_string()).unwrap();
+
+            let config = load_config_from(&path).unwrap();
+
+            assert_eq!(config.anki.field_mapping, None, "{name}");
+            assert_eq!(
+                config.filing(None, "en"),
+                global_filing(&config, "english"),
+                "{name}"
+            );
+            assert!(config.validate().is_ok(), "{name}: {:?}", config.validate());
+            save_config_to(&path, &config).unwrap();
+            let saved: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+            assert_eq!(saved["anki"]["field_mapping"], Value::Null, "{name}");
+        }
+    }
+
+    /// Only the exact old default counts as unset: any change to it, or any
+    /// other mapping, is the user's and is pushed as saved.
+    #[test]
+    fn a_customized_global_mapping_is_used_as_saved() {
+        let mut no_audio = FieldMapping::apple_style_default();
+        no_audio.audio_field = None;
+        let mut reordered = FieldMapping::apple_style_default();
+        reordered.fields.swap(2, 3);
+        for mapping in [no_audio, reordered, FieldMapping::chinese_default()] {
+            let mut config = AppConfig::default();
+            config.anki.field_mapping = Some(mapping.clone());
+            config.normalize();
+
+            assert_eq!(config.anki.field_mapping.as_ref(), Some(&mapping));
+            assert_eq!(
+                config.filing(None, "en").mapping,
+                MappingChoice::Saved(mapping)
+            );
+        }
+
+        let mut config = AppConfig::default();
+        config.anki.field_mapping = Some(FieldMapping::apple_style_default());
+        config.normalize();
+        assert_eq!(config.anki.field_mapping, None, "the old default itself");
+    }
+
+    #[test]
+    fn a_learned_language_keeps_even_the_old_default_as_its_choice() {
+        let mut config = AppConfig::default();
+        config.learning.languages = vec![LearnedLanguage {
+            field_mapping: Some(FieldMapping::apple_style_default()),
+            ..french()
+        }];
+        config.normalize();
+
+        assert_eq!(
+            config.filing(None, "fr").mapping,
+            MappingChoice::Saved(FieldMapping::apple_style_default())
         );
     }
 

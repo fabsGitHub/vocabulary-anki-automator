@@ -1,10 +1,14 @@
 //! The Automator's AnkiConnect conversations through the IPC layer, against a
 //! wiremock AnkiConnect on 127.0.0.1 (docs/test-harness-strategy.md): the
-//! exact `createDeck`/`addNote` bodies an approval sends, the capture row it
-//! leaves behind, duplicates, the retry of unsynced captures into the deck
-//! they were approved for, learned languages filed into their own deck and
-//! note type, and the status probes. Nothing here talks to a real Anki or
-//! leaves the machine.
+//! exact `modelFieldNames`/`createDeck`/`addNote` bodies an approval sends,
+//! the capture row it leaves behind, duplicates, the retry of unsynced
+//! captures into the deck they were approved for, learned languages filed
+//! into their own deck and note type, and the status probes. Nothing here
+//! talks to a real Anki or leaves the machine.
+//!
+//! The default config's mapping is matched by field name, so most pushes
+//! here start with `modelFieldNames`; the classic note type's fields
+//! ([`classic_fields`]) match to the old default mapping.
 
 mod common;
 
@@ -18,7 +22,7 @@ use common::{b64, fake_audio, Harness, Options, UNREACHABLE_ANKI};
 use serde_json::{json, Value};
 use tauri::async_runtime::block_on;
 use vocab_automator_lib::{
-    config::{HotkeyProfile, LearnedLanguage},
+    config::{AppConfig, HotkeyProfile, LearnedLanguage},
     push::deck_key,
 };
 use vocab_core::store::Store;
@@ -118,6 +122,65 @@ fn apple_style_final_v3() -> Value {
     ])
 }
 
+/// The fields of the classic AppleStyleFinalV3 note type the old default
+/// mapping was made for.
+fn classic_fields() -> Value {
+    json!(["Front", "Back", "Context Sentence", "Notes", "Front Audio"])
+}
+
+/// The old default mapping minus its Notes binding: a customized global
+/// mapping that does not fit the user's note type.
+fn customized_classic() -> FieldMapping {
+    let mut mapping = FieldMapping::apple_style_default();
+    mapping
+        .fields
+        .retain(|binding| binding.anki_field != "Notes");
+    mapping
+}
+
+/// One `addNote` of "serendipity" for the user's AppleStyleFinalV3 note type
+/// matched by name: the example halves go to the fields named after their
+/// language, on both notes, and the audio to "Audio".
+fn apple_v3_note(deck: &str, front: &str, back: &str, audio: Vec<u8>, suffix: &str) -> Value {
+    add_note(json!({
+        "deckName": deck,
+        "modelName": "AppleStyleFinalV3",
+        "fields": {
+            "Front": front,
+            "Back": back,
+            "English Sentence": "An example with serendipity.",
+            "German Sentence": "[de] An example with serendipity."
+        },
+        "options": { "allowDuplicate": false, "duplicateScope": "deck" },
+        "tags": [],
+        "audio": [{
+            "data": b64(&audio),
+            "filename": format!("vocab_{STAMP}_{suffix}.mp3"),
+            "fields": ["Audio"]
+        }]
+    }))
+}
+
+/// Both notes of "serendipity" into `deck` on the user's note type.
+fn apple_v3_notes(deck: &str) -> [Value; 2] {
+    [
+        apple_v3_note(
+            deck,
+            "serendipity",
+            "glücklicher Zufall",
+            fake_audio("en", "serendipity"),
+            "fwd",
+        ),
+        apple_v3_note(
+            deck,
+            "glücklicher Zufall",
+            "serendipity",
+            fake_audio("de", "glücklicher Zufall"),
+            "rev",
+        ),
+    ]
+}
+
 /// A learned language filed into `deck` on AppleStyleFinalV3, its fields
 /// matched by name.
 fn learned(lang: &str, deck: &str) -> LearnedLanguage {
@@ -200,9 +263,17 @@ fn serendipity_reverse() -> Value {
     }))
 }
 
+/// The default config's mapping is matched by field name: on the classic
+/// note type that is the old default mapping, so after the one
+/// `modelFieldNames` the notes are exactly the ones earlier builds sent.
 #[test]
 fn approving_sends_the_exact_notes_and_marks_the_capture_synced() {
     let server = start();
+    answer_exactly(
+        &server,
+        model_field_names("AppleStyleFinalV3"),
+        ok(classic_fields()),
+    );
     answer_exactly(
         &server,
         create_deck("English::AutomatedVocabulary"),
@@ -222,6 +293,7 @@ fn approving_sends_the_exact_notes_and_marks_the_capture_synced() {
     assert_eq!(
         sent(&server),
         [
+            model_field_names("AppleStyleFinalV3"),
             create_deck("English::AutomatedVocabulary"),
             serendipity_forward(),
             serendipity_reverse()
@@ -243,9 +315,9 @@ fn approving_sends_the_exact_notes_and_marks_the_capture_synced() {
 /// in: the action, the row's `synced_to_anki` and its remembered deck.
 type Seen = (String, Option<bool>, Option<String>);
 
-/// Answers every AnkiConnect request with success and records what the
-/// shared database holds at that moment, through a second connection as
-/// Learn would see it.
+/// Answers every AnkiConnect request with success (the classic fields for
+/// `modelFieldNames`) and records what the shared database holds at that
+/// moment, through a second connection as Learn would see it.
 #[derive(Clone)]
 struct Inspector {
     db: PathBuf,
@@ -262,8 +334,13 @@ impl Respond for Inspector {
             .map(|row| row.synced_to_anki);
         let deck = store.get_state(&deck_key(1)).expect("readable");
         let action = body["action"].as_str().unwrap_or_default().to_string();
+        let result = if action == "modelFieldNames" {
+            classic_fields()
+        } else {
+            json!(1)
+        };
         self.seen.lock().unwrap().push((action, synced, deck));
-        ok(json!(1))
+        ok(result)
     }
 }
 
@@ -301,7 +378,10 @@ fn the_card_and_its_deck_are_saved_before_anki_is_asked() {
     assert_eq!(result["synced_to_anki"], true);
     let seen = inspector.seen.lock().unwrap().clone();
     let actions: Vec<&str> = seen.iter().map(|(action, _, _)| action.as_str()).collect();
-    assert_eq!(actions, ["createDeck", "addNote", "addNote"]);
+    assert_eq!(
+        actions,
+        ["modelFieldNames", "createDeck", "addNote", "addNote"]
+    );
     for (action, synced, deck) in &seen {
         assert_eq!(*synced, Some(false), "{action}: stored, unsynced, first");
         assert_eq!(
@@ -322,6 +402,7 @@ fn the_card_and_its_deck_are_saved_before_anki_is_asked() {
 #[test]
 fn a_duplicate_counts_as_synced() {
     let server = start();
+    answer(&server, "modelFieldNames", ok(classic_fields()));
     answer(&server, "createDeck", ok(json!(1)));
     answer(
         &server,
@@ -349,6 +430,7 @@ fn a_duplicate_counts_as_synced() {
 #[test]
 fn an_anki_error_keeps_the_capture_for_the_retry() {
     let server = start();
+    answer(&server, "modelFieldNames", ok(classic_fields()));
     answer(&server, "createDeck", ok(json!(1)));
     answer(
         &server,
@@ -369,7 +451,8 @@ fn an_anki_error_keeps_the_capture_for_the_retry() {
     assert!(!row.synced_to_anki);
 }
 
-/// Milestones H and J5: a profile's deck and a Chinese note type.
+/// Milestones H and J5: a profile's deck and a Chinese note type. A saved
+/// global mapping is pushed as saved, without asking for the fields.
 #[test]
 fn a_chinese_profile_capture_fills_the_chinese_note_type_in_its_deck() {
     let server = start();
@@ -392,7 +475,7 @@ fn a_chinese_profile_capture_fills_the_chinese_note_type_in_its_deck() {
     options.config.anki.connect_url = server.uri();
     options.config.anki.model_name = "Chinese (HSK)".into();
     options.config.anki.create_reverse = false;
-    options.config.anki.field_mapping = anki_bridge::FieldMapping::chinese_default();
+    options.config.anki.field_mapping = Some(FieldMapping::chinese_default());
     options.config.hotkey_profiles.push(HotkeyProfile {
         id: "zh-de".into(),
         label: "Chinese → German".into(),
@@ -438,6 +521,7 @@ fn the_retry_pushes_each_capture_into_the_deck_it_was_approved_for() {
 
     // Anki comes back.
     let server = start();
+    answer(&server, "modelFieldNames", ok(classic_fields()));
     answer(&server, "createDeck", ok(json!(1)));
     answer(&server, "addNote", ok(json!(55)));
     let mut settings = harness.call("get_current_settings", json!({}));
@@ -450,15 +534,21 @@ fn the_retry_pushes_each_capture_into_the_deck_it_was_approved_for() {
 
     assert_eq!(report, json!({ "attempted": 2, "synced": 2, "failed": [] }));
     let requests = sent(&server);
-    let decks: Vec<&str> = requests
-        .iter()
-        .map(|body| match body["action"].as_str().unwrap() {
-            "createDeck" => body["params"]["deck"].as_str().unwrap(),
-            _ => body["params"]["note"]["deckName"].as_str().unwrap(),
-        })
-        .collect();
     assert_eq!(
-        decks,
+        actions(&requests),
+        [
+            "modelFieldNames",
+            "createDeck",
+            "addNote",
+            "addNote",
+            "createDeck",
+            "addNote",
+            "addNote"
+        ],
+        "both cards share the note type, whose fields are read once"
+    );
+    assert_eq!(
+        decks(&requests),
         [
             "Chinese::HSK",
             "Chinese::HSK",
@@ -470,7 +560,7 @@ fn the_retry_pushes_each_capture_into_the_deck_it_was_approved_for() {
     );
     // The reverse note of the retried card has audio in the target language.
     assert_eq!(
-        requests[2]["params"]["note"]["audio"][0]["data"],
+        requests[3]["params"]["note"]["audio"][0]["data"],
         b64(&fake_audio("de", "lernen"))
     );
     let store = harness.open_store();
@@ -643,37 +733,7 @@ fn a_learned_language_without_a_mapping_is_matched_by_field_name() {
         ok(apple_style_final_v3()),
     );
     answer_exactly(&server, create_deck("english"), ok(json!(1)));
-    let note = |front: &str, back: &str, audio: Vec<u8>, suffix: &str| {
-        add_note(json!({
-            "deckName": "english",
-            "modelName": "AppleStyleFinalV3",
-            "fields": {
-                "Front": front,
-                "Back": back,
-                "English Sentence": "An example with serendipity.",
-                "German Sentence": "[de] An example with serendipity."
-            },
-            "options": { "allowDuplicate": false, "duplicateScope": "deck" },
-            "tags": [],
-            "audio": [{
-                "data": b64(&audio),
-                "filename": format!("vocab_{STAMP}_{suffix}.mp3"),
-                "fields": ["Audio"]
-            }]
-        }))
-    };
-    let forward = note(
-        "serendipity",
-        "glücklicher Zufall",
-        fake_audio("en", "serendipity"),
-        "fwd",
-    );
-    let reverse = note(
-        "glücklicher Zufall",
-        "serendipity",
-        fake_audio("de", "glücklicher Zufall"),
-        "rev",
-    );
+    let [forward, reverse] = apple_v3_notes("english");
     answer_exactly(&server, forward.clone(), ok(json!(101)));
     answer_exactly(&server, reverse.clone(), ok(json!(102)));
     let mut options = Options::default();
@@ -838,14 +898,77 @@ fn the_retry_files_each_capture_by_its_language() {
         .is_empty());
 }
 
-/// The approval window's warning for the user's note type: the default
-/// mapping drops the example and the audio, a learned language matched by
-/// field name drops nothing, and a missing note type is reported.
+/// The user's report, fixed: their config.json names deck and note type but
+/// no field mapping, and their AppleStyleFinalV3 note type has the fields
+/// Front, Back, English Sentence, German Sentence and Audio. The approval
+/// window warns about nothing, and the example halves and the pronunciation
+/// reach the fields named after them, on both notes.
+#[test]
+fn a_config_without_a_field_mapping_fills_the_user_s_note_type() {
+    let server = start();
+    answer(&server, "modelFieldNames", ok(apple_style_final_v3()));
+    answer_exactly(&server, create_deck("english"), ok(json!(1)));
+    let [forward, reverse] = apple_v3_notes("english");
+    answer_exactly(&server, forward.clone(), ok(json!(101)));
+    answer_exactly(&server, reverse.clone(), ok(json!(102)));
+    let config: AppConfig = serde_json::from_value(json!({
+        "anki": {
+            "connect_url": server.uri(),
+            "deck_name": "english",
+            "model_name": "AppleStyleFinalV3"
+        }
+    }))
+    .unwrap();
+    assert_eq!(config.anki.field_mapping, None);
+    assert!(config.learning.languages.is_empty());
+    let harness = Harness::with(Options {
+        config,
+        ..Options::default()
+    });
+    let card = capture(&harness, "serendipity", None);
+
+    let check = harness.call("check_pending_fields", json!({}));
+    let result = approve(&harness, card);
+
+    assert_eq!(
+        check,
+        json!({
+            "status": "checked",
+            "model": "AppleStyleFinalV3",
+            "auto_matched": true,
+            "lost": []
+        })
+    );
+    assert_eq!(result["note_ids"], json!([101, 102]));
+    assert_eq!(
+        sent(&server),
+        [
+            model_field_names("AppleStyleFinalV3"),
+            model_field_names("AppleStyleFinalV3"),
+            create_deck("english"),
+            forward,
+            reverse
+        ]
+    );
+    assert_eq!(
+        harness.call("get_current_settings", json!({}))["anki"]["field_mapping"],
+        Value::Null,
+        "the match is never written back"
+    );
+}
+
+/// The approval window's warning for the user's note type: a customized
+/// global mapping that does not fit drops the example and the audio, while a
+/// global mapping never customized and a learned language, both matched by
+/// field name, drop nothing.
 #[test]
 fn check_pending_fields_reports_what_a_push_would_drop() {
     let server = start();
     answer(&server, "modelFieldNames", ok(apple_style_final_v3()));
-    let harness = Harness::with_anki(&server.uri());
+    let mut options = Options::default();
+    options.config.anki.connect_url = server.uri();
+    options.config.anki.field_mapping = Some(customized_classic());
+    let harness = Harness::with(options);
     capture(&harness, "serendipity", None);
 
     let check = harness.call("check_pending_fields", json!({}));
@@ -864,20 +987,22 @@ fn check_pending_fields_reports_what_a_push_would_drop() {
     );
     assert_eq!(sent(&server), [model_field_names("AppleStyleFinalV3")]);
 
+    let matched = json!({
+        "status": "checked",
+        "model": "AppleStyleFinalV3",
+        "auto_matched": true,
+        "lost": []
+    });
+    let harness = Harness::with_anki(&server.uri());
+    capture(&harness, "serendipity", None);
+    assert_eq!(harness.call("check_pending_fields", json!({})), matched);
+
     let mut options = Options::default();
     options.config.anki.connect_url = server.uri();
     options.config.learning.languages = vec![learned("en", "english")];
     let harness = Harness::with(options);
     capture(&harness, "serendipity", None);
-    assert_eq!(
-        harness.call("check_pending_fields", json!({})),
-        json!({
-            "status": "checked",
-            "model": "AppleStyleFinalV3",
-            "auto_matched": true,
-            "lost": []
-        })
-    );
+    assert_eq!(harness.call("check_pending_fields", json!({})), matched);
 }
 
 /// The window checks the card as the user edited it: a note typed in that
@@ -900,14 +1025,11 @@ fn check_pending_fields_checks_the_edited_card() {
 
     assert_eq!(
         check["lost"],
-        json!([
-            { "kind": "missing_field", "anki_field": "Notes", "source": "notes" },
-            { "kind": "audio", "audio_field": "Front Audio" }
-        ])
+        json!([{ "kind": "unmapped", "source": "notes" }])
     );
     assert_eq!(
-        harness.call("check_pending_fields", json!({ "card": null }))["lost"][0]["source"],
-        "example",
+        harness.call("check_pending_fields", json!({ "card": null }))["lost"],
+        json!([]),
         "without a draft the pending card is checked"
     );
 }

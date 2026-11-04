@@ -705,10 +705,7 @@ language pair in capture order.
     "deck_name": "English::AutomatedVocabulary",
     "model_name": "AppleStyleFinalV3",
     "create_reverse": true,
-    "field_mapping": {
-      "fields": [{ "anki_field": "Front", "source": "front" }],
-      "audio_field": "Front Audio"
-    }
+    "field_mapping": null
   },
   "consent": { "anki_install_granted_at": null, "ankiconnect_provision_granted_at": null },
   "learning": {
@@ -717,7 +714,10 @@ language pair in capture order.
         "lang": "fr",
         "deck_name": "french",
         "model_name": "AppleStyleFinalV3",
-        "field_mapping": null,
+        "field_mapping": {
+          "fields": [{ "anki_field": "Front", "source": "front" }],
+          "audio_field": "Audio"
+        },
         "create_reverse": true
       }
     ]
@@ -733,7 +733,9 @@ language pair in capture order.
   order the approval window shows them, each with its own deck, note type, field
   mapping and reverse setting. The user's own language is
   `translation.target_lang`. A file without `learning` loads as an empty list and
-  is not rewritten on load; an empty list keeps every capture exactly as before.
+  is not rewritten on load; an empty list keeps every capture in the deck and note
+  type it always had (the field mapping is matched by name unless customized; see
+  below).
 - Detection (`vocab_core::detect`, § 3.1) runs only for the default hotkey and
   only while `learning.languages` is non-empty: it picks the capture's source
   language among the learned ones, with `translation.source_lang` as the fallback
@@ -750,24 +752,43 @@ language pair in capture order.
   | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
   | deck          | the hotkey profile's `deck_name` (a known `profile_id` with a deck) → `entry.deck_name` (non-blank) → `anki.deck_name` |
   | note type     | `entry.model_name` (non-blank) → `anki.model_name`                                                                     |
-  | field mapping | with an entry: its `field_mapping`, or `Auto` when `null`; without one: `anki.field_mapping`                           |
+  | field mapping | with an entry: its `field_mapping`; without one: `anki.field_mapping`; either is `Auto` when `null`                    |
   | reverse note  | `entry.create_reverse` → `anki.create_reverse`                                                                         |
 
   An unknown `profile_id` (a profile deleted since the capture) counts as none. A
   hotkey profile with a fixed pair still takes note type, mapping and reverse
   setting from its source language's entry; only its own deck wins.
 
-- A `null` `field_mapping` means "match the note type's fields by name"
+- A `null` `field_mapping`, a learned language's or `anki.field_mapping` (whose
+  default it is), means "match the note type's fields by name"
   (`FieldMapping::auto_match`, § 9) whenever a card is filed; the result is never
-  written back, so a changed note type is matched afresh. `anki.field_mapping` is
+  written back, so a changed note type is matched afresh. A saved mapping is
   always used as saved.
+- Migration of `anki.field_mapping`: until 2026-11 it was a plain mapping that
+  defaulted to `FieldMapping::apple_style_default()`, so every file an older build
+  saved holds that default whether or not the user ever chose it.
+  `AppConfig::normalize` therefore turns a missing key, `null` and exactly that
+  default into `null`, and the next save writes `null`; any other mapping, even the
+  default with one binding or the audio field changed, stays saved. On the classic
+  AppleStyleFinalV3 note type (Front, Back, Context Sentence, Notes, Front Audio)
+  the match is exactly that default for every language pair (`mapper.rs`
+  `the_classic_note_type_matches_the_old_default_for_every_pair`), so those notes do
+  not change; on any other note type it fills the fields the default missed. The
+  rule is only for the global mapping: a learned language's saved mapping, the
+  preset included, was always a choice. The settings form mirrors it
+  (`globalMapping` in `src/domain/fieldMapping.ts`), so a customized mapping equal
+  to the preset saves as `null`. A user who wants exactly that preset on a note
+  type whose names match differently cannot keep it; any change to it is kept.
 - Validation: each learned `lang` is supported, listed once and not
   `translation.target_lang`; deck and note type are non-empty; a saved mapping of
-  its own fills at least one field and names every field, like `anki.field_mapping`.
-  Fields the note type lacks are a warning, never a validation error.
+  its own fills at least one field and names every field, like a saved
+  `anki.field_mapping`. Fields the note type lacks are a warning, never a validation
+  error.
 - Downgrade: an older build ignores `learning`, but a saved mapping that uses
-  `example_in_source_lang` or `example_in_target_lang` (§ 9) makes the whole file
-  unreadable to it, so it is kept as `config.json.bak` and the defaults load.
+  `example_in_source_lang` or `example_in_target_lang` (§ 9), and an
+  `anki.field_mapping` of `null` (what every save writes until the user customizes
+  the mapping), make the whole file unreadable to it, so it is kept as
+  `config.json.bak` and the defaults load.
 - Loading a legacy file maps the old `deepl` section onto `translation`
   (`api_key` is dropped), lowercases language codes and fills every new field
   with its default. `load_config_from(path)`/`save_config_to(path, cfg)` are
@@ -832,9 +853,9 @@ Further rules both sides rely on:
   profile capture (`app_state` `automator.unsynced_deck.<id>`) when there is one.
   `execute_card_generation` remembers a deck only when it differs from that one.
 - Both push commands send `modelFieldNames` first when the filing's mapping is
-  matched by field name (`null` in `learning.languages`; § 9 `auto_match`, never
-  saved), once per note type per sync run. A failure to read the fields counts as
-  a push error: the card stays saved and unsynced. A saved mapping sends exactly
+  matched by field name (`null`, an entry's or the global one; § 9 `auto_match`,
+  never saved), once per note type per sync run. A failure to read the fields counts
+  as a push error: the card stays saved and unsynced. A saved mapping sends exactly
   `createDeck`, forward note, reverse note, as before.
 - After the card is saved, `execute_card_generation` writes the card's
   `source_lang` to `automator.last_source_lang` (§ 6.4), best-effort and only while
@@ -879,16 +900,22 @@ Further rules both sides rely on:
   when it starts, or by the time the result is ready: "The card was saved or
   discarded in the meantime."). Each re-run spends the translation, example and
   TTS requests again.
-- `suggest_field_mapping` only reads from Anki and writes no config: the Anki tab's
-  "Match by field name" replaces the form's mapping and audio field with the result
-  (a user edit, so the form becomes dirty) and lists its `guessed` and `unmatched`
-  fields; nothing is saved until the user saves the form. The "My languages" tab
-  calls it to preview the match of every entry whose mapping is `null`, for the
-  entry's language and `translation.target_lang`, without touching the form; only
-  "Customize" copies the result into the entry (offline: a copy of
-  `anki.field_mapping`), and "Stop customizing" sets the mapping back to
-  `null`. The settings tabs read a note type's fields (`anki_model_field_names`)
-  once while Anki stays online, from a cache the main window shares between them
+- `suggest_field_mapping` only reads from Anki and writes no config. Both settings
+  tabs call it to preview the match of every mapping that is `null`, without
+  touching the form: the Anki tab's for `translation.source_lang` →
+  `translation.target_lang` (each card is still matched for its own pair), each "My
+  languages" entry's for its language and `translation.target_lang`. Only
+  "Customize" copies the result into the form (offline: the Anki tab starts from the
+  Apple-style preset, an entry from a copy of `anki.field_mapping`, or that preset
+  while it is `null`), and "Stop customizing" sets the mapping back to `null`; both
+  tabs share this UI (`src/components/MappingChoiceEditor.vue`,
+  `src/composables/useAutoMatches.ts`), so saving the Anki tab without customizing
+  sends `"field_mapping": null`. A customized mapping's "Match by field name"
+  replaces the form's mapping and audio field with the result (a user edit, so the
+  form becomes dirty) and lists its `guessed` and `unmatched` fields; nothing is
+  saved until the user saves the form. The settings tabs read a note type's fields
+  (`anki_model_field_names`) for customized mappings only, once while Anki stays
+  online, from a cache the main window shares between them
   (`src/composables/useModelFields.ts`).
 
 ### 8.3 Windows and capabilities

@@ -3,12 +3,14 @@
  *
  * The mapping itself is applied in `anki-bridge` (docs/architecture.md § 9);
  * this module only edits the mapping values the backend reads
- * (`anki.field_mapping` and a learned language's saved mapping) and mirrors
- * the two rules the editor has to show truthfully: the first binding
- * for an Anki field wins (field names compared case-insensitively, as
- * AnkiConnect compares them), and `missing_fields` flags what a note type
- * would silently drop. The presets are copies of
- * `FieldMapping::apple_style_default` and `FieldMapping::chinese_default`.
+ * (`anki.field_mapping` and a learned language's saved mapping; `null` for
+ * either is matched by field name at push time) and mirrors the rules the
+ * editor has to show truthfully: the first binding for an Anki field wins
+ * (field names compared case-insensitively, as AnkiConnect compares them),
+ * `missing_fields` flags what a note type would silently drop, and a global
+ * mapping equal to the Apple-style preset counts as never chosen (§ 8.1).
+ * The presets are copies of `FieldMapping::apple_style_default` and
+ * `FieldMapping::chinese_default`.
  */
 
 import type { AppConfig, AutoMatch, CardField, FieldBinding, FieldMapping } from '../api'
@@ -77,6 +79,16 @@ export function sameMapping(a: FieldMapping, b: FieldMapping): boolean {
         binding.source === b.fields[index].source,
     )
   )
+}
+
+/**
+ * The global mapping as the backend keeps it (`AppConfig::normalize`): the
+ * Apple-style preset is what every config held before the global mapping
+ * could be left unset, so it is no choice and becomes `null`, matched by
+ * field name like a missing one.
+ */
+export function globalMapping(mapping: FieldMapping | null): FieldMapping | null {
+  return mapping && !sameMapping(mapping, appleStyleMapping()) ? mapping : null
 }
 
 /** A copy that shares no object with `mapping`. */
@@ -163,16 +175,19 @@ export function missingFields(mapping: FieldMapping, modelFields: string[]): str
  * Milestone J5: Chinese captures carry pinyin and an HSK level that only a
  * Chinese note type can hold. True when the default hotkey or any profile
  * captures from Chinese but nothing in the global mapping receives the
- * pinyin. With Chinese under "My languages" every Chinese capture is filed
- * through that entry, which the languages tab checks on its own: a saved
- * mapping directly, one matched by field name through its preview.
+ * pinyin: the saved mapping, or else `match`, the preview of matching the
+ * note type by field name (whether a field takes the pinyin does not depend
+ * on the language pair). Without either (offline, a mapping matched by name)
+ * it stays silent. With Chinese under "My languages" every Chinese capture is
+ * filed through that entry, which the languages tab checks on its own the
+ * same way.
  */
-export function needsChineseNoteType(config: AppConfig): boolean {
+export function needsChineseNoteType(config: AppConfig, match: AutoMatch | null = null): boolean {
   if (config.learning.languages.some((entry) => isChinese(entry.lang))) return false
   const capturesChinese =
     isChinese(config.translation.source_lang) ||
     config.hotkey_profiles.some((profile) => isChinese(profile.source_lang))
-  return capturesChinese && !bindsSource(config.anki.field_mapping, 'pinyin')
+  return capturesChinese && lacksPinyin(config.anki.field_mapping, match)
 }
 
 /**

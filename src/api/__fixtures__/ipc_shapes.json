@@ -187,27 +187,7 @@
         "connect_url": "http://127.0.0.1:8765",
         "create_reverse": true,
         "deck_name": "English::AutomatedVocabulary",
-        "field_mapping": {
-          "audio_field": "Front Audio",
-          "fields": [
-            {
-              "anki_field": "Front",
-              "source": "front"
-            },
-            {
-              "anki_field": "Back",
-              "source": "back"
-            },
-            {
-              "anki_field": "Context Sentence",
-              "source": "example"
-            },
-            {
-              "anki_field": "Notes",
-              "source": "notes"
-            }
-          ]
-        },
+        "field_mapping": null,
         "model_name": "AppleStyleFinalV3"
       },
       {
@@ -262,27 +242,7 @@
           "connect_url": "http://127.0.0.1:8765",
           "create_reverse": true,
           "deck_name": "English::AutomatedVocabulary",
-          "field_mapping": {
-            "audio_field": "Front Audio",
-            "fields": [
-              {
-                "anki_field": "Front",
-                "source": "front"
-              },
-              {
-                "anki_field": "Back",
-                "source": "back"
-              },
-              {
-                "anki_field": "Context Sentence",
-                "source": "example"
-              },
-              {
-                "anki_field": "Notes",
-                "source": "notes"
-              }
-            ]
-          },
+          "field_mapping": null,
           "model_name": "AppleStyleFinalV3"
         },
         "consent": {
