@@ -148,6 +148,8 @@ export const de: MessageSchema = {
     offlineEditing:
       'Anki ist offline. Stapel und Notiztyp können trotzdem eingetippt werden; die Listen erscheinen, sobald Anki verbunden ist.',
     targetTitle: 'Wohin die Karten gehen',
+    otherLanguagesHint:
+      'Text in einer unter „Meine Sprachen“ aufgeführten Sprache wird mit deren Stapel, Notiztyp und Feldzuordnung abgelegt. Diese Einstellungen gelten für jeden anderen Text.',
     deck: 'Stapel',
     deckHint: 'Ein Stapel, den es noch nicht gibt, wird mit der ersten Karte angelegt.',
     model: 'Notiztyp',

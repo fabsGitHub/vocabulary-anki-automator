@@ -2,7 +2,9 @@
 /**
  * The "Anki connection" tab: what is missing for Anki to receive cards, the
  * consent-gated ways to fix it (Milestone E), and where cards go: deck, note
- * type, field mapping and reverse card (Milestones H and J5).
+ * type, field mapping and reverse card (Milestones H and J5). With languages
+ * listed under "My languages", these apply only to text in other languages,
+ * which the tab says.
  *
  * Deck and note type stay editable while Anki is offline, as free text; the
  * lists Anki reports replace the text fields once it is online.
@@ -162,6 +164,13 @@ const fields = computed(() => modelFields.state(config.value.anki.model_name))
 
     <section class="pane-layout">
       <h3 class="pane-title">{{ t('anki.targetTitle') }}</h3>
+      <p
+        v-if="config.learning.languages.length > 0"
+        class="input-hint"
+        data-test="anki-fallback-hint"
+      >
+        {{ t('anki.otherLanguagesHint') }}
+      </p>
       <p v-if="!online && state !== 'checking'" class="input-hint">
         {{ t('anki.offlineEditing') }}
       </p>

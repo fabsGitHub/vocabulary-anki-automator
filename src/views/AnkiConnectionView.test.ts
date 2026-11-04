@@ -266,6 +266,23 @@ describe('the settings this tab owns', () => {
     expect(store.dirty.value).toBe(true)
   })
 
+  it('says it covers only other languages while languages are listed under "My languages"', async () => {
+    await mountTab()
+    expect(wrapper?.find('[data-test="anki-fallback-hint"]').exists()).toBe(false)
+
+    store.config.value.learning.languages.push({
+      lang: 'fr',
+      deck_name: 'french',
+      model_name: 'AppleStyleFinalV3',
+      field_mapping: null,
+      create_reverse: true,
+    })
+    await flushPromises()
+    expect(wrapper?.find('[data-test="anki-fallback-hint"]').text()).toBe(
+      'Text in a language listed under “My languages” is filed with that language’s deck, note type and field mapping. These settings apply to all other text.',
+    )
+  })
+
   it('toggles the reverse card', async () => {
     await mountTab()
     expect(store.config.value.anki.create_reverse).toBe(true)

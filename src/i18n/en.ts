@@ -151,6 +151,8 @@ export const en = {
     offlineEditing:
       'Anki is offline. Deck and note type can still be typed in; the lists fill in once Anki is connected.',
     targetTitle: 'Where cards go',
+    otherLanguagesHint:
+      'Text in a language listed under “My languages” is filed with that language’s deck, note type and field mapping. These settings apply to all other text.',
     deck: 'Deck',
     deckHint: 'A deck that does not exist yet is created with the first card.',
     model: 'Note type',
