@@ -24,7 +24,7 @@
   "hero": {
     "eyebrow": "Desktop app for Anki",
     "title": "Turn the words you read into Anki cards.",
-    "subline_html": "Select a word or phrase in any app and press <kbd>⌘⇧C</kbd>. Vocabulary Automator looks up the translation and the pronunciation and shows you the finished card. Press <kbd>Enter</kbd>, and it is in your deck.",
+    "subline_html": "Select a word or phrase in any app and press <kbd>⇧⌘C</kbd> (Shift-Command-C). Vocabulary Automator looks up the translation and the pronunciation and shows you the finished card. Press <kbd>Enter</kbd>, and it is in your deck.",
     "cta": "Download for macOS",
     "meta": "Version {version} · Preview · Apple Silicon and Intel",
     "ctaFallback": "GitHub Releases",
@@ -36,13 +36,13 @@
   },
   "mock": {
     "label": "Illustration of the approval window",
-    "description": "The window “New card” with a card for the English word “reluctant”: the back “widerwillig”, an example sentence and its German translation, the deck “English”, the note type “Basic” and the buttons “Discard” and “Add to Anki”.",
+    "description": "The approval window with a card for the English word “reluctant”: the language chips “English” (selected) and “French”, “→ German”, the deck “English”, the note type “Vocabulary”, the back “widerwillig”, an example sentence with its German translation, a button that plays the pronunciation and the buttons “Discard” and “Add to Anki”.",
     "title": "New card",
     "langActive": "English",
     "langOther": "French",
     "target": "→ German",
     "deck": "Deck: English",
-    "model": "Note type: Basic",
+    "model": "Note type: Vocabulary",
     "front": "Front (word)",
     "frontValue": "reluctant",
     "back": "Back (translation)",
@@ -60,7 +60,7 @@
     "title": "How it works",
     "s1": {
       "title": "Select and press the hotkey",
-      "body_html": "Select a word or phrase in any app you can copy text from and press <kbd>⌘⇧C</kbd>. The app copies the selection and then puts your previous clipboard text back."
+      "body_html": "Select a word or phrase in any app you can copy text from and press <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Shift-Command-C</span>. The app copies the selection and then puts your previous clipboard text back."
     },
     "s2": {
       "title": "The card fills itself in",
@@ -246,7 +246,7 @@
     },
     "s3": {
       "title": "Let the hotkey copy text",
-      "body_html": "The hotkey copies your selection with a simulated <kbd>⌘C</kbd>, which macOS allows only with the Accessibility permission. The app does not ask for it by itself. Open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, click <strong>+</strong>, choose Vocabulary Automator in Applications and turn its switch on. Without the permission, the first capture shows a message that points you here. If a capture still copies nothing, quit the app (menu bar icon > Quit) and open it again."
+      "body_html": "The hotkey copies your selection with a simulated <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span>, which macOS allows only with the Accessibility permission. The app does not ask for it by itself. Open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, click <strong>+</strong>, choose Vocabulary Automator in Applications and turn its switch on. Without the permission, the first capture shows a message that points you here. If a capture still copies nothing, quit the app (menu bar icon > Quit) and open it again."
     },
     "s4": {
       "title": "Connect Anki",
@@ -258,7 +258,7 @@
     },
     "s6": {
       "title": "Try it",
-      "body_html": "Select a word anywhere and press <kbd>⌘⇧C</kbd>. Or type a word under <strong>“Try a capture”</strong> on the “Capture &amp; Language” tab."
+      "body_html": "Select a word anywhere and press <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Shift-Command-C</span>. Or type a word under <strong>“Try a capture”</strong> on the “Capture &amp; Language” tab."
     },
     "updateTitle": "Updating the preview",
     "updateBody_html": "The preview does not update itself. To update, download the new version from this page, quit Vocabulary Automator (menu bar icon > Quit) and replace the app in Applications. Your settings and history are kept. macOS may show the warning from step 2 again. macOS also treats each new preview build as a different app, so open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, remove the old Vocabulary Automator entry with <strong>−</strong> and add the new one with <strong>+</strong>. If the app tells you about a new version, get that version from this page too.",
@@ -281,7 +281,7 @@
     },
     "q3": {
       "q": "Why does the app need the Accessibility permission?",
-      "a_html": "To copy your selection, the hotkey sends <kbd>⌘C</kbd> to the app you are reading in, and macOS allows that only with the Accessibility permission. Vocabulary Automator uses it for nothing else."
+      "a_html": "To copy your selection, the hotkey sends <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span> to the app you are reading in, and macOS allows that only with the Accessibility permission. Vocabulary Automator uses it for nothing else."
     },
     "q4": {
       "q": "What happens if Anki is closed?",

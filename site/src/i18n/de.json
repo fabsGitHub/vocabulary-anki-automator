@@ -24,7 +24,7 @@
   "hero": {
     "eyebrow": "Desktop-App für Anki",
     "title": "Vom markierten Wort zur fertigen Anki-Karte.",
-    "subline_html": "Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie <kbd>⌘⇧C</kbd> (Befehl-Umschalt-C). Vocabulary Automator ermittelt Übersetzung und Aussprache und zeigt Ihnen die fertige Karte. Ein Druck auf <kbd>Enter</kbd>, und sie ist in Ihrem Stapel.",
+    "subline_html": "Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie <kbd>⇧⌘C</kbd> (Umschalt-Befehl-C). Vocabulary Automator ermittelt Übersetzung und Aussprache und zeigt Ihnen die fertige Karte. Ein Druck auf <kbd>Enter</kbd>, und sie ist in Ihrem Stapel.",
     "cta": "Für macOS herunterladen",
     "meta": "Version {version} · Vorschauversion · Apple Silicon und Intel",
     "ctaFallback": "GitHub Releases",
@@ -36,13 +36,13 @@
   },
   "mock": {
     "label": "Darstellung des Bestätigungsfensters",
-    "description": "Das Fenster „Neue Karte“ mit einer Karte für das englische Wort „reluctant“: die Rückseite „widerwillig“, ein Beispielsatz mit deutscher Übersetzung, der Stapel „Englisch“, der Notiztyp „Einfach“ und die Schaltflächen „Verwerfen“ und „Zu Anki hinzufügen“.",
+    "description": "Das Bestätigungsfenster mit einer Karte für das englische Wort „reluctant“: die Sprachchips „Englisch“ (ausgewählt) und „Französisch“, „→ Deutsch“, der Stapel „Englisch“, der Notiztyp „Vokabeln“, die Rückseite „widerwillig“, ein Beispielsatz mit deutscher Übersetzung, eine Schaltfläche zum Abspielen der Aussprache und die Schaltflächen „Verwerfen“ und „Zu Anki hinzufügen“.",
     "title": "Neue Karte",
     "langActive": "Englisch",
     "langOther": "Französisch",
     "target": "→ Deutsch",
     "deck": "Stapel: Englisch",
-    "model": "Notiztyp: Einfach",
+    "model": "Notiztyp: Vokabeln",
     "front": "Vorderseite (Wort)",
     "frontValue": "reluctant",
     "back": "Rückseite (Übersetzung)",
@@ -60,7 +60,7 @@
     "title": "So funktioniert es",
     "s1": {
       "title": "Markieren und Hotkey drücken",
-      "body_html": "Markieren Sie ein Wort oder einen Ausdruck in einer App, aus der sich Text kopieren lässt, und drücken Sie <kbd>⌘⇧C</kbd>. Die App kopiert die Markierung und stellt danach Ihren vorherigen Text in der Zwischenablage wieder her."
+      "body_html": "Markieren Sie ein Wort oder einen Ausdruck in einer App, aus der sich Text kopieren lässt, und drücken Sie <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Umschalt-Befehl-C</span>. Die App kopiert die Markierung und stellt danach Ihren vorherigen Text in der Zwischenablage wieder her."
     },
     "s2": {
       "title": "Die Karte füllt sich",
@@ -246,7 +246,7 @@
     },
     "s3": {
       "title": "Dem Hotkey das Kopieren erlauben",
-      "body_html": "Der Hotkey kopiert Ihre Markierung mit einem simulierten <kbd>⌘C</kbd>, und das erlaubt macOS nur mit der Berechtigung „Bedienungshilfen“. Die App fragt nicht selbst danach. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, klicken Sie auf <strong>„+“</strong>, wählen Sie Vocabulary Automator im Ordner „Programme“ und schalten Sie den Schalter ein. Fehlt die Berechtigung, zeigt die erste Erfassung eine Meldung, die hierher verweist. Kopiert eine Erfassung danach immer noch nichts, beenden Sie die App (Symbol in der Menüleiste > „Quit“) und öffnen Sie sie erneut."
+      "body_html": "Der Hotkey kopiert Ihre Markierung mit einem simulierten <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span>, und das erlaubt macOS nur mit der Berechtigung „Bedienungshilfen“. Die App fragt nicht selbst danach. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, klicken Sie auf <strong>„+“</strong>, wählen Sie Vocabulary Automator im Ordner „Programme“ und schalten Sie den Schalter ein. Fehlt die Berechtigung, zeigt die erste Erfassung eine Meldung, die hierher verweist. Kopiert eine Erfassung danach immer noch nichts, beenden Sie die App (Symbol in der Menüleiste > „Quit“) und öffnen Sie sie erneut."
     },
     "s4": {
       "title": "Anki verbinden",
@@ -258,7 +258,7 @@
     },
     "s6": {
       "title": "Ausprobieren",
-      "body_html": "Markieren Sie irgendwo ein Wort und drücken Sie <kbd>⌘⇧C</kbd>. Oder geben Sie auf dem Tab „Erfassung &amp; Sprache“ unter <strong>„Erfassung ausprobieren“</strong> ein Wort ein."
+      "body_html": "Markieren Sie irgendwo ein Wort und drücken Sie <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Umschalt-Befehl-C</span>. Oder geben Sie auf dem Tab „Erfassung &amp; Sprache“ unter <strong>„Erfassung ausprobieren“</strong> ein Wort ein."
     },
     "updateTitle": "Die Vorschauversion aktualisieren",
     "updateBody_html": "Die Vorschauversion aktualisiert sich nicht selbst. Laden Sie für ein Update die neue Version von dieser Seite, beenden Sie Vocabulary Automator (Symbol in der Menüleiste > „Quit“) und ersetzen Sie die App in „Programme“. Ihre Einstellungen und Ihr Verlauf bleiben erhalten. macOS zeigt unter Umständen noch einmal die Warnung aus Schritt 2. Außerdem behandelt macOS jede neue Vorschauversion als eigene App. Öffnen Sie deshalb <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, entfernen Sie den alten Eintrag von Vocabulary Automator mit <strong>„−“</strong> und fügen Sie den neuen mit <strong>„+“</strong> hinzu. Meldet die App eine neue Version, laden Sie auch diese von dieser Seite.",
@@ -281,7 +281,7 @@
     },
     "q3": {
       "q": "Warum braucht die App die Berechtigung „Bedienungshilfen“?",
-      "a_html": "Um Ihre Markierung zu kopieren, schickt der Hotkey <kbd>⌘C</kbd> an die App, in der Sie gerade lesen, und das erlaubt macOS nur mit dieser Berechtigung. Vocabulary Automator nutzt sie für nichts anderes."
+      "a_html": "Um Ihre Markierung zu kopieren, schickt der Hotkey <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span> an die App, in der Sie gerade lesen, und das erlaubt macOS nur mit dieser Berechtigung. Vocabulary Automator nutzt sie für nichts anderes."
     },
     "q4": {
       "q": "Was passiert, wenn Anki geschlossen ist?",

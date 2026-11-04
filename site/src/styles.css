@@ -790,7 +790,6 @@ kbd {
   --m-warning-border: #ffe2bf;
   --m-warning-text: #b25000;
   --m-title-bg: #ebebeb;
-  --m-title-text: #4a4a4f;
   font-family:
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif;
@@ -820,7 +819,6 @@ kbd {
     --m-warning-border: #4d3f2b;
     --m-warning-text: #ffb340;
     --m-title-bg: #2a2a2c;
-    --m-title-text: #c7c7cc;
   }
 }
 
@@ -865,12 +863,6 @@ kbd {
 
 .mock-lights span:nth-child(3) {
   background: #28c840;
-}
-
-.mock-window-title {
-  color: var(--m-title-text);
-  font-size: 13px;
-  font-weight: 600;
 }
 
 .mock-view {

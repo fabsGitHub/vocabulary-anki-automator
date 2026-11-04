@@ -165,7 +165,6 @@ function window(copy) {
     <circle cx="${x + 20}" cy="${y + 18}" r="6.5" fill="#ff5f57"/>
     <circle cx="${x + 41}" cy="${y + 18}" r="6.5" fill="#febc2e"/>
     <circle cx="${x + 62}" cy="${y + 18}" r="6.5" fill="#28c840"/>
-    <text x="${x + w / 2}" y="${y + 23}" font-size="14" font-weight="700" fill="#4a4a4f" text-anchor="middle">${esc(copy.get('mock.title'))}</text>
     <rect x="${cardX + 0.5}" y="${cardY + 0.5}" width="${cardW - 1}" height="${cardH}" rx="12" fill="#fff" stroke="#d1d1d6"/>
     ${parts.join('\n    ')}
   </g>`
@@ -183,7 +182,7 @@ function ogSvg(copy) {
     )
     .join('\n  ')
   const keysY = titleY + title.length * 64 + 8
-  const keys = ['⌘', '⇧', 'C']
+  const keys = ['⇧', '⌘', 'C']
     .map(
       (key, index) => `<g transform="translate(${72 + index * 60} ${keysY})">
       <rect y="4" width="50" height="50" rx="12" fill="#cfd4df"/>
