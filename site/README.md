@@ -32,25 +32,68 @@ npm run site:test       # builds into temporary folders and checks the output
 ```
 
 `SITE_URL` sets the absolute URLs (canonical, hreflang, Open Graph, sitemap); it defaults to
-`https://vocabulary-automator.vercel.app`. `node site/build.mjs --out <dir> --downloads <dir>`
-builds somewhere else. The version comes from `src-tauri/tauri.conf.json`.
+`https://vocabulary-automator.vercel.app` and must be an origin without a path, because every
+link in the page is root-relative. `node site/build.mjs --out <dir> --downloads <dir>` builds
+somewhere else. The version comes from `src-tauri/tauri.conf.json`. The build renders
+everything before it empties the output folder, so a failed build leaves the previous one in
+place.
 
 ## Publishing a macOS build
 
-Put the universal disk image into `site/downloads/` and build. The build copies the newest
-`.dmg` there to `dist/downloads/` under a name without spaces, and writes its size and
-SHA-256 into the page. Without a `.dmg`, the macOS buttons link to GitHub Releases and the
-page says that the download is not available yet.
+The page describes one disk image: the universal build (Apple Silicon and Intel) of the version
+in `src-tauri/tauri.conf.json`, ad-hoc signed and not notarized, built from the app code the
+copy describes. The copy describes language recognition, “My languages”, field matching and the
+macOS 26 copy fix, which `main` gets only when `claude/auto-language` is merged. Build from
+this branch (its app code is that of `claude/auto-language`) or from a later `main`, never from
+an older one.
+
+1. Build the disk image from the repository root (the two Rust targets are needed once):
+
+   ```bash
+   rustup target add aarch64-apple-darwin x86_64-apple-darwin
+   APPLE_SIGNING_IDENTITY=- npm run tauri build -- --target universal-apple-darwin --bundles dmg \
+     --config '{"bundle":{"createUpdaterArtifacts":false}}'
+   ```
+
+   `APPLE_SIGNING_IDENTITY=-` signs ad hoc (there is no Developer ID yet). The `--config`
+   override skips the updater artifacts, whose signing key only CI holds
+   ([docs/signing-key-custody.md](../docs/signing-key-custody.md)).
+
+2. Check the app before you publish it:
+
+   ```bash
+   APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/Vocabulary Automator.app"
+   codesign -dv "$APP" 2>&1 | grep Signature   # Signature=adhoc
+   lipo -archs "$APP"/Contents/MacOS/*         # x86_64 arm64
+   ```
+
+3. Copy `src-tauri/target/universal-apple-darwin/release/bundle/dmg/Vocabulary Automator_<version>_universal.dmg`
+   into `site/downloads/` and run `npm run site:build`.
+
+The build copies the newest `.dmg` in `site/downloads/` to `dist/downloads/` under a name
+without spaces, and writes its size and SHA-256 into the page. It stops with an error unless
+that file name ends in `_<version>_universal.dmg`, Tauri's name for the universal build of the
+version in `tauri.conf.json`: a per-architecture image or one of another version would be
+published with a false label. `--allow-version-mismatch` lets another version through with a
+warning, but the page still shows the version from `tauri.conf.json`. Without a `.dmg`, the
+macOS buttons link to GitHub Releases and the page says that the download is not available yet.
 
 ## Deploying
 
-`dist/` is the whole static site, `vercel.json` included. From a directory linked to the
-Vercel project `vocabulary-automator` (`vercel link` writes a `.vercel/` folder, which git
-ignores and the build keeps when it empties `site/dist`):
+`dist/` is the whole static site, `vercel.json` included, and it is the only folder to deploy.
+The Vercel CLI keeps its link to the project in `site/dist/.vercel/`, which git ignores and the
+build keeps when it empties `site/dist`:
 
 ```bash
-vercel deploy site/dist --prod
+npm run site:build
+vercel link --cwd site/dist --project vocabulary-automator   # once, and again if site/dist/.vercel is gone
+vercel deploy --cwd site/dist --prod
 ```
+
+Before you confirm `vercel link` or `vercel deploy`, check that the project the CLI names is
+`vocabulary-automator`. If it offers to set up a new project (for example one called `dist`) or
+names any other project, cancel and run `vercel link` again with `--project`. Never deploy from
+the repository root or `site/`: neither is the site.
 
 ## Changing the copy
 

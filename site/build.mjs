@@ -4,8 +4,16 @@
 // the stylesheet, the script, the assets, vercel.json and the newest macOS disk
 // image from site/downloads/. Node built-ins only, so it needs no npm install.
 //
-//   node site/build.mjs [--out <dir>] [--downloads <dir>]
+//   node site/build.mjs [--out <dir>] [--downloads <dir>] [--allow-version-mismatch]
 //   SITE_URL=https://example.org node site/build.mjs
+//
+// The disk image must be the universal build of the app version in
+// src-tauri/tauri.conf.json ("…_<version>_universal.dmg", Tauri's own name),
+// because the page labels it with that version and "Apple Silicon and Intel".
+// --allow-version-mismatch lets another version through, with a warning.
+//
+// Everything is rendered in memory first, so a failing build leaves the
+// output folder as it was.
 //
 // Template syntax (src/page.html, src/404.html):
 //   {{group.key}}     a copy value; HTML-escaped unless the key ends in _html
@@ -14,10 +22,10 @@
 //   {{#flag}}…{{/flag}} / {{^flag}}…{{/flag}}  kept when the flag is set / unset
 //   {{>name}}         the file src/partials/<name>.svg
 //   {{icon:name}}     an inline icon from src/icons.json
-// Copy values may contain {token}s such as {version}; see copyTokens below.
+// Copy values may contain {token}s such as {version}; build() lists them.
 
 import { createHash } from 'node:crypto'
-import { createReadStream } from 'node:fs'
+import { createReadStream, realpathSync } from 'node:fs'
 import { copyFile, cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -62,8 +70,8 @@ export function flatten(tree, prefix = '') {
 }
 
 /** Loads one language's copy from src/i18n/<lang>.json. */
-export async function loadCopy(lang) {
-  const file = path.join(SRC_DIR, 'i18n', `${lang}.json`)
+export async function loadCopy(lang, srcDir = SRC_DIR) {
+  const file = path.join(srcDir, 'i18n', `${lang}.json`)
   return flatten(JSON.parse(await readFile(file, 'utf8')))
 }
 
@@ -165,6 +173,30 @@ export function publishedDmgName(name) {
   return name.replace(/[^A-Za-z0-9._-]+/g, '-')
 }
 
+/**
+ * Checks that a disk image's file name says what the page says about it:
+ * Tauri names a universal build "<product>_<version>_universal.dmg". A
+ * per-architecture image, or one of another version, would be published with
+ * a false label, so it fails the build. With `allowVersionMismatch`, another
+ * version passes and the warning is returned instead; the page then still
+ * shows `version`.
+ */
+export function checkDmgName(name, version, { allowVersionMismatch = false } = {}) {
+  const expected = `_${version}_universal.dmg`
+  if (!/_universal\.dmg$/i.test(name)) {
+    throw new Error(
+      `${name} is not the universal disk image (Apple Silicon and Intel) the page describes: ` +
+        `expected a name ending in ${expected} (see site/README.md)`,
+    )
+  }
+  if (name.toLowerCase().endsWith(expected.toLowerCase())) return null
+  const message = `${name} does not carry the app version ${version} from src-tauri/tauri.conf.json (expected a name ending in ${expected})`
+  if (!allowVersionMismatch) {
+    throw new Error(`${message}; pass --allow-version-mismatch to publish it anyway`)
+  }
+  return `warning: ${message}; the page still says version ${version}`
+}
+
 export async function sha256File(file) {
   const hash = createHash('sha256')
   for await (const chunk of createReadStream(file)) hash.update(chunk)
@@ -184,6 +216,11 @@ export function formatMegabytes(bytes, numberLocale) {
   return `${number}\u00a0MB`
 }
 
+/**
+ * The site's origin from SITE_URL, without a trailing slash. Every link in the
+ * page is root-relative (/styles.css, /de/, /downloads/…), so the site cannot
+ * live under a path, and a SITE_URL with one is rejected.
+ */
 export function normalizeSiteUrl(raw) {
   const value = (raw ?? '').trim() || DEFAULT_SITE_URL
   let url
@@ -196,10 +233,14 @@ export function normalizeSiteUrl(raw) {
     throw new Error(`SITE_URL must be an http(s) URL: ${value}`)
   }
   if (url.search || url.hash) throw new Error(`SITE_URL must not have a query or hash: ${value}`)
-  return url.href.replace(/\/+$/, '')
+  if (url.pathname !== '/' || url.username || url.password) {
+    throw new Error(`SITE_URL must be an origin, such as https://example.org: ${value}`)
+  }
+  return url.origin
 }
 
-async function readVersion() {
+/** The app version, from src-tauri/tauri.conf.json. */
+export async function readVersion() {
   const conf = JSON.parse(
     await readFile(path.join(REPO_ROOT, 'src-tauri', 'tauri.conf.json'), 'utf8'),
   )
@@ -207,8 +248,8 @@ async function readVersion() {
   return conf.version
 }
 
-async function readPartials() {
-  const dir = path.join(SRC_DIR, 'partials')
+async function readPartials(srcDir) {
+  const dir = path.join(srcDir, 'partials')
   const partials = {}
   for (const name of await readdir(dir)) {
     if (name.endsWith('.svg'))
@@ -271,17 +312,25 @@ function sitemap(siteUrl) {
 
 /**
  * Builds the site into `outDir` and returns what it did. Every option has the
- * default the CLI uses; tests pass a temporary `outDir` and `downloadsDir`.
+ * default the CLI uses; tests pass a temporary `outDir` and `downloadsDir`,
+ * and `srcDir` to build from a modified copy of src/.
+ *
+ * Everything that can fail (the copy, the templates, the disk image check and
+ * its checksum) runs before `outDir` is touched, so a failed build leaves an
+ * earlier one in place and the next build can replace it.
  */
 export async function build({
   outDir = path.join(SITE_DIR, 'dist'),
   downloadsDir = path.join(SITE_DIR, 'downloads'),
   siteUrl = process.env.SITE_URL,
+  srcDir = SRC_DIR,
+  allowVersionMismatch = false,
 } = {}) {
   const site = normalizeSiteUrl(siteUrl)
   const version = await readVersion()
+  const warnings = []
   const copies = {}
-  for (const lang of Object.keys(LOCALES)) copies[lang] = await loadCopy(lang)
+  for (const lang of Object.keys(LOCALES)) copies[lang] = await loadCopy(lang, srcDir)
 
   const [first, ...others] = Object.keys(LOCALES)
   for (const lang of others) {
@@ -294,29 +343,28 @@ export async function build({
     }
   }
 
-  await prepareOutDir(outDir)
-
   const source = await findNewestDmg(downloadsDir)
   let dmg = null
   if (source) {
+    const warning = checkDmgName(source.name, version, { allowVersionMismatch })
+    if (warning) warnings.push(warning)
     const file = publishedDmgName(source.name)
-    await mkdir(path.join(outDir, 'downloads'), { recursive: true })
-    await copyFile(source.file, path.join(outDir, 'downloads', file))
-    dmg = { file, source: source.name, bytes: source.size, sha256: await sha256File(source.file) }
-    dmg.href = `/downloads/${file}`
-    if (!source.name.includes(version)) {
-      console.warn(`warning: ${source.name} does not carry the app version ${version}`)
+    dmg = {
+      file,
+      source: source.name,
+      bytes: source.size,
+      sha256: await sha256File(source.file),
+      href: `/downloads/${file}`,
     }
   }
 
-  await cp(path.join(SRC_DIR, 'assets'), path.join(outDir, 'assets'), { recursive: true })
-  await copyFile(path.join(SRC_DIR, 'styles.css'), path.join(outDir, 'styles.css'))
-  await copyFile(path.join(SRC_DIR, 'main.js'), path.join(outDir, 'main.js'))
-  await copyFile(path.join(SITE_DIR, 'vercel.json'), path.join(outDir, 'vercel.json'))
+  /** Every file the build writes, by its path in `outDir`, rendered in memory. */
+  const outputs = new Map()
+  outputs.set('vercel.json', await readFile(path.join(SITE_DIR, 'vercel.json'), 'utf8'))
 
-  const partials = await readPartials()
-  const icons = JSON.parse(await readFile(path.join(SRC_DIR, 'icons.json'), 'utf8'))
-  const pageTemplate = await readFile(path.join(SRC_DIR, 'page.html'), 'utf8')
+  const partials = await readPartials(srcDir)
+  const icons = JSON.parse(await readFile(path.join(srcDir, 'icons.json'), 'utf8'))
+  const pageTemplate = await readFile(path.join(srcDir, 'page.html'), 'utf8')
   const langs = Object.keys(LOCALES)
   const pages = []
 
@@ -324,7 +372,7 @@ export async function build({
     const locale = LOCALES[lang]
     const altLang = langs.find((other) => other !== lang)
     const ogFile = `assets/og-${lang}.png`
-    const og = await exists(path.join(SRC_DIR, ogFile))
+    const og = await exists(path.join(srcDir, ogFile))
     const dmgSize = dmg ? formatMegabytes(dmg.bytes, locale.numberLocale) : ''
     const tokens = {
       version,
@@ -361,19 +409,19 @@ export async function build({
       if (!copies[lang].has(key)) throw new Error(`Unknown copy key {{${key}}} (${lang})`)
       return formatCopy(key, copies[lang].get(key), tokens)
     }
-    const html = renderTemplate(pageTemplate, {
-      lookup,
-      flags: { dmg: Boolean(dmg), og },
-      partials,
-      icons,
-    })
-    const target = path.join(outDir, locale.file)
-    await mkdir(path.dirname(target), { recursive: true })
-    await writeFile(target, html)
+    outputs.set(
+      locale.file,
+      renderTemplate(pageTemplate, {
+        lookup,
+        flags: { dmg: Boolean(dmg), og },
+        partials,
+        icons,
+      }),
+    )
     pages.push(locale.file)
   }
 
-  const notFound = renderTemplate(await readFile(path.join(SRC_DIR, '404.html'), 'utf8'), {
+  const notFound = renderTemplate(await readFile(path.join(srcDir, '404.html'), 'utf8'), {
     lookup: (key) => {
       const match = /^(\w+):(.+)$/.exec(key)
       if (!match || !copies[match[1]]?.has(match[2])) {
@@ -385,16 +433,29 @@ export async function build({
     partials,
     icons,
   })
-  await writeFile(path.join(outDir, '404.html'), notFound)
+  outputs.set('404.html', notFound)
   pages.push('404.html')
 
-  await writeFile(path.join(outDir, 'sitemap.xml'), sitemap(site))
-  await writeFile(
-    path.join(outDir, 'robots.txt'),
-    `User-agent: *\nAllow: /\n\nSitemap: ${site}/sitemap.xml\n`,
-  )
+  outputs.set('sitemap.xml', sitemap(site))
+  outputs.set('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${site}/sitemap.xml\n`)
 
-  return { outDir, siteUrl: site, version, dmg, pages }
+  // Only now is the output folder emptied. vercel.json and the pages go first,
+  // so even an interrupted copy below leaves a folder the next build recognizes.
+  await prepareOutDir(outDir)
+  for (const [file, content] of outputs) {
+    const target = path.join(outDir, file)
+    await mkdir(path.dirname(target), { recursive: true })
+    await writeFile(target, content)
+  }
+  await cp(path.join(srcDir, 'assets'), path.join(outDir, 'assets'), { recursive: true })
+  await copyFile(path.join(srcDir, 'styles.css'), path.join(outDir, 'styles.css'))
+  await copyFile(path.join(srcDir, 'main.js'), path.join(outDir, 'main.js'))
+  if (source) {
+    await mkdir(path.join(outDir, 'downloads'), { recursive: true })
+    await copyFile(source.file, path.join(outDir, 'downloads', dmg.file))
+  }
+
+  return { outDir, siteUrl: site, version, dmg, pages, warnings }
 }
 
 async function main() {
@@ -402,12 +463,15 @@ async function main() {
     options: {
       out: { type: 'string' },
       downloads: { type: 'string' },
+      'allow-version-mismatch': { type: 'boolean' },
     },
   })
   const result = await build({
     outDir: values.out ? path.resolve(values.out) : undefined,
     downloadsDir: values.downloads ? path.resolve(values.downloads) : undefined,
+    allowVersionMismatch: Boolean(values['allow-version-mismatch']),
   })
+  for (const warning of result.warnings) console.warn(warning)
   const relative = path.relative(process.cwd(), result.outDir) || '.'
   console.log(`Built ${result.pages.join(', ')} for ${result.siteUrl} into ${relative}`)
   if (result.dmg) {
@@ -417,7 +481,21 @@ async function main() {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+/**
+ * True when Node runs this file as the script. Both sides are real paths:
+ * import.meta.url is resolved through symlinks and argv[1] is not, so a
+ * plain comparison would skip the build when it is called through a link.
+ */
+function isMainModule() {
+  if (!process.argv[1]) return false
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+  } catch {
+    return false
+  }
+}
+
+if (isMainModule()) {
   main().catch((error) => {
     console.error(error.message)
     process.exit(1)

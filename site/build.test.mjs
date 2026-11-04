@@ -5,18 +5,33 @@
 //   npm run site:test
 
 import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises'
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+  utimes,
+  writeFile,
+} from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { after, before, describe, test } from 'node:test'
+import { promisify } from 'node:util'
 
 import {
   ANKI_URL,
   MYMEMORY_URL,
   RELEASES_URL,
   REPO_URL,
+  SITE_DIR,
   build,
+  checkDmgName,
   escapeHtml,
   formatCopy,
   formatMegabytes,
@@ -24,12 +39,15 @@ import {
   loadCopy,
   normalizeSiteUrl,
   publishedDmgName,
+  readVersion,
   renderTemplate,
 } from './build.mjs'
 
 const SITE_URL = 'https://vocabulary-automator.vercel.app'
-const DMG_NAME = 'Vocabulary Automator_0.1.0_universal.dmg'
-const DMG_PUBLISHED = 'Vocabulary-Automator_0.1.0_universal.dmg'
+/** The version the build reads, so a release PR's version bump keeps these tests green. */
+const VERSION = await readVersion()
+const DMG_NAME = `Vocabulary Automator_${VERSION}_universal.dmg`
+const DMG_PUBLISHED = `Vocabulary-Automator_${VERSION}_universal.dmg`
 const DMG_BYTES = 2_456_789
 
 /** The only external URLs a built page may contain, besides its own site URL. */
@@ -155,6 +173,27 @@ describe('helpers', () => {
     assert.ok(!formatMegabytes(DMG_BYTES, 'en-US').includes(' '), 'no breakable space')
   })
 
+  test('accepts only the universal disk image of the app version', () => {
+    assert.equal(checkDmgName(DMG_NAME, VERSION), null)
+    assert.equal(checkDmgName(DMG_NAME.toUpperCase(), VERSION), null)
+    assert.throws(
+      () => checkDmgName(`Vocabulary Automator_${VERSION}_aarch64.dmg`, VERSION),
+      /not the universal disk image/,
+    )
+    assert.throws(() => checkDmgName('Vocabulary Automator.dmg', VERSION), /universal/)
+    // "1" + version contains the version, but it is another version.
+    for (const other of [
+      'Vocabulary Automator_9.9.9_universal.dmg',
+      `x_1${VERSION}_universal.dmg`,
+    ]) {
+      assert.throws(() => checkDmgName(other, VERSION), /does not carry the app version/, other)
+      assert.match(
+        checkDmgName(other, VERSION, { allowVersionMismatch: true }),
+        /^warning: .*does not carry the app version/,
+      )
+    }
+  })
+
   test('publishes the disk image under a name without spaces', () => {
     assert.equal(publishedDmgName(DMG_NAME), DMG_PUBLISHED)
     assert.equal(publishedDmgName('a b  (c).dmg'), 'a-b-c-.dmg')
@@ -164,7 +203,10 @@ describe('helpers', () => {
     assert.equal(normalizeSiteUrl(undefined), SITE_URL)
     assert.equal(normalizeSiteUrl('  '), SITE_URL)
     assert.equal(normalizeSiteUrl('https://example.org/'), 'https://example.org')
-    assert.equal(normalizeSiteUrl('https://example.org/sub/'), 'https://example.org/sub')
+    assert.equal(normalizeSiteUrl('http://localhost:4173'), 'http://localhost:4173')
+    // Every link in the page is root-relative, so the site cannot live under a path.
+    assert.throws(() => normalizeSiteUrl('https://example.org/sub/'), /must be an origin/)
+    assert.throws(() => normalizeSiteUrl('https://user@example.org'), /must be an origin/)
     assert.throws(() => normalizeSiteUrl('example.org'), /not a URL/)
     assert.throws(() => normalizeSiteUrl('ftp://example.org'), /http\(s\)/)
     assert.throws(() => normalizeSiteUrl('https://example.org/?a=1'), /query or hash/)
@@ -320,9 +362,10 @@ describe('build with a disk image', () => {
   before(async () => {
     const downloads = await tempDir('downloads')
     // An older image that must lose against the newest one.
-    await fakeDmg(downloads, 'Vocabulary Automator_0.0.9_universal.dmg', 1_000, 1)
+    const older = 'Vocabulary Automator_0.0.0_universal.dmg'
+    await fakeDmg(downloads, older, 1_000, 1)
     const old = new Date('2026-01-01T00:00:00Z')
-    await utimes(path.join(downloads, 'Vocabulary Automator_0.0.9_universal.dmg'), old, old)
+    await utimes(path.join(downloads, older), old, old)
     sha256 = await fakeDmg(downloads, DMG_NAME, DMG_BYTES)
     await writeFile(path.join(downloads, 'notes.txt'), 'not a disk image')
     outDir = path.join(await tempDir('out'), 'dist')
@@ -360,7 +403,7 @@ describe('build with a disk image', () => {
     }
     assert.ok(
       pages['index.html'].includes(
-        'Version\u00a00.1.0\u00a0· Preview\u00a0· Apple Silicon and Intel',
+        `Version\u00a0${VERSION}\u00a0· Preview\u00a0· Apple Silicon and Intel`,
       ),
     )
   })
@@ -421,6 +464,73 @@ describe('build options', () => {
       /Refusing to empty/,
     )
     assert.equal(await readFile(path.join(outDir, 'thesis.txt'), 'utf8'), 'do not delete')
+  })
+
+  test('a failed build leaves the output folder as it was, and the next build succeeds', async () => {
+    const broken = await tempDir('src')
+    await cp(path.join(SITE_DIR, 'src'), broken, { recursive: true })
+    const template = await readFile(path.join(broken, 'page.html'), 'utf8')
+    await writeFile(
+      path.join(broken, 'page.html'),
+      template.replace('{{nav.skip}}', '{{nav.skipp}}'),
+    )
+    const downloads = await tempDir('downloads')
+
+    // A first build that fails creates nothing.
+    const outDir = path.join(await tempDir('out'), 'dist')
+    await assert.rejects(
+      build({ outDir, downloadsDir: downloads, siteUrl: SITE_URL, srcDir: broken }),
+      /Unknown copy key \{\{nav\.skipp\}\}/,
+    )
+    await assert.rejects(stat(outDir), { code: 'ENOENT' })
+
+    // A build that fails over an earlier one keeps it, and a fixed build replaces it.
+    await build({ outDir, downloadsDir: downloads, siteUrl: SITE_URL })
+    const before = await readdir(outDir)
+    await assert.rejects(
+      build({ outDir, downloadsDir: downloads, siteUrl: SITE_URL, srcDir: broken }),
+      /Unknown copy key/,
+    )
+    assert.deepEqual(await readdir(outDir), before)
+    await build({ outDir, downloadsDir: downloads, siteUrl: SITE_URL })
+    assert.ok((await readFile(path.join(outDir, 'index.html'), 'utf8')).includes('id="main"'))
+  })
+
+  test('refuses a disk image of another version unless told to publish it', async () => {
+    const downloads = await tempDir('downloads')
+    await fakeDmg(downloads, 'Vocabulary Automator_9.9.9_universal.dmg', 10)
+    const outDir = path.join(await tempDir('out'), 'dist')
+    await assert.rejects(
+      build({ outDir, downloadsDir: downloads, siteUrl: SITE_URL }),
+      /does not carry the app version/,
+    )
+    await assert.rejects(stat(outDir), { code: 'ENOENT' })
+    const result = await build({
+      outDir,
+      downloadsDir: downloads,
+      siteUrl: SITE_URL,
+      allowVersionMismatch: true,
+    })
+    assert.equal(result.warnings.length, 1)
+    assert.equal(result.dmg.file, 'Vocabulary-Automator_9.9.9_universal.dmg')
+  })
+
+  test('builds when the script is run through a symlink', async (t) => {
+    const dir = await tempDir('link')
+    const link = path.join(dir, 'build.mjs')
+    try {
+      await symlink(path.join(SITE_DIR, 'build.mjs'), link)
+    } catch (error) {
+      t.skip(`cannot create a symlink here: ${error.code}`)
+      return
+    }
+    const outDir = path.join(dir, 'out')
+    await promisify(execFile)(
+      process.execPath,
+      [link, '--out', outDir, '--downloads', path.join(dir, 'none')],
+      { env: { ...process.env, SITE_URL } },
+    )
+    await stat(path.join(outDir, 'index.html'))
   })
 
   test('rebuilds over an earlier build and keeps the Vercel link', async () => {
