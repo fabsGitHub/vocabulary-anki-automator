@@ -17,6 +17,7 @@ import {
   missingFields,
   needsChineseNoteType,
   recommendedMapping,
+  recommendedNoteTypeAction,
   sameMapping,
   selectRecommendedNoteType,
   withAudioField,
@@ -83,6 +84,13 @@ describe('presets', () => {
     const first = chineseMapping()
     first.fields[0].anki_field = 'Edited'
     expect(chineseMapping().fields[0].anki_field).toBe('Hanzi')
+  })
+})
+
+describe('recommendedNoteTypeAction', () => {
+  it('says "Use" once Anki lists the note type, "Create" before', () => {
+    expect(recommendedNoteTypeAction(['Basic'])).toBe('noteType.create')
+    expect(recommendedNoteTypeAction(['Basic', RECOMMENDED_NOTE_TYPE])).toBe('noteType.use')
   })
 })
 

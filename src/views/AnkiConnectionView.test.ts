@@ -300,7 +300,9 @@ describe('online', () => {
     await mountTab()
     store.config.value.translation.source_lang = 'zh-CN'
     await flushPromises()
-    expect(find('chinese-warning')?.text()).toContain('Hanzi, Pinyin, Meaning and Audio')
+    expect(find('chinese-warning')?.text()).toBe(
+      'Chinese captures need a note type with a Pinyin field. Click “Create the recommended note type” above while Anki runs, or choose a note type with a Pinyin field and bind that field to Pinyin.',
+    )
 
     await wrapper?.find('[data-test="model-select"]').setValue('Chinese')
     await flushPromises()
@@ -466,7 +468,7 @@ describe('the settings this tab owns', () => {
     store.config.value.translation.source_lang = 'zh-CN'
     await flushPromises()
     const warning = wrapper?.find('[data-test="chinese-warning"]')
-    expect(warning?.text()).toContain('Hanzi, Pinyin, Meaning and Audio')
+    expect(warning?.text()).toContain('a note type with a Pinyin field')
 
     await wrapper?.find('[data-test="preset-chinese"]').trigger('click')
     expect(wrapper?.find('[data-test="chinese-warning"]').exists()).toBe(false)

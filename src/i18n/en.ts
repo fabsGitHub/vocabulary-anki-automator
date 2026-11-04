@@ -228,7 +228,7 @@ export const en = {
     missing:
       'The note type “{model}” does not have these fields, so Anki silently drops their values:',
     chineseWarning:
-      'Chinese captures need a note type with Hanzi, Pinyin, Meaning and Audio fields, and a mapping that fills Pinyin. Choose such a note type and apply the Chinese preset, or bind a field to Pinyin.',
+      'Chinese captures need a note type with a Pinyin field. Click “{button}” above while Anki runs, or choose a note type with a Pinyin field and bind that field to Pinyin.',
     sources: {
       front: 'Word (front)',
       back: 'Translation (back)',
@@ -389,7 +389,7 @@ export const en = {
       'Select a word or phrase in any app and press your hotkey. Check the card in the approval window, then press Enter to add it or Esc to discard it. With languages listed under “My languages”, the hotkey recognizes the language of the text by itself.',
     step4Title: '4. Chinese',
     step4Body:
-      'Text with Chinese characters gets pinyin and, for HSK words, the HSK level. Use a note type with Hanzi, Pinyin, Meaning and Audio fields together with the Chinese mapping preset.',
+      'Text with Chinese characters gets pinyin and, for HSK words, the HSK level. The recommended note type has a field for each (Pinyin and HSK Level): while Anki runs, click “Create the recommended note type” on the “Anki connection” tab or in a “My languages” entry.',
   },
   update: {
     available: 'Version {version} is available – restart to update.',

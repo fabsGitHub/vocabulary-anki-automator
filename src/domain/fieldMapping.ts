@@ -71,6 +71,17 @@ export function chineseMapping(): FieldMapping {
 export const RECOMMENDED_NOTE_TYPE = 'Vocabulary Automator'
 
 /**
+ * The label of the button that sets up the recommended note type, given the
+ * note types Anki lists: "Use" once one has its name, "Create" before. The
+ * Chinese warnings name the button by it.
+ */
+export function recommendedNoteTypeAction(
+  models: readonly string[],
+): 'noteType.use' | 'noteType.create' {
+  return models.includes(RECOMMENDED_NOTE_TYPE) ? 'noteType.use' : 'noteType.create'
+}
+
+/**
  * `FieldMapping::recommended`: the recommended note type, a field for every
  * value. The sentences keep their language on the reverse note.
  */

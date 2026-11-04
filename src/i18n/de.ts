@@ -227,7 +227,7 @@ export const de: MessageSchema = {
     missing:
       'Der Notiztyp „{model}“ hat diese Felder nicht, deshalb verwirft Anki ihre Werte stillschweigend:',
     chineseWarning:
-      'Chinesische Erfassungen brauchen einen Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio sowie eine Zuordnung, die Pinyin füllt. Wählen Sie einen solchen Notiztyp und wenden Sie die chinesische Vorlage an, oder ordnen Sie einem Feld Pinyin zu.',
+      'Chinesische Erfassungen brauchen einen Notiztyp mit einem Pinyin-Feld. Klicken Sie oben auf „{button}“, während Anki läuft, oder wählen Sie einen Notiztyp mit Pinyin-Feld und ordnen Sie diesem Feld Pinyin zu.',
     sources: {
       front: 'Wort (Vorderseite)',
       back: 'Übersetzung (Rückseite)',
@@ -392,7 +392,7 @@ export const de: MessageSchema = {
       'Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie Ihren Hotkey. Prüfen Sie die Karte im Bestätigungsfenster und drücken Sie Enter zum Hinzufügen oder Esc zum Verwerfen. Sind unter „Meine Sprachen“ Sprachen eingetragen, erkennt der Hotkey die Sprache des Textes selbst.',
     step4Title: '4. Chinesisch',
     step4Body:
-      'Text mit chinesischen Schriftzeichen bekommt Pinyin und bei HSK-Wörtern die HSK-Stufe. Verwenden Sie einen Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio zusammen mit der chinesischen Vorlage.',
+      'Text mit chinesischen Schriftzeichen bekommt Pinyin und bei HSK-Wörtern die HSK-Stufe. Der empfohlene Notiztyp hat für beides ein Feld (Pinyin und HSK Level): Klicken Sie, während Anki läuft, auf dem Tab „Anki-Verbindung“ oder in einem Eintrag unter „Meine Sprachen“ auf „Empfohlenen Notiztyp anlegen“.',
   },
   update: {
     available: 'Version {version} ist verfügbar – zum Aktualisieren neu starten.',

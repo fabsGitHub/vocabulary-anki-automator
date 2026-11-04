@@ -490,7 +490,7 @@ describe('online', () => {
       ]),
     )
     const warning = card(0).find('[data-test="chinese-warning"]')
-    expect(warning.text()).toContain('Hanzi, Pinyin, Meaning and Audio')
+    expect(warning.text()).toContain('a note type with a Pinyin field')
     expect(card(1).find('[data-test="chinese-warning"]').exists()).toBe(false)
 
     await card(0).find('[data-test="preset-chinese"]').trigger('click')
@@ -515,7 +515,7 @@ describe('online', () => {
     await card(0).find('[data-test="learned-model"]').setValue('AppleStyleFinalV3')
     await flushPromises()
     expect(card(0).find('[data-test="chinese-warning"]').text()).toContain(
-      'Hanzi, Pinyin, Meaning and Audio',
+      'a note type with a Pinyin field',
     )
     expect(store.config.value.learning.languages[0].field_mapping).toBeNull()
   })
@@ -526,6 +526,36 @@ describe('the recommended note type', () => {
     onCommand('anki_status', ONLINE)
     onCommand('anki_model_field_names', APPLE_V3_FIELDS)
     onCommand('suggest_field_mapping', APPLE_V3_FR)
+  })
+
+  it('is what the Chinese warning right below it points to', async () => {
+    onCommand('anki_status', { ...ONLINE, models: [...ONLINE.models, 'Vocabulary Automator'] })
+    onCommand('suggest_field_mapping', ({ model }: { model: string }) =>
+      model === 'Vocabulary Automator'
+        ? { mapping: recommendedMapping(), guessed: [], unmatched: [] }
+        : APPLE_V3_FR,
+    )
+    await mountEditor(
+      settings([
+        entry({ lang: 'zh-CN', deck_name: 'chinese', field_mapping: appleStyleMapping() }),
+      ]),
+    )
+    expect(card(0).find('[data-test="create-note-type"]').text()).toBe(
+      'Use the recommended note type',
+    )
+    expect(card(0).find('[data-test="chinese-warning"]').text()).toBe(
+      'Chinese captures need a note type with a Pinyin field. Click “Use the recommended note type” above while Anki runs, or choose a note type with a Pinyin field and bind that field to Pinyin.',
+    )
+
+    onCommand('create_recommended_note_type', {
+      model_name: 'Vocabulary Automator',
+      mapping: recommendedMapping(),
+      created: false,
+      matches_by_name: true,
+    })
+    await card(0).find('[data-test="create-note-type"]').trigger('click')
+    await flushPromises()
+    expect(card(0).find('[data-test="chinese-warning"]').exists()).toBe(false)
   })
 
   it('is offered in each entry, and selected only in the one clicked', async () => {

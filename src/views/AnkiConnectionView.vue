@@ -32,6 +32,7 @@ import { useModelFields } from '../composables/useModelFields'
 import {
   appleStyleMapping,
   needsChineseNoteType,
+  recommendedNoteTypeAction,
   selectRecommendedNoteType,
 } from '../domain/fieldMapping'
 
@@ -275,7 +276,7 @@ const fallback = appleStyleMapping()
             role="alert"
             data-test="chinese-warning"
           >
-            {{ t('mapping.chineseWarning') }}
+            {{ t('mapping.chineseWarning', { button: t(recommendedNoteTypeAction(models)) }) }}
           </div>
         </template>
         <template #options>

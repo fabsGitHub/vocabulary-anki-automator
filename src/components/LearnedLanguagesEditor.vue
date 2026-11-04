@@ -30,7 +30,12 @@ import { useAutoMatches, type AutoMatchRequest } from '../composables/useAutoMat
 import { useConfigStore } from '../composables/useConfig'
 import { useIssueText } from '../composables/useIssueText'
 import { useModelFields } from '../composables/useModelFields'
-import { appleStyleMapping, lacksPinyin, selectRecommendedNoteType } from '../domain/fieldMapping'
+import {
+  appleStyleMapping,
+  lacksPinyin,
+  recommendedNoteTypeAction,
+  selectRecommendedNoteType,
+} from '../domain/fieldMapping'
 import { isChinese, isSupportedLang, normalizeLang } from '../domain/language'
 import {
   DEFAULT_DECKS,
@@ -220,7 +225,7 @@ function issue(index: number, field: keyof LearnedLanguage): string | null {
       />
 
       <div v-if="needsPinyin" class="notice warning" role="alert" data-test="chinese-warning">
-        {{ t('mapping.chineseWarning') }}
+        {{ t('mapping.chineseWarning', { button: t(recommendedNoteTypeAction(models)) }) }}
       </div>
 
       <details class="learned-mapping">

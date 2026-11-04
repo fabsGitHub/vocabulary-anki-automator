@@ -22,7 +22,7 @@ import { useI18n } from 'vue-i18n'
 import type { RecommendedNoteType } from '../api'
 import { useAnkiConnectionContext } from '../composables/useAnkiConnection'
 import { toSettingsPayload, useConfigStore } from '../composables/useConfig'
-import { RECOMMENDED_NOTE_TYPE } from '../domain/fieldMapping'
+import { RECOMMENDED_NOTE_TYPE, recommendedNoteTypeAction } from '../domain/fieldMapping'
 import type { MessageKey } from '../i18n'
 
 const props = defineProps<{
@@ -110,7 +110,7 @@ async function setUp(): Promise<void> {
         :disabled="activity !== null"
         @click="setUp"
       >
-        {{ running ? t('noteType.creating') : exists ? t('noteType.use') : t('noteType.create') }}
+        {{ running ? t('noteType.creating') : t(recommendedNoteTypeAction(models)) }}
       </button>
       <span class="input-hint" data-test="note-type-hint">
         {{ exists ? t('noteType.useHint', { name }) : t('noteType.createHint', { name }) }}
