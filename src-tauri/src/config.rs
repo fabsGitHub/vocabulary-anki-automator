@@ -9,9 +9,11 @@
 //!   the key is dropped like any unknown field, codes are normalized and every
 //!   field added since gets its default, so upgrading keeps every setting and
 //!   the next save writes the new shape. The one exception is the global
-//!   field mapping: every file saved before it could be left unset holds the
-//!   old built-in default, which the user never chose, so that value loads as
-//!   unset and is matched by field name ([`AppConfig::normalize`]).
+//!   field mapping: every file from before [`CONFIG_VERSION`] holds the old
+//!   built-in default whether or not the user chose it, so there that value
+//!   loads as unset and is matched by field name ([`load_config_from`]).
+//!   Every save writes the version, so a mapping chosen since, that default
+//!   included, is kept.
 //! - **Lenient load, strict save.** A file that a hand edit made invalid still
 //!   loads, so the user's deck, note type and consent survive (a shortcut that
 //!   does not parse is simply not registered). `apply_settings` refuses to save
@@ -41,6 +43,12 @@ use crate::shortcuts::parse_shortcut;
 
 /// File name inside the app data dir.
 pub const CONFIG_FILE_NAME: &str = "config.json";
+
+/// The `version` every save writes into the file. A file without one is
+/// version 1, from a build whose global field mapping could not be left
+/// unset: in it, `FieldMapping::apple_style_default()` was the default, not
+/// the user's choice ([`load_config_from`]).
+pub const CONFIG_VERSION: u64 = 2;
 
 /// Upper bound for `translation.max_chars`: longer selections are almost
 /// always accidental (a whole paragraph), and every provider call carries the
@@ -120,9 +128,10 @@ pub struct AnkiConfig {
     /// Which card value goes into which field of `model_name` (Milestones H
     /// and J5). `None`, the default: the note type's fields are matched by
     /// name whenever a card is pushed or checked, exactly as for a
-    /// [`LearnedLanguage`] without a mapping. A missing key and a saved
-    /// `FieldMapping::apple_style_default()` both load as `None`
-    /// ([`AppConfig::normalize`]).
+    /// [`LearnedLanguage`] without a mapping. A missing key loads as `None`,
+    /// and so does `FieldMapping::apple_style_default()` in a file from before
+    /// [`CONFIG_VERSION`] ([`load_config_from`]); any other saved mapping, and
+    /// that one in a newer file, is the user's choice and used as saved.
     pub field_mapping: Option<FieldMapping>,
 }
 
@@ -361,10 +370,10 @@ impl AppConfig {
     }
 
     /// Canonical spelling of everything that has one: language codes through
-    /// `normalize_lang`, trimmed text, blank optional values as `None`, a
-    /// global field mapping equal to `FieldMapping::apple_style_default()` as
-    /// `None`, and consent timestamps that do not parse as RFC 3339 dropped (a
-    /// consent must say when it was given). Applied on every load and save.
+    /// `normalize_lang`, trimmed text, blank optional values as `None`, and
+    /// consent timestamps that do not parse as RFC 3339 dropped (a consent
+    /// must say when it was given). Applied on every load and save. Field
+    /// mappings stay exactly as given.
     pub fn normalize(&mut self) {
         self.ui_lang = self.ui_lang.trim().to_string();
         self.hotkeys = self.hotkeys.trim().to_string();
@@ -391,17 +400,7 @@ impl AppConfig {
         anki.connect_url = anki.connect_url.trim().to_string();
         anki.deck_name = anki.deck_name.trim().to_string();
         anki.model_name = anki.model_name.trim().to_string();
-        // Until the global mapping could be unset, every saved config held
-        // this default whether or not the user ever looked at it, so it is no
-        // choice: it is matched by field name like a missing one. On the
-        // AppleStyleFinalV3 note type it was made for, the match is this same
-        // mapping (`auto_match`'s tests pin that), so nothing changes there.
-        if anki.field_mapping.as_ref() == Some(&FieldMapping::apple_style_default()) {
-            anki.field_mapping = None;
-        }
 
-        // A learned language's own mapping stays as saved: entries had `None`
-        // from the start, so a saved one is always a choice.
         for entry in &mut self.learning.languages {
             entry.lang = normalize_lang(&entry.lang);
             entry.deck_name = entry.deck_name.trim().to_string();
@@ -610,9 +609,9 @@ pub fn config_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
         .map_err(|err| format!("could not locate the app data folder: {err}"))
 }
 
-/// Reads and [normalizes](AppConfig::normalize) the settings at `path`. A
-/// missing file is the default config; an unreadable or unparsable one is an
-/// error. Does not [validate](AppConfig::validate).
+/// Reads, [migrates](migrate) and [normalizes](AppConfig::normalize) the
+/// settings at `path`. A missing file is the default config; an unreadable or
+/// unparsable one is an error. Does not [validate](AppConfig::validate).
 pub fn load_config_from(path: &Path) -> Result<AppConfig, ConfigError> {
     let text = match fs::read_to_string(path) {
         Ok(text) => text,
@@ -629,8 +628,36 @@ pub fn load_config_from(path: &Path) -> Result<AppConfig, ConfigError> {
             path: path.to_path_buf(),
             source,
         })?;
+    migrate(&mut config, file_version(&text));
     config.normalize();
     Ok(config)
+}
+
+/// The `version` of a config file's `text`: 1 when it has none, or one a hand
+/// edit made unreadable.
+fn file_version(text: &str) -> u64 {
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .and_then(|file| file.get("version")?.as_u64())
+        .unwrap_or(1)
+}
+
+/// Brings a config read from a file of `version` up to [`CONFIG_VERSION`].
+///
+/// Version 1: the global mapping could not be left unset, and every save
+/// wrote `FieldMapping::apple_style_default()` into it whether or not the
+/// user ever looked at it. That value is therefore no choice and is matched
+/// by field name like a missing one. On the AppleStyleFinalV3 note type it
+/// was made for, the match is this same mapping (`auto_match`'s tests pin
+/// that), so nothing changes there. A learned language's own mapping stays
+/// as saved: entries had `None` from the start, so a saved one is always a
+/// choice.
+fn migrate(config: &mut AppConfig, version: u64) {
+    if version < 2
+        && config.anki.field_mapping.as_ref() == Some(&FieldMapping::apple_style_default())
+    {
+        config.anki.field_mapping = None;
+    }
 }
 
 /// Writes `config`, [normalized](AppConfig::normalize), to `path` atomically:
@@ -672,16 +699,19 @@ pub fn save_config_to(path: &Path, config: &AppConfig) -> Result<(), ConfigError
     Ok(())
 }
 
-/// What [`save_config_to`] writes: the JSON of [`AppConfig`], in the same
-/// order, except that an unset global mapping is left out instead of written
-/// as `null` (`get_current_settings` still sends `null`). Builds from before
-/// the global mapping could be unset declare it as a plain mapping: `null`
-/// makes the whole file unreadable to them, so they would start from their
-/// defaults, while a missing key loads their built-in Apple-style default,
-/// the mapping they always used. [`ConfigFile::new`] destructures every
-/// field, so one added to the config cannot be missing from the file.
+/// What [`save_config_to`] writes: [`CONFIG_VERSION`] as `version`, then the
+/// JSON of [`AppConfig`] in the same order, except that an unset global
+/// mapping is left out instead of written as `null` (`get_current_settings`
+/// still sends `null`, and no `version`). Older builds ignore `version`, like
+/// any key they do not know. Builds from before the global mapping could be
+/// unset declare it as a plain mapping: `null` makes the whole file
+/// unreadable to them, so they would start from their defaults, while a
+/// missing key loads their built-in Apple-style default, the mapping they
+/// always used. [`ConfigFile::new`] destructures every field, so one added to
+/// the config cannot be missing from the file.
 #[derive(Serialize)]
 struct ConfigFile<'a> {
+    version: u64,
     ui_lang: &'a str,
     hotkeys: &'a str,
     hotkey_profiles: &'a [HotkeyProfile],
@@ -721,6 +751,7 @@ impl<'a> ConfigFile<'a> {
             field_mapping,
         } = anki;
         Self {
+            version: CONFIG_VERSION,
             ui_lang,
             hotkeys,
             hotkey_profiles,
@@ -1068,7 +1099,8 @@ mod tests {
                 "hotkeys",
                 "learning",
                 "translation",
-                "ui_lang"
+                "ui_lang",
+                "version"
             ]
         );
         assert_eq!(
@@ -1437,9 +1469,9 @@ mod tests {
     }
 
     /// The user's file (no `field_mapping` key) and the files older builds
-    /// wrote (the built-in default, or `null`): none of them is a choice, so
-    /// all match the note type by field name, and the next save leaves the
-    /// key out.
+    /// wrote, all without a `version` (the built-in default, or `null`): none
+    /// of them is a choice, so all match the note type by field name, and the
+    /// next save leaves the key out and writes the version.
     #[test]
     fn a_global_mapping_never_chosen_is_matched_by_field_name() {
         assert_eq!(
@@ -1461,6 +1493,11 @@ mod tests {
                 json!({ "anki": { "deck_name": "english",
                                   "field_mapping": old_default_mapping_json() } }),
             ),
+            (
+                "the old default, with a version a hand edit broke",
+                json!({ "version": "2", "anki": { "deck_name": "english",
+                                                  "field_mapping": old_default_mapping_json() } }),
+            ),
         ];
         for (name, file) in files {
             let dir = temp_dir();
@@ -1479,14 +1516,16 @@ mod tests {
             save_config_to(&path, &config).unwrap();
             let saved: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
             assert_eq!(saved["anki"].get("field_mapping"), None, "{name}");
+            assert_eq!(saved["version"], json!(CONFIG_VERSION), "{name}");
             assert_eq!(load_config_from(&path).unwrap(), config, "{name}");
         }
     }
 
-    /// The file is the IPC JSON, key for key and in the same order, except
-    /// that an unset global mapping is left out.
+    /// The file is the IPC JSON, key for key and in the same order, after its
+    /// `version` and without an unset global mapping.
     #[test]
-    fn the_file_leaves_out_only_an_unset_global_mapping() {
+    fn the_file_adds_its_version_and_leaves_out_only_an_unset_global_mapping() {
+        let versioned = |ipc: String| ipc.replacen('{', r#"{"version":2,"#, 1);
         let mut config = AppConfig {
             hotkey_profiles: vec![chinese_profile()],
             ..AppConfig::default()
@@ -1494,7 +1533,10 @@ mod tests {
         config.learning.languages = vec![french(), chinese()];
         let ipc = serde_json::to_string(&config).unwrap();
         let file = serde_json::to_string(&ConfigFile::new(&config)).unwrap();
-        assert_eq!(file, ipc.replacen(r#","field_mapping":null}"#, "}", 1));
+        assert_eq!(
+            file,
+            versioned(ipc.replacen(r#","field_mapping":null}"#, "}", 1))
+        );
         assert_eq!(
             file.matches(r#""field_mapping":null"#).count(),
             1,
@@ -1504,7 +1546,7 @@ mod tests {
         config.anki.field_mapping = Some(FieldMapping::chinese_default());
         let ipc = serde_json::to_string(&config).unwrap();
         let file = serde_json::to_string(&ConfigFile::new(&config)).unwrap();
-        assert_eq!(file, ipc);
+        assert_eq!(file, versioned(ipc));
     }
 
     /// `AnkiConfig` as the builds from before the global mapping could be
@@ -1561,18 +1603,28 @@ mod tests {
         }
     }
 
-    /// Only the exact old default counts as unset: any change to it, or any
-    /// other mapping, is the user's and is pushed as saved.
+    /// Any mapping set in this build is the user's and is pushed as saved,
+    /// through `apply_settings`' normalize and a save and load: the old
+    /// default too, which the editor offers as its Apple-style preset.
     #[test]
     fn a_customized_global_mapping_is_used_as_saved() {
+        let dir = temp_dir();
+        let path = dir.path().join(CONFIG_FILE_NAME);
         let mut no_audio = FieldMapping::apple_style_default();
         no_audio.audio_field = None;
         let mut reordered = FieldMapping::apple_style_default();
         reordered.fields.swap(2, 3);
-        for mapping in [no_audio, reordered, FieldMapping::chinese_default()] {
+        for mapping in [
+            no_audio,
+            reordered,
+            FieldMapping::chinese_default(),
+            FieldMapping::apple_style_default(),
+        ] {
             let mut config = AppConfig::default();
             config.anki.field_mapping = Some(mapping.clone());
             config.normalize();
+            save_config_to(&path, &config).unwrap();
+            let config = load_config_from(&path).unwrap();
 
             assert_eq!(config.anki.field_mapping.as_ref(), Some(&mapping));
             assert_eq!(
@@ -1580,11 +1632,28 @@ mod tests {
                 MappingChoice::Saved(mapping)
             );
         }
+    }
 
-        let mut config = AppConfig::default();
-        config.anki.field_mapping = Some(FieldMapping::apple_style_default());
-        config.normalize();
-        assert_eq!(config.anki.field_mapping, None, "the old default itself");
+    /// Only a file from before the version is migrated: in one from this
+    /// build, or a later one, the old default is a choice.
+    #[test]
+    fn only_a_file_without_a_version_loses_the_old_default() {
+        let dir = temp_dir();
+        let path = dir.path().join(CONFIG_FILE_NAME);
+        for (version, expected) in [
+            (json!(1), None),
+            (json!(2), Some(FieldMapping::apple_style_default())),
+            (json!(3), Some(FieldMapping::apple_style_default())),
+        ] {
+            let file = json!({ "version": version,
+                               "anki": { "field_mapping": old_default_mapping_json() } });
+            fs::write(&path, file.to_string()).unwrap();
+            assert_eq!(
+                load_config_from(&path).unwrap().anki.field_mapping,
+                expected,
+                "{version}"
+            );
+        }
     }
 
     #[test]

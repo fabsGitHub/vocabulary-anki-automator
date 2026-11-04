@@ -13,7 +13,6 @@ import {
   chineseMapping,
   copyMapping,
   effectiveBindings,
-  globalMapping,
   lacksPinyin,
   missingFields,
   needsChineseNoteType,
@@ -205,7 +204,7 @@ describe('missingFields (mirrors FieldMapping::missing_fields)', () => {
   })
 })
 
-describe('sameMapping, globalMapping and copyMapping', () => {
+describe('sameMapping and copyMapping', () => {
   it('compare bindings in order, and the audio field', () => {
     expect(sameMapping(appleStyleMapping(), appleStyleMapping())).toBe(true)
     const reordered = appleStyleMapping()
@@ -215,14 +214,6 @@ describe('sameMapping, globalMapping and copyMapping', () => {
     expect(sameMapping(withBinding(appleStyleMapping(), 'Notes', null), appleStyleMapping())).toBe(
       false,
     )
-  })
-
-  it('treat only the exact Apple-style preset as a global mapping never chosen (AppConfig::normalize)', () => {
-    expect(globalMapping(appleStyleMapping())).toBeNull()
-    expect(globalMapping(null)).toBeNull()
-    expect(globalMapping(chineseMapping())).toEqual(chineseMapping())
-    const noAudio = withAudioField(appleStyleMapping(), null)
-    expect(globalMapping(noAudio)).toBe(noAudio)
   })
 
   it('copy without sharing a binding', () => {

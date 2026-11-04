@@ -7,9 +7,8 @@
  * either is matched by field name at push time) and mirrors the rules the
  * editor has to show truthfully: the first binding for an Anki field wins
  * (field names compared case-insensitively, as AnkiConnect compares them),
- * `missing_fields` flags what a note type would silently drop, and a global
- * mapping equal to the Apple-style preset counts as never chosen (§ 8.1).
- * The presets are copies of `FieldMapping::apple_style_default`,
+ * and `missing_fields` flags what a note type would silently drop. The
+ * presets are copies of `FieldMapping::apple_style_default`,
  * `FieldMapping::chinese_default` and `FieldMapping::recommended`, the
  * mapping of the note type the settings offer to create in Anki.
  */
@@ -114,16 +113,6 @@ export function sameMapping(a: FieldMapping, b: FieldMapping): boolean {
         binding.source === b.fields[index].source,
     )
   )
-}
-
-/**
- * The global mapping as the backend keeps it (`AppConfig::normalize`): the
- * Apple-style preset is what every config held before the global mapping
- * could be left unset, so it is no choice and becomes `null`, matched by
- * field name like a missing one.
- */
-export function globalMapping(mapping: FieldMapping | null): FieldMapping | null {
-  return mapping && !sameMapping(mapping, appleStyleMapping()) ? mapping : null
 }
 
 /**

@@ -764,21 +764,26 @@ language pair in capture order.
   (`FieldMapping::auto_match`, § 9) whenever a card is filed; the result is never
   written back, so a changed note type is matched afresh. A saved mapping is
   always used as saved.
-- Migration of `anki.field_mapping`: until 2026-11 it was a plain mapping that
-  defaulted to `FieldMapping::apple_style_default()`, so every file an older build
-  saved holds that default whether or not the user ever chose it.
-  `AppConfig::normalize` therefore turns a missing key, `null` and exactly that
-  default into `null`, and the next save leaves the key out; any other mapping, even
-  the default with one binding or the audio field changed, stays saved. On the classic
-  AppleStyleFinalV3 note type (Front, Back, Context Sentence, Notes, Front Audio)
-  the match is exactly that default for every language pair (`mapper.rs`
+- `version`: every save writes `"version": 2` (`CONFIG_VERSION`) as the file's
+  first key; `get_current_settings` and `apply_settings` do not carry it, and older
+  builds ignore it like any key they do not know. A file without it (or with one that
+  is not a whole number) is version 1.
+- Migration of `anki.field_mapping`, in `load_config_from` and for version 1 only:
+  until 2026-11 it was a plain mapping that defaulted to
+  `FieldMapping::apple_style_default()`, so every file an older build saved holds
+  that default whether or not the user ever chose it. Such a file's missing key,
+  `null` and exactly that default load as `null`, and the next save leaves the key
+  out and writes the version; any other mapping, even the default with one binding
+  or the audio field changed, stays saved. On the classic AppleStyleFinalV3 note type
+  (Front, Back, Context Sentence, Notes, Front Audio) the match is exactly that
+  default for every language pair (`mapper.rs`
   `the_classic_note_type_matches_the_old_default_for_every_pair`), so those notes do
   not change; on any other note type it fills the fields the default missed. The
   rule is only for the global mapping: a learned language's saved mapping, the
-  preset included, was always a choice. The settings form mirrors it
-  (`globalMapping` in `src/domain/fieldMapping.ts`), so a customized mapping equal
-  to the preset saves as `null`. A user who wants exactly that preset on a note
-  type whose names match differently cannot keep it; any change to it is kept.
+  preset included, was always a choice. Since the version marks every file saved
+  after the migration, a mapping chosen since is kept as saved, the Apple-style
+  preset included (`AppConfig::normalize` leaves mappings alone, and the settings
+  form sends a customized mapping as it is).
 - Validation: each learned `lang` is supported, listed once and not
   `translation.target_lang`; deck and note type are non-empty; a saved mapping of
   its own fills at least one field and names every field, like a saved
@@ -793,7 +798,9 @@ language pair in capture order.
   `example_in_source_lang` or `example_in_target_lang` (§ 9) makes the whole file
   unreadable to it, so it is kept as `config.json.bak` and the defaults load. An
   unset global mapping does not, since the file leaves it out
-  (`a_build_from_before_the_mapping_could_be_unset_reads_the_saved_file`).
+  (`a_build_from_before_the_mapping_could_be_unset_reads_the_saved_file`). An older
+  build saves without `version`, so after a save there a global mapping equal to the
+  Apple-style default loads as unset here again.
 - Loading a legacy file maps the old `deepl` section onto `translation`
   (`api_key` is dropped), lowercases language codes and fills every new field
   with its default. `load_config_from(path)`/`save_config_to(path, cfg)` are

@@ -167,12 +167,12 @@ describe('load', () => {
     })
   })
 
-  it('loads the Apple-style preset as a global mapping never chosen, as the backend does', async () => {
+  it('loads a global mapping equal to the Apple-style preset as the choice it is', async () => {
     const store = await loadedStore({
       ...backendConfig(),
       anki: { ...backendConfig().anki, field_mapping: appleStyleMapping() },
     })
-    expect(store.config.value.anki.field_mapping).toBeNull()
+    expect(store.config.value.anki.field_mapping).toEqual(appleStyleMapping())
     expect(store.dirty.value).toBe(false)
   })
 
@@ -270,26 +270,30 @@ describe('save', () => {
     expect(sent.anki.field_mapping?.audio_field).toBeNull()
   })
 
-  it('sends null for a global mapping matched by name, and for one customized to the Apple-style preset', async () => {
+  it('sends null for a global mapping matched by name, and the Apple-style preset once chosen', async () => {
     const store = await loadedStore({
       ...backendConfig(),
       anki: { ...backendConfig().anki, field_mapping: null },
     })
     onCommand('apply_settings', null)
     expect(store.config.value.anki.field_mapping).toBeNull()
+    store.config.value.anki.deck_name = 'Mined'
+    expect(await store.save()).toBe(true)
+    expect(sentConfig().anki.field_mapping).toBeNull()
 
-    // Customizing a match that equals the preset changes nothing a save sends.
+    // Customizing is a choice a save keeps, even the preset the old default was.
     store.config.value.anki.field_mapping = appleStyleMapping()
+    expect(store.dirty.value).toBe(true)
+    expect(await store.save()).toBe(true)
+    expect(sentConfig(1).anki).toMatchObject({
+      deck_name: 'Mined',
+      field_mapping: appleStyleMapping(),
+    })
     expect(store.dirty.value).toBe(false)
     store.config.value.anki.field_mapping = withBinding(appleStyleMapping(), 'Notes', null)
     expect(store.dirty.value).toBe(true)
-    store.config.value.anki.deck_name = 'Mined'
-    store.config.value.anki.field_mapping = appleStyleMapping()
-
-    expect(await store.save()).toBe(true)
-    expect(sentConfig().anki.field_mapping).toBeNull()
-    expect(sentConfig().anki.deck_name).toBe('Mined')
-    expect(store.dirty.value).toBe(false)
+    store.config.value.anki.field_mapping = null
+    expect(store.dirty.value).toBe(true)
   })
 
   it('does not call apply_settings while a field is invalid', async () => {

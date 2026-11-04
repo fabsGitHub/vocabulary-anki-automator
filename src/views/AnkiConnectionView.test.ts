@@ -412,8 +412,8 @@ describe('the settings this tab owns', () => {
     await find('customize-mapping')?.trigger('click')
     expect(store.config.value.anki.field_mapping).toEqual(appleStyleMapping())
     expect(exists('mapping-badge')).toBe(false)
-    // The preset itself is what "matched by name" stands for: nothing to save yet.
-    expect(store.dirty.value).toBe(false)
+    // Customizing is a choice: the form shows what a save would keep.
+    expect(store.dirty.value).toBe(true)
 
     await wrapper?.find('tr[data-field="Notes"] select').setValue('hsk_level')
     expect(store.config.value.anki.field_mapping?.fields).toContainEqual({
@@ -519,7 +519,7 @@ describe('match by field name', () => {
     expect(exists('missing-fields')).toBe(false)
   })
 
-  it('previews the classic note type as the Apple-style preset, which customizing leaves unsaved', async () => {
+  it('previews the classic note type as the Apple-style preset, which customizing keeps', async () => {
     onCommand('anki_status', ONLINE)
     onCommand('anki_model_field_names', CLASSIC_FIELDS)
     onCommand('suggest_field_mapping', { mapping: appleStyleMapping(), guessed: [], unmatched: [] })
@@ -532,6 +532,27 @@ describe('match by field name', () => {
     ])
     expect(find('preview-audio')?.text()).toBe('Pronunciation → Front Audio')
     await find('customize-mapping')?.trigger('click')
+    expect(store.config.value.anki.field_mapping).toEqual(appleStyleMapping())
+    expect(store.dirty.value).toBe(true)
+  })
+
+  it('saves the Apple-style preset chosen for a note type matched differently', async () => {
+    onCommand('anki_status', ONLINE)
+    onCommand('anki_model_field_names', APPLE_V3_FIELDS)
+    onCommand('suggest_field_mapping', APPLE_V3_MATCH)
+    await mountTab()
+    await find('customize-mapping')?.trigger('click')
+    await flushPromises()
+    await find('preset-apple')?.trigger('click')
+    expect(store.config.value.anki.field_mapping).toEqual(appleStyleMapping())
+    expect(exists('mapping-badge')).toBe(false)
+    expect(store.dirty.value).toBe(true)
+
+    onCommand('apply_settings', null)
+    expect(await store.save()).toBe(true)
+    expect(callsTo('apply_settings')[0].args?.newCfg).toMatchObject({
+      anki: { field_mapping: appleStyleMapping() },
+    })
     expect(store.config.value.anki.field_mapping).toEqual(appleStyleMapping())
     expect(store.dirty.value).toBe(false)
   })
