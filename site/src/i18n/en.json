@@ -266,7 +266,7 @@
     "k1": "Example sentences exist for English so far. Chinese cards get a simple template sentence, and French, German, Spanish and Italian cards get none yet.",
     "k2": "Translations come from a free translation service. Check them before you approve.",
     "k3": "Captures are limited to 100\u00a0characters, and you can raise that to 500 in the settings.",
-    "k4": "The app only adds to Anki: new cards, and the note type “Polywort” when you click its button. It never changes or deletes your existing notes or note types.",
+    "k4": "The app only adds to Anki: new cards, the decks they go into if those do not exist yet, and the note type “Polywort” when you click its button. It never changes or deletes your existing notes or note types.",
     "k5": "The preview is not notarized and does not update itself."
   },
   "faq": {
