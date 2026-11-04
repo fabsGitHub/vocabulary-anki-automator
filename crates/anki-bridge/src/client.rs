@@ -134,6 +134,30 @@ impl AnkiClient {
         self.invoke("addNote", Some(add_note_params(note))).await
     }
 
+    /// Creates note type `name` with `fields` in this order, the shared `css`
+    /// and one card per template (`createModel`, never a cloze type).
+    /// AnkiConnect refuses a name the collection already has ("Model name
+    /// already exists"), so this never changes an existing note type. Its
+    /// answer, the new note type's full definition, is not needed.
+    pub async fn create_model(
+        &self,
+        name: &str,
+        fields: &[String],
+        css: &str,
+        templates: &[CardTemplate],
+    ) -> Result<(), AnkiError> {
+        let params = json!({
+            "modelName": name,
+            "inOrderFields": fields,
+            "css": css,
+            "isCloze": false,
+            "cardTemplates": templates,
+        });
+        self.invoke::<Value>("createModel", Some(params))
+            .await
+            .map(drop)
+    }
+
     /// Note ids matching an Anki search query (see [`deck_query`]).
     pub async fn find_notes(&self, query: &str) -> Result<Vec<i64>, AnkiError> {
         self.invoke("findNotes", Some(json!({ "query": query })))
@@ -190,6 +214,18 @@ impl AnkiClient {
         };
         AnkiError::Unreachable { message }
     }
+}
+
+/// One card template of a note type, as `createModel` takes it: `{{Field}}`
+/// placeholders for the question (`front`) and the answer (`back`) side.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CardTemplate {
+    #[serde(rename = "Name")]
+    pub name: String,
+    #[serde(rename = "Front")]
+    pub front: String,
+    #[serde(rename = "Back")]
+    pub back: String,
 }
 
 /// One note as AnkiConnect's `notesInfo` reports it (camelCase on the wire).

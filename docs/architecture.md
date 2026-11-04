@@ -1025,10 +1025,13 @@ impl AnkiClient {
     pub async fn model_names(&self) -> Result<Vec<String>, AnkiError>;
     pub async fn model_field_names(&self, model: &str) -> Result<Vec<String>, AnkiError>;
     pub async fn create_deck(&self, deck: &str) -> Result<i64, AnkiError>;
+    pub async fn create_model(&self, name: &str, fields: &[String], css: &str,
+        templates: &[CardTemplate]) -> Result<(), AnkiError>; // createModel, isCloze false
     pub async fn add_note(&self, note: &NoteSpec) -> Result<i64, AnkiError>;
     pub async fn find_notes(&self, query: &str) -> Result<Vec<i64>, AnkiError>;
     pub async fn notes_info(&self, ids: &[i64]) -> Result<Vec<NoteInfo>, AnkiError>;
 }
+pub struct CardTemplate { pub name: String, pub front: String, pub back: String } // serde "Name"/"Front"/"Back"
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AnkiError { Unreachable { message: String }, Api { message: String }, Duplicate { message: String }, Malformed { message: String } }
 
@@ -1040,10 +1043,12 @@ pub struct FieldMapping { pub fields: Vec<FieldBinding>, pub audio_field: Option
 impl FieldMapping {
     pub fn apple_style_default() -> Self; // Front->Front, Back->Back, Example->"Context Sentence", Notes->Notes, audio "Front Audio"
     pub fn chinese_default() -> Self;     // Front->Hanzi, Pinyin->Pinyin, Back->Meaning, Example->Sentence, audio "Audio"
+    pub fn recommended() -> Self;         // the recommended note type's fields, see below; audio "Audio"
     pub fn audio_field(&self) -> Option<&str>;                    // None when unset or blank
     pub fn missing_fields(&self, model_fields: &[String]) -> Vec<String>; // mapped fields the note type lacks
     pub fn lost_values(&self, card: &Card, model_fields: &[String]) -> Vec<LostValue>; // what a push of card drops
     pub fn auto_match(model_fields: &[String], source_lang: &str, target_lang: &str) -> AutoMatch;
+    pub fn is_matched_by_name(&self, model_fields: &[String]) -> bool; // auto_match == self for every pair
 }
 impl Default for FieldMapping { /* apple_style_default */ }
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -1058,6 +1063,9 @@ pub struct AudioAttachment { pub filename: String, pub data_b64: String, pub fie
 pub fn map_card(card: &Card, direction: Direction, target: &AnkiTarget, mapping: &FieldMapping, audio: Option<&[u8]>) -> NoteSpec;
 pub fn add_note_params(note: &NoteSpec) -> serde_json::Value;     // exactly AnkiConnect's addNote "params"
 pub fn card_from_note(note: &NoteInfo, mapping: &FieldMapping, source_lang: &str, target_lang: &str, captured_at: DateTime<Utc>) -> Option<Card>;
+pub const RECOMMENDED_NOTE_TYPE: &str = "Vocabulary Automator";
+pub struct NoteTypeSpec { pub name: String, pub fields: Vec<String>, pub css: String, pub templates: Vec<CardTemplate> }
+pub fn recommended_note_type() -> NoteTypeSpec;
 ```
 
 Shared push helper (both apps use it; never re-implement the sequence):
@@ -1110,6 +1118,33 @@ Semantics:
   with an empty first field; `audio_field` is the first word-audio field, spelled
   exactly; `unmatched` lists the fields left empty. Codes are normalized first. Both
   built-in mappings come out of their own field names exactly.
+- The recommended note type (`recommended_note_type`, Milestone O) holds everything
+  a card has. Fields in order, with what `FieldMapping::recommended` writes:
+
+  | field                  | value                    |
+  | ---------------------- | ------------------------ |
+  | `Front`                | `front`                  |
+  | `Back`                 | `back`                   |
+  | `Sentence`             | `example_in_source_lang` |
+  | `Sentence Translation` | `example_in_target_lang` |
+  | `Audio`                | the pronunciation        |
+  | `Pinyin`               | `pinyin`                 |
+  | `HSK Level`            | `hsk_level`              |
+  | `Notes`                | `notes`                  |
+
+  The sentences are bound by language, so the reverse note (front and back
+  swapped) still has the sentence in the captured language over its translation.
+  One template, "Recall": the question side shows `{{Front}}` large; the answer
+  side shows `{{FrontSide}}`, `<hr id=answer>`, `{{Back}}`, then each of Pinyin,
+  Sentence, Sentence Translation, Notes, HSK Level and Audio inside a
+  `{{#Field}}...{{/Field}}` block, so an empty field leaves no trace. The CSS is
+  self-contained (no fonts, images or scripts from anywhere, no JavaScript): a
+  centred word, muted secondary text, and a dark variant for Anki's `nightMode` and
+  AnkiDroid's `night_mode` classes. Matching its field names by name gives exactly
+  `FieldMapping::recommended` for every language pair, so a place that uses it can
+  leave its mapping `null`. The name is the one place the product name appears in
+  Rust.
+
 - `lost_values` checks the forward note only (the reverse note writes the same
   fields): a binding whose field the note type lacks while the card has a value for
   it (`missing_field`, field names case-insensitive), a non-empty front, back,
