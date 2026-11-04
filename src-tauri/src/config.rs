@@ -636,11 +636,13 @@ pub fn load_config_from(path: &Path) -> Result<AppConfig, ConfigError> {
 /// Writes `config`, [normalized](AppConfig::normalize), to `path` atomically:
 /// into a uniquely named sibling first, which is then renamed over `path`.
 /// Creates the parent directory. Does not [validate](AppConfig::validate);
-/// callers taking user input do that first.
+/// callers taking user input do that first. The file is [`ConfigFile`]: an
+/// unset global mapping is left out.
 pub fn save_config_to(path: &Path, config: &AppConfig) -> Result<(), ConfigError> {
     let mut config = config.clone();
     config.normalize();
-    let json = serde_json::to_string_pretty(&config).map_err(ConfigError::Encode)?;
+    let json =
+        serde_json::to_string_pretty(&ConfigFile::new(&config)).map_err(ConfigError::Encode)?;
 
     let write_error = |source| ConfigError::Write {
         path: path.to_path_buf(),
@@ -668,6 +670,72 @@ pub fn save_config_to(path: &Path, config: &AppConfig) -> Result<(), ConfigError
         return Err(write_error(source));
     }
     Ok(())
+}
+
+/// What [`save_config_to`] writes: the JSON of [`AppConfig`], in the same
+/// order, except that an unset global mapping is left out instead of written
+/// as `null` (`get_current_settings` still sends `null`). Builds from before
+/// the global mapping could be unset declare it as a plain mapping: `null`
+/// makes the whole file unreadable to them, so they would start from their
+/// defaults, while a missing key loads their built-in Apple-style default,
+/// the mapping they always used. [`ConfigFile::new`] destructures every
+/// field, so one added to the config cannot be missing from the file.
+#[derive(Serialize)]
+struct ConfigFile<'a> {
+    ui_lang: &'a str,
+    hotkeys: &'a str,
+    hotkey_profiles: &'a [HotkeyProfile],
+    translation: &'a TranslationConfig,
+    anki: AnkiFile<'a>,
+    consent: &'a ConsentState,
+    learning: &'a LearningConfig,
+}
+
+/// [`AnkiConfig`] in a [`ConfigFile`].
+#[derive(Serialize)]
+struct AnkiFile<'a> {
+    connect_url: &'a str,
+    deck_name: &'a str,
+    model_name: &'a str,
+    create_reverse: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    field_mapping: Option<&'a FieldMapping>,
+}
+
+impl<'a> ConfigFile<'a> {
+    fn new(config: &'a AppConfig) -> Self {
+        let AppConfig {
+            ui_lang,
+            hotkeys,
+            hotkey_profiles,
+            translation,
+            anki,
+            consent,
+            learning,
+        } = config;
+        let AnkiConfig {
+            connect_url,
+            deck_name,
+            model_name,
+            create_reverse,
+            field_mapping,
+        } = anki;
+        Self {
+            ui_lang,
+            hotkeys,
+            hotkey_profiles,
+            translation,
+            anki: AnkiFile {
+                connect_url,
+                deck_name,
+                model_name,
+                create_reverse: *create_reverse,
+                field_mapping: field_mapping.as_ref(),
+            },
+            consent,
+            learning,
+        }
+    }
 }
 
 /// Creates `path` (failing if anything already exists there, so a planted
@@ -1370,8 +1438,8 @@ mod tests {
 
     /// The user's file (no `field_mapping` key) and the files older builds
     /// wrote (the built-in default, or `null`): none of them is a choice, so
-    /// all match the note type by field name, and the next save writes
-    /// `null`.
+    /// all match the note type by field name, and the next save leaves the
+    /// key out.
     #[test]
     fn a_global_mapping_never_chosen_is_matched_by_field_name() {
         assert_eq!(
@@ -1410,7 +1478,86 @@ mod tests {
             assert!(config.validate().is_ok(), "{name}: {:?}", config.validate());
             save_config_to(&path, &config).unwrap();
             let saved: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-            assert_eq!(saved["anki"]["field_mapping"], Value::Null, "{name}");
+            assert_eq!(saved["anki"].get("field_mapping"), None, "{name}");
+            assert_eq!(load_config_from(&path).unwrap(), config, "{name}");
+        }
+    }
+
+    /// The file is the IPC JSON, key for key and in the same order, except
+    /// that an unset global mapping is left out.
+    #[test]
+    fn the_file_leaves_out_only_an_unset_global_mapping() {
+        let mut config = AppConfig {
+            hotkey_profiles: vec![chinese_profile()],
+            ..AppConfig::default()
+        };
+        config.learning.languages = vec![french(), chinese()];
+        let ipc = serde_json::to_string(&config).unwrap();
+        let file = serde_json::to_string(&ConfigFile::new(&config)).unwrap();
+        assert_eq!(file, ipc.replacen(r#","field_mapping":null}"#, "}", 1));
+        assert_eq!(
+            file.matches(r#""field_mapping":null"#).count(),
+            1,
+            "french's"
+        );
+
+        config.anki.field_mapping = Some(FieldMapping::chinese_default());
+        let ipc = serde_json::to_string(&config).unwrap();
+        let file = serde_json::to_string(&ConfigFile::new(&config)).unwrap();
+        assert_eq!(file, ipc);
+    }
+
+    /// `AnkiConfig` as the builds from before the global mapping could be
+    /// unset declare it (5b647bc, which the user runs as a release); the
+    /// rest of the file kept its shape.
+    #[derive(Debug, Deserialize)]
+    #[serde(default)]
+    struct OldAnkiConfig {
+        deck_name: String,
+        model_name: String,
+        field_mapping: FieldMapping,
+    }
+
+    impl Default for OldAnkiConfig {
+        fn default() -> Self {
+            Self {
+                deck_name: "English::AutomatedVocabulary".into(),
+                model_name: "AppleStyleFinalV3".into(),
+                field_mapping: FieldMapping::apple_style_default(),
+            }
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct OldAppConfig {
+        anki: OldAnkiConfig,
+    }
+
+    /// Going back to such a build keeps the settings: it reads a mapping
+    /// never chosen as its built-in default, the mapping it always used, and
+    /// one the user chose as saved.
+    #[test]
+    fn a_build_from_before_the_mapping_could_be_unset_reads_the_saved_file() {
+        let dir = temp_dir();
+        let path = dir.path().join(CONFIG_FILE_NAME);
+        let mut config = AppConfig::default();
+        config.anki.deck_name = "english".into();
+        let mut chosen = FieldMapping::apple_style_default();
+        chosen.audio_field = Some("Audio".into());
+
+        for (mapping, expected) in [
+            (None, FieldMapping::apple_style_default()),
+            (Some(chosen.clone()), chosen),
+        ] {
+            config.anki.field_mapping = mapping;
+            save_config_to(&path, &config).unwrap();
+
+            let old: OldAppConfig =
+                serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+
+            assert_eq!(old.anki.deck_name, "english");
+            assert_eq!(old.anki.model_name, "AppleStyleFinalV3");
+            assert_eq!(old.anki.field_mapping, expected);
         }
     }
 

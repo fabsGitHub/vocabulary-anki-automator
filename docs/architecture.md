@@ -768,8 +768,8 @@ language pair in capture order.
   defaulted to `FieldMapping::apple_style_default()`, so every file an older build
   saved holds that default whether or not the user ever chose it.
   `AppConfig::normalize` therefore turns a missing key, `null` and exactly that
-  default into `null`, and the next save writes `null`; any other mapping, even the
-  default with one binding or the audio field changed, stays saved. On the classic
+  default into `null`, and the next save leaves the key out; any other mapping, even
+  the default with one binding or the audio field changed, stays saved. On the classic
   AppleStyleFinalV3 note type (Front, Back, Context Sentence, Notes, Front Audio)
   the match is exactly that default for every language pair (`mapper.rs`
   `the_classic_note_type_matches_the_old_default_for_every_pair`), so those notes do
@@ -784,11 +784,16 @@ language pair in capture order.
   its own fills at least one field and names every field, like a saved
   `anki.field_mapping`. Fields the note type lacks are a warning, never a validation
   error.
+- In the file, an `anki.field_mapping` of `null` is left out (`ConfigFile` in
+  `config.rs`); `get_current_settings` and `apply_settings` still carry it as `null`.
+  A missing key loads as `null` here, and as the built-in Apple-style default in a
+  build from before the global mapping could be unset, which is the mapping that
+  build always used.
 - Downgrade: an older build ignores `learning`, but a saved mapping that uses
-  `example_in_source_lang` or `example_in_target_lang` (§ 9), and an
-  `anki.field_mapping` of `null` (what every save writes until the user customizes
-  the mapping), make the whole file unreadable to it, so it is kept as
-  `config.json.bak` and the defaults load.
+  `example_in_source_lang` or `example_in_target_lang` (§ 9) makes the whole file
+  unreadable to it, so it is kept as `config.json.bak` and the defaults load. An
+  unset global mapping does not, since the file leaves it out
+  (`a_build_from_before_the_mapping_could_be_unset_reads_the_saved_file`).
 - Loading a legacy file maps the old `deepl` section onto `translation`
   (`api_key` is dropped), lowercases language codes and fills every new field
   with its default. `load_config_from(path)`/`save_config_to(path, cfg)` are
