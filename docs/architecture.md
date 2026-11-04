@@ -92,6 +92,64 @@ pub fn effective_source_lang(configured: &str, text: &str) -> String; // "zh-CN"
 pub fn is_phrase(text: &str) -> bool;          // contains whitespace after trimming (Milestone H)
 ```
 
+### 3.1 Source-language detection (`vocab_core::detect`)
+
+With learned languages configured (§ 8.1), the Automator's default hotkey picks
+the capture's source language with `detect` before the pipeline runs (Milestone O).
+
+```rust
+pub const LATIN_LANGS: &[&str] = &["en", "de", "fr", "es", "it"];
+pub const CONFIDENT_AT: f64 = 0.85;       // a statistical top score from which the guess is certain
+pub const TIE_BREAK_MARGIN: f64 = 0.25;   // how close the last approved language must score to win
+
+#[serde(rename_all = "snake_case")] pub enum Script { Latin, Han, Kana, Hangul, Cyrillic, Other, None }
+#[serde(rename_all = "snake_case")] pub enum DetectionMethod { Script, Single, Statistical, TieBreak, Fallback, Chosen }
+pub struct LanguageScore { pub lang: String, pub confidence: f64 }
+pub struct Detection {
+    pub lang: String,             // canonical code the card was built for
+    pub method: DetectionMethod,
+    pub confident: bool,
+    pub script: Script,
+    pub candidates: Vec<String>,  // what the approval window offers, in settings order; contains `lang`
+    pub ranked: Vec<LanguageScore>, // the guesser's scores, best first; empty unless it ran
+}
+pub trait LatinGuesser: Send + Sync {
+    /// 2+ canonical codes from LATIN_LANGS; scores sum to 1, or are all 0 when nothing fits.
+    fn rank(&self, text: &str, candidates: &[&str]) -> Vec<LanguageScore>;
+}
+pub fn script_of(text: &str) -> Script;
+pub fn detect(text: &str, learned: &[String], fallback: &str,
+              last_confirmed: Option<&str>, guesser: &dyn LatinGuesser) -> Detection;
+```
+
+`script_of`: any `is_cjk_char` → `Han` (also among kana: Japanese kanji read as
+Chinese, as before). Otherwise the class most letters (`char::is_alphabetic`) belong
+to: Latin (ASCII, U+00C0–U+024F without × and ÷, U+1E00–U+1EFF), kana
+(U+3040–U+30FF, U+31F0–U+31FF, U+FF66–U+FF9F), Hangul (U+1100–U+11FF,
+U+3130–U+318F, U+AC00–U+D7AF), Cyrillic (U+0400–U+052F), other; a tie goes to the
+first in that order, and no letters at all is `None`.
+
+`detect(text, learned, fallback, last_confirmed, guesser)`, with `learned` the
+learned languages in settings order, `fallback` the configured source language and
+`last_confirmed` the language of the last approved card:
+
+1. `Han` → `zh-CN`, method `script`, confident, candidates `["zh-CN"]`, whether or
+   not Chinese is learned.
+2. `Latin`, with `latin` = learned ∩ `LATIN_LANGS` in settings order: none →
+   `fallback`; one → that language, `single`, confident; two or more →
+   `guesser.rank(text, latin)`, scores for other codes dropped, best first (equal
+   scores in settings order). A top score of 0 (or no scores) → `fallback`; a top
+   ≥ `CONFIDENT_AT` → `statistical`, confident; else `last_confirmed`, when it is in
+   `latin`, is not the top and scores less than `TIE_BREAK_MARGIN` below it →
+   `tie_break`, unsure; else the top, `statistical`, unsure. Candidates are `latin`.
+3. Any other script → `fallback`, unsure, with every learned language as a candidate.
+
+`fallback` is never confident, and the chosen `lang` is appended to the candidates
+when they lack it. The guesser is only asked with two or more codes. `chosen` is
+what a switch in the approval window records (§ 8.2). The guesser the app uses is
+the lingua adapter in `src-tauri/src/detect.rs`; lingua is a dependency of the
+Automator only, so vocab-core and Learn build without it.
+
 ## 4. Providers (`vocab_core::providers`)
 
 Traits (already in `providers/mod.rs`): `TranslationProvider`,
