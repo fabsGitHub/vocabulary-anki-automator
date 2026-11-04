@@ -33,6 +33,10 @@ fn the_app_is_called_polywort() {
         conf.pointer("/app/windows/0/title"),
         Some(&json!("Polywort"))
     );
+    // Without a publisher Tauri takes the identifier's second segment, so
+    // Windows would show "ankiautomator" as the exe's company and the
+    // installer's publisher.
+    assert_eq!(conf.pointer("/bundle/publisher"), Some(&json!("Polywort")));
 }
 
 #[test]
