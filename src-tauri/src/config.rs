@@ -55,8 +55,10 @@ pub const TRANSLATION_PROVIDERS: &[&str] = &["mymemory"];
 pub struct AppConfig {
     /// UI language of both windows (a vue-i18n locale).
     pub ui_lang: String,
-    /// Shortcut of the default profile, which captures in `translation`'s
-    /// language pair into `anki.deck_name`.
+    /// Shortcut of the default profile. It detects the source language among
+    /// `learning.languages` (falling back to `translation.source_lang`), or
+    /// captures in `translation`'s pair when none are listed; the deck is
+    /// [`AppConfig::filing`]'s choice.
     pub hotkeys: String,
     /// Extra shortcuts, each with its own language pair and optional deck
     /// (Milestone H).
@@ -83,7 +85,8 @@ pub struct HotkeyProfile {
     pub shortcut: String,
     pub source_lang: String,
     pub target_lang: String,
-    /// Deck for this profile's cards instead of `anki.deck_name`.
+    /// Deck for this profile's cards instead of the one
+    /// [`AppConfig::filing`] would choose for the language.
     pub deck_name: Option<String>,
 }
 

@@ -55,6 +55,36 @@ export interface PipelineWarning {
   error: ProviderError
 }
 
+/** The writing system most of a text's letters belong to (`vocab_core::detect::Script`). */
+export type Script = 'latin' | 'han' | 'kana' | 'hangul' | 'cyrillic' | 'other' | 'none'
+
+/**
+ * How the source language was chosen: by script (Han text is Chinese), as the
+ * only learned language of the script, statistically, by the last approved
+ * language breaking a close call, as the fallback, or by the user's switch.
+ */
+export type DetectionMethod =
+  'script' | 'single' | 'statistical' | 'tie_break' | 'fallback' | 'chosen'
+
+/** One candidate's statistical score, 0..1. */
+export interface LanguageScore {
+  lang: string
+  confidence: number
+}
+
+/** Which learned language a capture was read in (§ 3.1). */
+export interface Detection {
+  /** Canonical code the card was built for. */
+  lang: string
+  method: DetectionMethod
+  confident: boolean
+  script: Script
+  /** The languages the approval window offers, in settings order; contains `lang`. */
+  candidates: string[]
+  /** The statistical scores, best first; empty unless they were computed. */
+  ranked: LanguageScore[]
+}
+
 /** Where a pending card will be filed (`AppConfig::filing` on the backend). */
 export interface PendingFiling {
   deck: string
@@ -68,6 +98,8 @@ export interface PendingCapture {
   warnings: PipelineWarning[]
   /** The hotkey profile that captured it; `null` for the default hotkey. */
   profile_id: string | null
+  /** `null` when the source language was not detected (a hotkey profile, or no learned languages). */
+  detection: Detection | null
   filing: PendingFiling
 }
 

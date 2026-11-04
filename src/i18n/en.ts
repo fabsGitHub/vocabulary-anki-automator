@@ -246,6 +246,15 @@ export const en = {
     profile: 'Hotkey: {label}',
     deck: 'Deck: {deck}',
     model: 'Note type: {model}',
+    languageGroup: 'Language of the text',
+    switchTo: 'Capture as {lang}',
+    detectedUnsure: '{lang}?',
+    targetLang: '→ {lang}',
+    unsureHint:
+      'This could be more than one of your languages. It was read as {lang}. If that is wrong, choose the right language: translation, example, pronunciation and deck are fetched again.',
+    fallbackHint: 'None of your languages fits this text. It was read as {lang}.',
+    foreignScript:
+      'The text is written in a script none of your languages uses. It was read as {lang}.',
     front: 'Front (word)',
     back: 'Back (translation)',
     exampleSource: 'Example sentence',

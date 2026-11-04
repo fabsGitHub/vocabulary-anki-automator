@@ -70,6 +70,17 @@ fn learned(lang: &str, deck: &str, model: &str) -> LearnedLanguage {
     }
 }
 
+/// A user who learns English, French and Chinese, each in a deck of its own.
+fn learner() -> Options {
+    let mut options = Options::default();
+    options.config.learning.languages = vec![
+        learned("en", "english", "AppleStyleFinalV3"),
+        learned("fr", "french", "AppleStyleFinalV3"),
+        learned("zh-CN", "chinese", "Chinese (HSK)"),
+    ];
+    options
+}
+
 #[test]
 fn nothing_is_pending_at_first() {
     let harness = Harness::new();
@@ -166,6 +177,7 @@ fn without_learned_languages_a_capture_is_filed_as_before() {
     capture(&harness, "serendipity", None);
 
     let pending = pending(&harness);
+    assert_eq!(pending["detection"], Value::Null, "nothing was detected");
     assert_eq!(
         pending["filing"],
         json!({ "deck": "English::AutomatedVocabulary", "model": "AppleStyleFinalV3" })
@@ -212,12 +224,167 @@ fn the_pending_capture_names_its_deck_and_note_type() {
         pending(&harness)["filing"],
         json!({ "deck": "french", "model": "Basic" })
     );
-    capture(&harness, "house", None);
+    // Read as the configured English, which is not learned: the globals.
+    capture(&harness, "привет", None);
     assert_eq!(
         pending(&harness)["filing"],
         json!({ "deck": "English::AutomatedVocabulary", "model": "AppleStyleFinalV3" }),
-        "English is not learned: the globals"
     );
+}
+
+/// The default hotkey recognizes a learned language and files the card in
+/// its deck.
+#[test]
+fn the_default_hotkey_detects_a_learned_language() {
+    let harness = Harness::with(learner());
+
+    capture(&harness, "bonjour", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "fr");
+    assert_eq!(pending["card"]["target_lang"], "de");
+    assert_eq!(pending["detection"]["method"], "statistical");
+    assert_eq!(pending["detection"]["confident"], true);
+    assert_eq!(pending["detection"]["script"], "latin");
+    assert_eq!(pending["detection"]["candidates"], json!(["en", "fr"]));
+    assert_eq!(pending["detection"]["ranked"][0]["lang"], "fr");
+    assert_eq!(
+        pending["filing"],
+        json!({ "deck": "french", "model": "AppleStyleFinalV3" })
+    );
+    assert_eq!(
+        harness.providers.calls(),
+        ["translate fr->de bonjour", "tts fr bonjour"],
+        "French has no rarity or example provider"
+    );
+}
+
+/// A word of several learned languages is a guess the window marks as unsure.
+#[test]
+fn a_homograph_is_an_unsure_guess() {
+    let harness = Harness::with(learner());
+
+    capture(&harness, "message", None);
+
+    let detection = pending(&harness)["detection"].clone();
+    assert_eq!(detection["lang"], "fr");
+    assert_eq!(detection["method"], "statistical");
+    assert_eq!(detection["confident"], false);
+    assert_eq!(detection["candidates"], json!(["en", "fr"]));
+}
+
+#[test]
+fn han_text_is_chinese_by_its_script() {
+    let harness = Harness::with(learner());
+
+    capture(&harness, "学习", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "zh-CN");
+    assert_eq!(
+        pending["detection"],
+        json!({
+            "lang": "zh-CN",
+            "method": "script",
+            "confident": true,
+            "script": "han",
+            "candidates": ["zh-CN"],
+            "ranked": []
+        })
+    );
+    assert_eq!(
+        pending["filing"],
+        json!({ "deck": "chinese", "model": "Chinese (HSK)" })
+    );
+    assert!(harness
+        .providers
+        .calls()
+        .contains(&"annotate 学习".to_string()));
+}
+
+/// Text in none of the learned languages is captured in the configured
+/// source language, and the window is told why.
+#[test]
+fn a_foreign_script_falls_back_to_the_configured_source_language() {
+    let mut options = learner();
+    options.config.translation.source_lang = "fr".into();
+    let harness = Harness::with(options);
+
+    capture(&harness, "привет", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "fr");
+    assert_eq!(pending["detection"]["method"], "fallback");
+    assert_eq!(pending["detection"]["confident"], false);
+    assert_eq!(pending["detection"]["script"], "cyrillic");
+    assert_eq!(
+        pending["detection"]["candidates"],
+        json!(["en", "fr", "zh-CN"])
+    );
+    assert_eq!(pending["filing"]["deck"], "french");
+}
+
+/// A hotkey profile keeps its fixed pair: no detection, its own deck, else
+/// the deck of its language.
+#[test]
+fn hotkey_profiles_do_not_detect() {
+    let mut options = learner();
+    options.config.hotkey_profiles.push(HotkeyProfile {
+        id: "en-de".into(),
+        label: "English → German".into(),
+        shortcut: "Alt+E".into(),
+        source_lang: "en".into(),
+        target_lang: "de".into(),
+        deck_name: None,
+    });
+    options.config.hotkey_profiles.push(HotkeyProfile {
+        id: "en-mined".into(),
+        label: "Mined English".into(),
+        shortcut: "Alt+M".into(),
+        source_lang: "en".into(),
+        target_lang: "de".into(),
+        deck_name: Some("English::Mined".into()),
+    });
+    let harness = Harness::with(options);
+
+    capture(&harness, "bonjour", Some("en-de"));
+    let pending_capture = pending(&harness);
+    assert_eq!(pending_capture["detection"], Value::Null);
+    assert_eq!(pending_capture["card"]["source_lang"], "en");
+    assert_eq!(pending_capture["filing"]["deck"], "english");
+
+    capture(&harness, "bonjour", Some("en-mined"));
+    let pending_capture = pending(&harness);
+    assert_eq!(pending_capture["detection"], Value::Null);
+    assert_eq!(pending_capture["filing"]["deck"], "English::Mined");
+}
+
+/// After an English card, the next homograph is read as English.
+#[test]
+fn the_last_approved_language_breaks_a_close_call() {
+    let harness = Harness::with(learner());
+    capture(&harness, "serendipity", None);
+    assert_eq!(pending_card(&harness)["source_lang"], "en");
+    approve(&harness, pending_card(&harness));
+
+    capture(&harness, "message", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "en");
+    assert_eq!(pending["detection"]["method"], "tie_break");
+    assert_eq!(pending["detection"]["confident"], false);
+    assert_eq!(pending["filing"]["deck"], "english");
+}
+
+/// Refused captures skip detection and are reported exactly as before.
+#[test]
+fn refused_captures_are_not_detected() {
+    let harness = Harness::with(learner());
+
+    capture(&harness, &"x".repeat(101), None);
+
+    assert_eq!(harness.events("capture-error").len(), 1);
+    assert_eq!(pending(&harness), Value::Null);
 }
 
 /// Milestone H: a phrase is captured and translated; only the single-word

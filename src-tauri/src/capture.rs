@@ -12,6 +12,11 @@
 //! almost always means the app lacks the Accessibility permission that
 //! synthetic keystrokes need. The keystrokes are sent from the main thread
 //! (see [`OnMainThread`]).
+//!
+//! With learned languages configured, the default hotkey chooses the source
+//! language per capture before the pipeline runs (`vocab_core::detect`, with
+//! lingua through [`LinguaGuesser`]); the pipeline itself is unchanged, and so
+//! is every capture while the list is empty.
 
 use std::{
     future::Future,
@@ -26,6 +31,8 @@ use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuild
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use vocab_core::{
     curriculum::CurriculumIndex,
+    detect::{detect, Detection},
+    language::normalize_lang,
     pipeline::{CapturePipeline, CaptureRequest, PipelineError, PipelineWarning},
     providers::{ProviderRegistry, StandardProviders},
     Card,
@@ -33,6 +40,8 @@ use vocab_core::{
 
 use crate::{
     config::{AppConfig, CaptureProfile},
+    detect::LinguaGuesser,
+    push::LAST_SOURCE_LANG_KEY,
     state::AppState,
 };
 
@@ -62,6 +71,10 @@ pub struct PendingCapture {
     pub warnings: Vec<PipelineWarning>,
     /// The hotkey profile it was captured with; `None` for the default one.
     pub profile_id: Option<String>,
+    /// How the source language was chosen; `None` when it was not detected
+    /// (a hotkey profile fixes it, or no languages are learned).
+    #[serde(default)]
+    pub detection: Option<Detection>,
     /// The deck and note type the card will be filed under (from
     /// [`AppConfig::filing`]).
     #[serde(default)]
@@ -129,11 +142,20 @@ pub fn start_hotkey_capture<R: Runtime>(app: &AppHandle<R>, profile: CaptureProf
             log::info!("A capture is still running; ignoring the hotkey.");
             return;
         };
-        log::info!(
-            "Hotkey capture started ({} -> {}).",
-            profile.source_lang,
-            profile.target_lang
-        );
+        let learned = state.config().detection_languages(&profile);
+        if learned.is_empty() {
+            log::info!(
+                "Hotkey capture started ({} -> {}).",
+                profile.source_lang,
+                profile.target_lang
+            );
+        } else {
+            log::info!(
+                "Hotkey capture started (auto among [{}] -> {}).",
+                learned.join(", "),
+                profile.target_lang
+            );
+        }
         match copy_selection(&app).await {
             Ok(text) => {
                 // Failures are reported to the user inside; nothing left to do.
@@ -146,7 +168,8 @@ pub fn start_hotkey_capture<R: Runtime>(app: &AppHandle<R>, profile: CaptureProf
 
 /// Runs `text` through the pipeline for `profile`, stores the result as the
 /// pending capture and shows it in the approval window. Invalid input (empty,
-/// too long) is reported as a `capture-error` event and returned.
+/// too long) is reported as a `capture-error` event and returned. The
+/// default hotkey with learned languages detects the source language first.
 pub async fn run_capture<R: Runtime>(
     app: &AppHandle<R>,
     state: &AppState,
@@ -154,13 +177,16 @@ pub async fn run_capture<R: Runtime>(
     profile: &CaptureProfile,
 ) -> Result<(), PipelineError> {
     let config = state.config();
+    let detection = detect_source(state, &config, profile, &text);
     let pipeline = CapturePipeline::new(
         state.providers().registry(&config),
         config.translation.max_chars,
     );
     let request = CaptureRequest {
         text,
-        source_lang: profile.source_lang.clone(),
+        source_lang: detection
+            .as_ref()
+            .map_or_else(|| profile.source_lang.clone(), |found| found.lang.clone()),
         target_lang: profile.target_lang.clone(),
         captured_at: state.now(),
         tags: Vec::new(),
@@ -185,6 +211,7 @@ pub async fn run_capture<R: Runtime>(
         card: outcome.card,
         warnings: outcome.warnings,
         profile_id: profile.id.clone(),
+        detection,
         filing: PendingFiling {
             deck: filing.deck,
             model: filing.model,
@@ -193,6 +220,47 @@ pub async fn run_capture<R: Runtime>(
     state.pending().set(pending.clone());
     present_preview(app, &pending);
     Ok(())
+}
+
+/// Which of the learned languages `text` is in, for a capture with
+/// `profile`: `None` when the profile does not detect (a hotkey profile, or
+/// no learned languages) and for text the pipeline will refuse anyway (empty
+/// or too long), so those captures run exactly as before. Han text for a
+/// learner whose own language is Chinese is also left alone: the pipeline
+/// already reverses the pair for it.
+fn detect_source(
+    state: &AppState,
+    config: &AppConfig,
+    profile: &CaptureProfile,
+    text: &str,
+) -> Option<Detection> {
+    let learned = config.detection_languages(profile);
+    let trimmed = text.trim();
+    if learned.is_empty()
+        || trimmed.is_empty()
+        || trimmed.chars().count() > config.translation.max_chars
+    {
+        return None;
+    }
+    // Without a history (Anki-only mode) there is just no tie-break.
+    let last = state
+        .with_store(|store| store.get_state(LAST_SOURCE_LANG_KEY))
+        .ok()
+        .flatten();
+    let found = detect(
+        trimmed,
+        &learned,
+        &profile.source_lang,
+        last.as_deref(),
+        &LinguaGuesser,
+    );
+    log::info!(
+        "Detected {} ({:?}, confident: {}).",
+        found.lang,
+        found.method,
+        found.confident
+    );
+    (found.lang != normalize_lang(&profile.target_lang)).then_some(found)
 }
 
 /// Shows `pending` in the approval window. An existing window (usually
@@ -552,6 +620,7 @@ mod tests {
             card,
             warnings: Vec::new(),
             profile_id: Some("de-en".into()),
+            detection: None,
             filing: PendingFiling {
                 deck: "german".into(),
                 model: "Basic".into(),
@@ -559,7 +628,11 @@ mod tests {
         };
         let json = serde_json::to_value(&pending).unwrap();
         let keys: Vec<_> = json.as_object().unwrap().keys().cloned().collect();
-        assert_eq!(keys, ["card", "filing", "profile_id", "warnings"]);
+        assert_eq!(
+            keys,
+            ["card", "detection", "filing", "profile_id", "warnings"]
+        );
+        assert_eq!(json["detection"], serde_json::Value::Null);
         assert_eq!(json["profile_id"], "de-en");
         assert_eq!(
             json["filing"],

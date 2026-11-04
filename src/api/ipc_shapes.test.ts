@@ -30,6 +30,7 @@ import {
   integer,
   literal,
   nullable,
+  number,
   object,
   string,
   union,
@@ -88,11 +89,30 @@ const pipelineStage = literal(
   'annotate',
 )
 const pipelineWarning = object({ stage: pipelineStage, error: providerError })
+const script = literal('latin', 'han', 'kana', 'hangul', 'cyrillic', 'other', 'none')
+const detectionMethod = literal(
+  'script',
+  'single',
+  'statistical',
+  'tie_break',
+  'fallback',
+  'chosen',
+)
+const languageScore = object({ lang: string, confidence: number })
+const detection = object({
+  lang: string,
+  method: detectionMethod,
+  confident: boolean,
+  script,
+  candidates: array(string),
+  ranked: array(languageScore),
+})
 const pendingFiling = object({ deck: string, model: string })
 const pendingCapture = object({
   card,
   warnings: array(pipelineWarning),
   profile_id: nullable(string),
+  detection: nullable(detection),
   filing: pendingFiling,
 })
 const captureOrigin = literal('capture', 'curriculum', 'anki_import')
@@ -214,6 +234,10 @@ const SCHEMAS = {
   ProviderError: providerError,
   PipelineStage: pipelineStage,
   PipelineWarning: pipelineWarning,
+  Script: script,
+  DetectionMethod: detectionMethod,
+  LanguageScore: languageScore,
+  Detection: detection,
   PendingCapture: pendingCapture,
   PendingFiling: pendingFiling,
   CaptureOrigin: captureOrigin,
@@ -248,6 +272,10 @@ interface Types {
   ProviderError: T.ProviderError
   PipelineStage: T.PipelineStage
   PipelineWarning: T.PipelineWarning
+  Script: T.Script
+  DetectionMethod: T.DetectionMethod
+  LanguageScore: T.LanguageScore
+  Detection: T.Detection
   PendingCapture: T.PendingCapture
   PendingFiling: T.PendingFiling
   CaptureOrigin: T.CaptureOrigin
@@ -444,6 +472,14 @@ describe('the Rust shapes of the Automator', () => {
     expect(new Set(samples.FieldCheck.map((value) => (value as T.FieldCheck).status))).toEqual(
       new Set(['unchecked', 'failed', 'checked']),
     )
+    expect(new Set(samples.Detection.map((value) => (value as T.Detection).method))).toEqual(
+      new Set(samples.DetectionMethod),
+    )
+    expect(samples.DetectionMethod).toHaveLength(6)
+    expect(samples.Script).toHaveLength(7)
+    expect(
+      samples.PendingCapture.map((value) => (value as T.PendingCapture).detection === null),
+    ).toEqual(expect.arrayContaining([true, false]))
   })
 })
 

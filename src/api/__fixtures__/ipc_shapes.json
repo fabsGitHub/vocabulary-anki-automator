@@ -509,6 +509,128 @@
         "ankiconnect_provision_granted_at": "2026-10-31T12:05:00.000Z"
       }
     ],
+    "Detection": [
+      {
+        "candidates": [
+          "zh-CN"
+        ],
+        "confident": true,
+        "lang": "zh-CN",
+        "method": "script",
+        "ranked": [],
+        "script": "han"
+      },
+      {
+        "candidates": [
+          "en"
+        ],
+        "confident": true,
+        "lang": "en",
+        "method": "single",
+        "ranked": [],
+        "script": "latin"
+      },
+      {
+        "candidates": [
+          "en",
+          "fr"
+        ],
+        "confident": true,
+        "lang": "en",
+        "method": "statistical",
+        "ranked": [
+          {
+            "confidence": 0.96,
+            "lang": "en"
+          },
+          {
+            "confidence": 0.04,
+            "lang": "fr"
+          }
+        ],
+        "script": "latin"
+      },
+      {
+        "candidates": [
+          "en",
+          "fr"
+        ],
+        "confident": false,
+        "lang": "fr",
+        "method": "statistical",
+        "ranked": [
+          {
+            "confidence": 0.6094,
+            "lang": "fr"
+          },
+          {
+            "confidence": 0.3906,
+            "lang": "en"
+          }
+        ],
+        "script": "latin"
+      },
+      {
+        "candidates": [
+          "en",
+          "fr"
+        ],
+        "confident": false,
+        "lang": "en",
+        "method": "tie_break",
+        "ranked": [
+          {
+            "confidence": 0.6094,
+            "lang": "fr"
+          },
+          {
+            "confidence": 0.3906,
+            "lang": "en"
+          }
+        ],
+        "script": "latin"
+      },
+      {
+        "candidates": [
+          "fr",
+          "zh-CN",
+          "en"
+        ],
+        "confident": false,
+        "lang": "en",
+        "method": "fallback",
+        "ranked": [],
+        "script": "kana"
+      },
+      {
+        "candidates": [
+          "en",
+          "fr"
+        ],
+        "confident": true,
+        "lang": "en",
+        "method": "chosen",
+        "ranked": [
+          {
+            "confidence": 0.6094,
+            "lang": "fr"
+          },
+          {
+            "confidence": 0.3906,
+            "lang": "en"
+          }
+        ],
+        "script": "latin"
+      }
+    ],
+    "DetectionMethod": [
+      "script",
+      "single",
+      "statistical",
+      "tie_break",
+      "fallback",
+      "chosen"
+    ],
     "FieldBinding": [
       {
         "anki_field": "Context Sentence",
@@ -631,6 +753,16 @@
         "target_lang": "de"
       }
     ],
+    "LanguageScore": [
+      {
+        "confidence": 0.6094,
+        "lang": "fr"
+      },
+      {
+        "confidence": 0.3906,
+        "lang": "en"
+      }
+    ],
     "LearnedLanguage": [
       {
         "create_reverse": true,
@@ -749,6 +881,26 @@
           ],
           "target_lang": "de"
         },
+        "detection": {
+          "candidates": [
+            "en",
+            "fr"
+          ],
+          "confident": true,
+          "lang": "en",
+          "method": "statistical",
+          "ranked": [
+            {
+              "confidence": 0.96,
+              "lang": "en"
+            },
+            {
+              "confidence": 0.04,
+              "lang": "fr"
+            }
+          ],
+          "script": "latin"
+        },
         "filing": {
           "deck": "English::AutomatedVocabulary",
           "model": "AppleStyleFinalV3"
@@ -824,11 +976,58 @@
           "tags": [],
           "target_lang": "de"
         },
+        "detection": null,
         "filing": {
           "deck": "Chinese::HSK",
           "model": "Chinese (HSK)"
         },
         "profile_id": "zh-de",
+        "warnings": []
+      },
+      {
+        "card": {
+          "audio_front": "SUQzIG1wMyBieXRlcw==",
+          "back": "Nachricht",
+          "captured_at": "2026-10-31T12:00:00.123Z",
+          "example_source": "It was pure serendipity.",
+          "example_target": "Es war reiner Zufall.",
+          "front": "message",
+          "notes": "Rare word. More common synonym: luck",
+          "script_metadata": {
+            "kind": "none"
+          },
+          "source_lang": "fr",
+          "tags": [
+            "vocab-automator",
+            "en-de"
+          ],
+          "target_lang": "de"
+        },
+        "detection": {
+          "candidates": [
+            "en",
+            "fr"
+          ],
+          "confident": false,
+          "lang": "fr",
+          "method": "statistical",
+          "ranked": [
+            {
+              "confidence": 0.6094,
+              "lang": "fr"
+            },
+            {
+              "confidence": 0.3906,
+              "lang": "en"
+            }
+          ],
+          "script": "latin"
+        },
+        "filing": {
+          "deck": "french",
+          "model": "AppleStyleFinalV3"
+        },
+        "profile_id": null,
         "warnings": []
       }
     ],
@@ -943,6 +1142,15 @@
         "hanzi": "学习",
         "kind": "new"
       }
+    ],
+    "Script": [
+      "latin",
+      "han",
+      "kana",
+      "hangul",
+      "cyrillic",
+      "other",
+      "none"
     ],
     "ScriptMetadata": [
       {

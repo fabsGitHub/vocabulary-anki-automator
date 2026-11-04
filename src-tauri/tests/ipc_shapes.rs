@@ -50,6 +50,7 @@ use vocab_automator_lib::{
 };
 use vocab_core::{
     curriculum::CurriculumIndex,
+    detect::{Detection, DetectionMethod, LanguageScore, Script},
     language::SUPPORTED_LANGS,
     pipeline::{PipelineStage, PipelineWarning},
     providers::{ProviderRegistry, StandardProviders},
@@ -268,6 +269,80 @@ fn chinese_filing() -> PendingFiling {
     }
 }
 
+fn score(lang: &str, confidence: f64) -> LanguageScore {
+    LanguageScore {
+        lang: lang.into(),
+        confidence,
+    }
+}
+
+/// "serendipity" among en and fr: a certain guess.
+fn confident_detection() -> Detection {
+    Detection {
+        lang: "en".into(),
+        method: DetectionMethod::Statistical,
+        confident: true,
+        script: Script::Latin,
+        candidates: vec!["en".into(), "fr".into()],
+        ranked: vec![score("en", 0.96), score("fr", 0.04)],
+    }
+}
+
+/// "message" among en and fr without history: an unsure guess.
+fn unsure_detection() -> Detection {
+    Detection {
+        lang: "fr".into(),
+        method: DetectionMethod::Statistical,
+        confident: false,
+        script: Script::Latin,
+        candidates: vec!["en".into(), "fr".into()],
+        ranked: vec![score("fr", 0.6094), score("en", 0.3906)],
+    }
+}
+
+/// One of each method, and of each script that decides a method on its own.
+fn detections() -> Vec<Detection> {
+    vec![
+        Detection {
+            lang: "zh-CN".into(),
+            method: DetectionMethod::Script,
+            confident: true,
+            script: Script::Han,
+            candidates: vec!["zh-CN".into()],
+            ranked: Vec::new(),
+        },
+        Detection {
+            lang: "en".into(),
+            method: DetectionMethod::Single,
+            confident: true,
+            script: Script::Latin,
+            candidates: vec!["en".into()],
+            ranked: Vec::new(),
+        },
+        confident_detection(),
+        unsure_detection(),
+        Detection {
+            lang: "en".into(),
+            method: DetectionMethod::TieBreak,
+            ..unsure_detection()
+        },
+        Detection {
+            lang: "en".into(),
+            method: DetectionMethod::Fallback,
+            confident: false,
+            script: Script::Kana,
+            candidates: vec!["fr".into(), "zh-CN".into(), "en".into()],
+            ranked: Vec::new(),
+        },
+        Detection {
+            lang: "en".into(),
+            method: DetectionMethod::Chosen,
+            confident: true,
+            ..unsure_detection()
+        },
+    ]
+}
+
 fn provider_errors() -> Vec<ProviderError> {
     vec![
         ProviderError::Network {
@@ -473,15 +548,66 @@ fn shapes() -> Map<String, Value> {
                     card: english_card(),
                     warnings: warnings(),
                     profile_id: None,
+                    detection: Some(confident_detection()),
                     filing: english_filing(),
                 }),
                 json_of(PendingCapture {
                     card: chinese_card(),
                     warnings: Vec::new(),
                     profile_id: Some("zh-de".into()),
+                    detection: None,
                     filing: chinese_filing(),
                 }),
+                json_of(PendingCapture {
+                    card: Card {
+                        front: "message".into(),
+                        back: "Nachricht".into(),
+                        source_lang: "fr".into(),
+                        ..english_card()
+                    },
+                    warnings: Vec::new(),
+                    profile_id: None,
+                    detection: Some(unsure_detection()),
+                    filing: PendingFiling {
+                        deck: "french".into(),
+                        model: "AppleStyleFinalV3".into(),
+                    },
+                }),
             ],
+        ),
+        ("Detection", detections().iter().map(json_of).collect()),
+        (
+            "DetectionMethod",
+            [
+                DetectionMethod::Script,
+                DetectionMethod::Single,
+                DetectionMethod::Statistical,
+                DetectionMethod::TieBreak,
+                DetectionMethod::Fallback,
+                DetectionMethod::Chosen,
+            ]
+            .iter()
+            .map(json_of)
+            .collect(),
+        ),
+        (
+            "Script",
+            [
+                Script::Latin,
+                Script::Han,
+                Script::Kana,
+                Script::Hangul,
+                Script::Cyrillic,
+                Script::Other,
+                Script::None,
+            ]
+            .iter()
+            .map(json_of)
+            .collect(),
+        ),
+        (
+            "LanguageScore",
+            unsure_detection().ranked.iter().map(json_of).collect(),
         ),
         (
             "PendingFiling",

@@ -263,6 +263,9 @@ Semantics, in order:
 7. Annotator → `script_metadata` (failure → warning, `ScriptMetadata::None`).
 8. `card.tags = req.tags`, `card.captured_at = req.captured_at`.
 
+The Automator may choose `req.source_lang` with `vocab_core::detect` (§ 3.1) before
+it builds the request; the pipeline itself is the same for every caller.
+
 ## 6. Store (`vocab_core::store`)
 
 One SQLite file shared by both desktop apps:
@@ -717,14 +720,23 @@ language pair in capture order.
 }
 ```
 
-- `hotkeys` is the default profile (uses `translation.*` languages and
-  `anki.deck_name`); `hotkey_profiles` add more shortcuts with their own pair
-  and optional deck (Milestone H). All shortcuts must parse and be distinct.
+- `hotkeys` is the default profile (uses `translation.*` languages, or detects
+  among `learning.languages`; the deck is `AppConfig::filing`'s choice);
+  `hotkey_profiles` add more shortcuts with their own pair and optional deck
+  (Milestone H). All shortcuts must parse and be distinct.
 - `learning.languages` lists the languages the user learns (Milestone O), in the
   order the approval window shows them, each with its own deck, note type, field
   mapping and reverse setting. The user's own language is
   `translation.target_lang`. A file without `learning` loads as an empty list and
   is not rewritten on load; an empty list keeps every capture exactly as before.
+- Detection (`vocab_core::detect`, § 3.1) runs only for the default hotkey and
+  only while `learning.languages` is non-empty: it picks the capture's source
+  language among the learned ones, with `translation.source_lang` as the fallback
+  for text that fits none of them, and the tie-break reads
+  `automator.last_source_lang` (§ 6.4). Hotkey profiles keep their fixed pair, and
+  text the pipeline refuses (empty, too long) is not detected. Han text for a
+  learner whose own language is Chinese is left to the pipeline, which reverses
+  the pair as before.
 - `AppConfig::filing(profile_id, source_lang)` is the one place that decides where
   a card goes; `entry` is the first learned language whose `lang` equals
   `normalize_lang(source_lang)`:
@@ -823,7 +835,10 @@ Further rules both sides rely on:
   `learning.languages` is non-empty.
 - The `PendingCapture` payload carries `filing`, the deck and note type
   `AppConfig::filing` chose when the card was captured, for the approval window to
-  show; the push decides again with the config of that moment.
+  show; the push decides again with the config of that moment. It also carries
+  `detection` (§ 3.1), how the source language was chosen, or `null` when it was
+  not detected; the window offers the `candidates` as chips (two or more) and
+  explains an unsure guess.
 - `launch_anki_desktop` waits for `open -a Anki` on macOS and reports a missing
   Anki instead of "Starting Anki…".
 - `check_pending_fields` files the pending card with `AppConfig::filing` (its profile
@@ -1183,7 +1198,22 @@ interface PendingCapture {
   card: Card
   warnings: PipelineWarning[]
   profile_id: string | null
+  detection: Detection | null // null: not detected (a hotkey profile, no learned languages)
   filing: PendingFiling
+}
+type Script = 'latin' | 'han' | 'kana' | 'hangul' | 'cyrillic' | 'other' | 'none'
+type DetectionMethod = 'script' | 'single' | 'statistical' | 'tie_break' | 'fallback' | 'chosen'
+interface LanguageScore {
+  lang: string
+  confidence: number // 0..1
+}
+interface Detection {
+  lang: string // the card's source language
+  method: DetectionMethod
+  confident: boolean
+  script: Script
+  candidates: string[] // offered by the approval window, in settings order; contains lang
+  ranked: LanguageScore[] // best first; empty unless the statistics ran
 }
 interface PendingFiling {
   deck: string

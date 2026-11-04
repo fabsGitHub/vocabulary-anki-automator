@@ -38,6 +38,10 @@ thiserror.workspace = true
 tokio.workspace = true
 uuid.workspace = true
 
+# Telling the learned Latin-script languages apart (src/detect.rs); Automator only, so
+# vocab-core and Learn build without it
+lingua.workspace = true
+
 # Synthetic copy keystroke (not in [workspace.dependencies]; unchanged from before the split)
 enigo = { version = "0.2", features = ["serde"] }
 

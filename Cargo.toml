@@ -64,6 +64,12 @@ rs-fsrs = "1.2.1"
 pinyin = "0.11"
 zip = { version = "8.6", default-features = false, features = ["deflate"] }
 
+# Offline language detection for Automator captures (2026-11). lingua 1.8.0 (2026-03-09),
+# Apache-2.0 including its models. Exact pin: vocab_core::detect's thresholds are calibrated
+# against this release's models. Only the five Latin-script languages the app supports;
+# Chinese is decided by script before lingua runs.
+lingua = { version = "=1.8.0", default-features = false, features = ["english", "french", "german", "italian", "spanish"] }
+
 # Test-only.
 tempfile = "3"
 wiremock = "0.6"

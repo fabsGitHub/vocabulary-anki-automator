@@ -40,6 +40,10 @@ Two options were on the table:
   commands through `tauri::test` against the same kind of mock.
 - Provider HTTP (MyMemory, Datamuse, dictionaryapi.dev, Google TTS) is mocked
   the same way in `crates/vocab-core/tests/providers_http.rs`.
+- Language detection tests (`src-tauri/src/detect.rs`, `src-tauri/tests/ipc.rs`)
+  use the real lingua detector: its models are compiled into the binary, so no
+  network is touched. The rules in `vocab_core::detect` are tested with a fake
+  guesser.
 
 The `wiremock` suites start servers on `127.0.0.1`, so they need local port
 binding (docs/architecture.md § 2); they never contact anything else.

@@ -5,7 +5,8 @@
  * (Esc). The capture flow and its race handling live in `useApproval`; this
  * component adds what is about the window itself: keys, audio, focus, and
  * the UI language, re-read per capture because this webview never sees the
- * main window's language switch.
+ * main window's language switch. A detected source language shows as chips,
+ * one per language the text could be in, with a hint when the guess is unsure.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -47,6 +48,45 @@ const languagePair = computed(() => {
         target: languageName(card.target_lang),
       })
     : ''
+})
+
+const detection = computed(() => pending.value?.detection ?? null)
+
+interface LanguageChip {
+  code: string
+  active: boolean
+  label: string
+  classes: string
+}
+
+/** One chip per language the text could be in; none when there is nothing to switch to. */
+const languageChips = computed<LanguageChip[]>(() => {
+  const found = detection.value
+  if (!found || found.candidates.length < 2) return []
+  return found.candidates.map((code) => {
+    const active = code === found.lang
+    const name = languageName(code)
+    if (!active) return { code, active, label: name, classes: 'badge badge-muted' }
+    return found.confident
+      ? { code, active, label: name, classes: 'badge' }
+      : {
+          code,
+          active,
+          label: t('approval.detectedUnsure', { lang: name }),
+          classes: 'badge badge-warning',
+        }
+  })
+})
+
+/** Why the detected language may be wrong; `null` when it is certain. */
+const languageHint = computed(() => {
+  const found = detection.value
+  if (!found || found.confident) return null
+  const lang = languageName(found.lang)
+  if (found.method !== 'fallback') return t('approval.unsureHint', { lang })
+  return found.script === 'latin' || found.script === 'none'
+    ? t('approval.fallbackHint', { lang })
+    : t('approval.foreignScript', { lang })
 })
 
 const profile = computed(() => {
@@ -178,7 +218,31 @@ onBeforeUnmount(() => {
       <header class="approval-header">
         <h2>{{ t('approval.windowTitle') }}</h2>
         <div class="approval-meta">
-          <span class="badge badge-muted" data-test="language-pair">{{ languagePair }}</span>
+          <template v-if="languageChips.length > 0 && pending">
+            <div
+              class="language-chips"
+              role="group"
+              :aria-label="t('approval.languageGroup')"
+              data-test="language-chips"
+            >
+              <button
+                v-for="chip in languageChips"
+                :key="chip.code"
+                type="button"
+                :class="chip.classes"
+                :aria-pressed="chip.active ? 'true' : 'false'"
+                :title="t('approval.switchTo', { lang: languageName(chip.code) })"
+                :aria-label="t('approval.switchTo', { lang: languageName(chip.code) })"
+                :data-test="`language-${chip.code}`"
+              >
+                {{ chip.label }}
+              </button>
+            </div>
+            <span class="badge badge-muted" data-test="target-lang">{{
+              t('approval.targetLang', { lang: languageName(pending.card.target_lang) })
+            }}</span>
+          </template>
+          <span v-else class="badge badge-muted" data-test="language-pair">{{ languagePair }}</span>
           <span v-if="profile" class="badge badge-muted">{{
             t('approval.profile', { label: profile.label })
           }}</span>
@@ -190,6 +254,10 @@ onBeforeUnmount(() => {
           }}</span>
         </div>
       </header>
+
+      <p v-if="languageHint" class="notice warning" role="status" data-test="language-hint">
+        {{ languageHint }}
+      </p>
 
       <div v-if="warnings.length > 0" class="notice warning" data-test="warnings">
         <strong>{{ t('warnings.title') }}</strong>

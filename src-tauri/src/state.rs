@@ -302,6 +302,7 @@ mod tests {
             card: Card::new(front, "", "en", "de", Utc.timestamp_millis_opt(0).unwrap()),
             warnings: Vec::new(),
             profile_id: None,
+            detection: None,
             filing: Default::default(),
         }
     }

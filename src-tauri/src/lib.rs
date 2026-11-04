@@ -10,6 +10,7 @@
 //! | `config`    | B2, H      | `config.json`: shape, legacy migration, validation          |
 //! | `state`     | B3, F, N4  | runtime state and the injected services                     |
 //! | `capture`   | B3, D, H   | hotkey -> clipboard -> pipeline -> approval window          |
+//! | `detect`    | O          | lingua, ranking the learned Latin-script languages          |
 //! | `filing`    | O          | the mapping a card is pushed with, and what it would drop   |
 //! | `shortcuts` | H          | the default hotkey plus one per hotkey profile              |
 //! | `push`      | B3, F, J5  | save-then-push of approved cards, retry of unsynced ones     |
@@ -22,6 +23,7 @@
 pub mod capture;
 pub mod commands;
 pub mod config;
+pub mod detect;
 pub mod filing;
 pub mod push;
 pub mod setup;

@@ -1,7 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AppConfig, Card, FieldCheck, PendingCapture, SubmitResult } from '../api'
+import type { AppConfig, Card, Detection, FieldCheck, PendingCapture, SubmitResult } from '../api'
 import { defaultConfig } from '../composables/useConfig'
 import { i18n, setLocale } from '../i18n'
 import {
@@ -47,9 +47,41 @@ function capture(
     card: card(cardOverrides),
     warnings: [],
     profile_id: null,
+    detection: null,
     filing: { deck: 'English::AutomatedVocabulary', model: 'AppleStyleFinalV3' },
     ...overrides,
   }
+}
+
+/** "message" read as French among English and French, unsure. */
+function unsure(overrides: Partial<Detection> = {}): Detection {
+  return {
+    lang: 'fr',
+    method: 'statistical',
+    confident: false,
+    script: 'latin',
+    candidates: ['en', 'fr'],
+    ranked: [
+      { lang: 'fr', confidence: 0.61 },
+      { lang: 'en', confidence: 0.39 },
+    ],
+    ...overrides,
+  }
+}
+
+/** A capture of "message" read as French, with `detection`. */
+function french(detection: Detection = unsure()): PendingCapture {
+  return capture(
+    { detection, filing: { deck: 'french', model: 'AppleStyleFinalV3' } },
+    {
+      front: 'message',
+      back: 'Nachricht',
+      example_source: '',
+      example_target: '',
+      notes: '',
+      source_lang: 'fr',
+    },
+  )
 }
 
 const SYNCED: SubmitResult = {
@@ -566,6 +598,104 @@ describe('what the window shows', () => {
     })
     await flushPromises()
     expect(wrapper?.find('[data-test="capture-error"]').text()).toContain('limited to 100')
+  })
+})
+
+describe('the detected language', () => {
+  const chips = () =>
+    wrapper
+      ?.find('[data-test="language-chips"]')
+      .findAll('button')
+      .map((chip) => ({
+        text: chip.text(),
+        pressed: chip.attributes('aria-pressed'),
+        classes: chip.classes(),
+        label: chip.attributes('aria-label'),
+        title: chip.attributes('title'),
+      }))
+
+  it('offers one chip per candidate, the guess marked as unsure', async () => {
+    await mountWindow(french())
+
+    const group = wrapper?.find('[data-test="language-chips"]')
+    expect(group?.attributes('role')).toBe('group')
+    expect(group?.attributes('aria-label')).toBe('Language of the text')
+    expect(chips()).toEqual([
+      {
+        text: 'English',
+        pressed: 'false',
+        classes: ['badge', 'badge-muted'],
+        label: 'Capture as English',
+        title: 'Capture as English',
+      },
+      {
+        text: 'French?',
+        pressed: 'true',
+        classes: ['badge', 'badge-warning'],
+        label: 'Capture as French',
+        title: 'Capture as French',
+      },
+    ])
+    expect(wrapper?.find('[data-test="language-en"]').exists()).toBe(true)
+    expect(wrapper?.find('[data-test="target-lang"]').text()).toBe('→ German')
+    expect(wrapper?.find('[data-test="language-pair"]').exists()).toBe(false)
+  })
+
+  it('shows a confident guess as a plain chip and no hint', async () => {
+    await mountWindow(french(unsure({ confident: true, ranked: [] })))
+    expect(chips()?.[1]).toMatchObject({ text: 'French', pressed: 'true', classes: ['badge'] })
+    expect(wrapper?.find('[data-test="language-hint"]').exists()).toBe(false)
+  })
+
+  it('keeps the language pair without detection or without a choice', async () => {
+    for (const detection of [
+      null,
+      unsure({ lang: 'en', method: 'single', confident: true, candidates: ['en'] }),
+    ]) {
+      await mountWindow(capture({ detection }))
+      expect(wrapper?.find('[data-test="language-chips"]').exists()).toBe(false)
+      expect(wrapper?.find('[data-test="language-pair"]').text()).toBe('English → German')
+      wrapper?.unmount()
+    }
+    wrapper = null
+  })
+
+  it('explains an unsure guess, a tie-break and a fallback', async () => {
+    const hint = () => wrapper?.find('[data-test="language-hint"]')
+    const cases: [Detection, string][] = [
+      [unsure(), 'This could be more than one of your languages. It was read as French.'],
+      [
+        unsure({ lang: 'en', method: 'tie_break' }),
+        'This could be more than one of your languages. It was read as English.',
+      ],
+      [
+        unsure({ lang: 'en', method: 'fallback', script: 'latin', ranked: [] }),
+        'None of your languages fits this text. It was read as English.',
+      ],
+      [
+        unsure({ lang: 'en', method: 'fallback', script: 'none', ranked: [] }),
+        'None of your languages fits this text. It was read as English.',
+      ],
+      ...(['kana', 'hangul', 'cyrillic', 'other'] as const).map((script): [Detection, string] => [
+        unsure({ lang: 'en', method: 'fallback', script, ranked: [] }),
+        'The text is written in a script none of your languages uses. It was read as English.',
+      ]),
+    ]
+    for (const [detection, text] of cases) {
+      await mountWindow(french(detection))
+      expect(hint()?.attributes('role'), detection.method).toBe('status')
+      expect(hint()?.text(), `${detection.method}/${detection.script}`).toContain(text)
+      wrapper?.unmount()
+    }
+    wrapper = null
+  })
+
+  it('leaves Enter on a chip to the chip', async () => {
+    onCommand('execute_card_generation', SYNCED)
+    await mountWindow(french())
+    press('Enter', {}, wrapper?.find('[data-test="language-en"]').element)
+    await flushPromises()
+    expect(callsTo('execute_card_generation')).toHaveLength(0)
   })
 })
 

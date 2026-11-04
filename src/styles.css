@@ -1006,6 +1006,28 @@ textarea[readonly] {
   flex-wrap: wrap;
 }
 
+.language-chips {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.language-chips .badge {
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.language-chips .badge:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.language-chips .badge:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .chinese-row {
   display: flex;
   align-items: flex-end;
