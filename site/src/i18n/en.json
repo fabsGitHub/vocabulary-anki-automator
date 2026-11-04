@@ -28,7 +28,7 @@
     "cta": "Download for macOS",
     "meta": "Version {version} · Preview · Apple Silicon and Intel",
     "ctaFallback": "GitHub Releases",
-    "metaFallback": "The macOS download is coming soon.",
+    "metaFallback": "The macOS download is not available yet.",
     "secondary": "How it works",
     "source": "Source code on GitHub",
     "note": "Windows and Linux follow with the first official release.",
@@ -146,13 +146,13 @@
     },
     "r2": {
       "what": "The captured text and its language",
-      "to_html": "Google <code>translate.google.com</code>",
+      "to_html": "Google Text-to-Speech <code>translate.google.com</code>",
       "when": "Every capture, for the pronunciation. Again when you approve a card whose word you changed"
     },
     "r3": {
       "what": "The translation and its language",
-      "to_html": "Google <code>translate.google.com</code>",
-      "when": "When a card with a reverse card is sent to Anki, for the reverse card’s pronunciation"
+      "to_html": "Google Text-to-Speech <code>translate.google.com</code>",
+      "when": "When a reverse card is also sent to Anki, for its pronunciation"
     },
     "r4": {
       "what": "English text",
@@ -184,8 +184,8 @@
       "body": "language recognition, pinyin and HSK level, your history and your settings. AnkiConnect also runs on your Mac (127.0.0.1)."
     },
     "n2": {
-      "title": "Switching the language",
-      "body": "in the approval window fetches the card again, with the same requests."
+      "title": "Switching the language:",
+      "body": "when you choose another language in the approval window, the card is fetched again, with the same requests."
     },
     "n3": {
       "title": "Please do not capture passwords or other private text.",
@@ -203,7 +203,7 @@
       "body": "With Apple Silicon or Intel. Vocabulary Automator is developed on macOS 26 Tahoe. Older macOS versions have not been tested yet."
     },
     "i2": {
-      "title_html": "<a href=\"{ankiUrl}\">Anki for desktop</a>",
+      "title_html": "<a href=\"{ankiUrl}\">Anki Desktop</a>",
       "body_html": "With the <strong>AnkiConnect</strong> add-on (code 2055492159). Cards reach Anki while it is open; otherwise they wait in the history. The app can install both for you."
     },
     "i3": {
@@ -221,7 +221,7 @@
     "macTitle": "Vocabulary Automator {version} for macOS",
     "macMeta": "Disk image (.dmg) · Apple Silicon and Intel",
     "macButton": "Download .dmg",
-    "macFallback": "The macOS download is coming soon.",
+    "macFallback": "The macOS download is not available yet.",
     "macFallbackButton": "GitHub Releases",
     "checksumLabel": "SHA-256",
     "copy": "Copy",
@@ -229,10 +229,10 @@
     "copyAria": "Copy the SHA-256 checksum",
     "checksumHelp_html": "To check the file, run <code>shasum -a 256 ~/Downloads/{dmgFile}</code> in Terminal and compare the result with the value above.",
     "otherTitle": "Windows and Linux",
-    "otherBody": "The release pipeline already builds Vocabulary Automator for Windows and Linux. These versions will be available with the first official release on GitHub Releases. There is no date yet.",
+    "otherBody": "Versions for Windows and Linux will be available with the first official release on GitHub Releases. There is no date yet.",
     "otherLink": "GitHub Releases",
     "previewTitle": "Preview build",
-    "previewBody": "This is a preview build. Apple has not notarized it yet, because the project does not have an Apple Developer ID so far. That is why macOS warns you the first time you open it. The steps below take you past that warning and set up the one permission the app needs.",
+    "previewBody": "This is a preview build. Apple has not notarized it, because the project does not have an Apple Developer ID yet. That is why macOS warns you the first time you open it. The steps below take you past that warning and set up the one permission the app needs.",
     "stepsTitle": "Install and set up",
     "s1": {
       "title": "Install",
@@ -270,46 +270,54 @@
     "k5": "The preview is not notarized and does not update itself."
   },
   "faq": {
-    "title": "Questions",
+    "title": "Frequently asked questions",
     "q1": {
+      "q": "What does it cost?",
+      "a_html": "Nothing. The preview is a free download, and the services it uses for translation, pronunciation and example sentences work without an account or payment."
+    },
+    "q2": {
+      "q": "What is Anki?",
+      "a_html": "<a href=\"{ankiUrl}\">Anki</a> is a free flashcard program that shows each card again shortly before you would forget it. Vocabulary Automator adds the cards; you review them in Anki."
+    },
+    "q3": {
       "q": "Do I need an account or an API key?",
       "a_html": "No. The translation service, MyMemory, works without a key. MyMemory allows about 5,000 characters a day anonymously. If you add a contact e-mail under “Capture &amp; Language”, it allows about 50,000. The address goes to MyMemory only."
     },
-    "q2": {
+    "q4": {
       "q": "Why does macOS warn me when I open the app?",
       "a_html": "The preview build is not notarized by Apple yet, so macOS cannot verify it. Follow step 2 under <a href=\"#install\">“Download &amp; install”</a> once, and the app opens normally from then on."
     },
-    "q3": {
+    "q5": {
       "q": "Why does the app need the Accessibility permission?",
       "a_html": "To copy your selection, the hotkey sends <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span> to the app you are reading in, and macOS allows that only with the Accessibility permission. Vocabulary Automator uses it for nothing else."
     },
-    "q4": {
+    "q6": {
       "q": "What happens if Anki is closed?",
       "a_html": "The card is saved to the history anyway and marked “Not in Anki yet”. Once Anki is running again, click “Sync pending to Anki” on the History tab."
     },
-    "q5": {
+    "q7": {
       "q": "Does it work without an internet connection?",
       "a_html": "Partly. Language recognition, pinyin and the HSK level work offline. Without a connection, the translation, the example’s translation and the pronunciation stay empty (English and Chinese cards still get a template example sentence), a warning says so, and you can type the values in yourself."
     },
-    "q6": {
+    "q8": {
       "q": "Which languages are supported?",
       "a_html": "English, German, French, Spanish, Italian and Chinese (Simplified), in any pair. The hotkey recognizes the language among those you list under “My languages”. For other text it uses the source language set on “Capture &amp; Language”."
     },
-    "q7": {
+    "q9": {
       "q": "Which note type should I use?",
       "a_html": "Any note type you already have in Anki. You choose one per language, and its fields are matched by their names, or you assign them yourself. The approval window warns you when a value has no field. For Chinese, use a note type with Hanzi, Pinyin, Meaning and Audio fields together with the Chinese preset."
     },
-    "q8": {
+    "q10": {
       "q": "What happens to my clipboard?",
       "a_html": "The hotkey copies the selection through the clipboard and then puts your previous text back. Only text can be restored: an image on the clipboard is replaced. The restored text also loses the marker that password managers use to keep a copied password out of clipboard history."
     },
-    "q9": {
+    "q11": {
       "q": "Can I change the hotkey?",
-      "a_html": "Yes, on the “Capture &amp; Language” tab. A shortcut needs <kbd>⌘</kbd>, <kbd>Control</kbd> or <kbd>Option</kbd>, and only function keys may stand alone. Hotkey profiles add more shortcuts, each with its own language pair and deck."
+      "a_html": "Yes, on the “Capture &amp; Language” tab. Type the shortcut as modifiers and one key joined by “+”, for example <code>CommandOrControl+Shift+C</code>. It needs Cmd, Ctrl or Alt (Option); only function keys (F1–F24) may stand alone. Hotkey profiles add more shortcuts, each with its own language pair and deck."
     },
-    "q10": {
+    "q12": {
       "q": "How do I uninstall it?",
-      "a_html": "Quit the app (menu bar icon > Quit) and move it from Applications to the Trash. Remove its entry under System Settings > Privacy &amp; Security > Accessibility. To delete your history, settings and log as well, delete the folders <code>VocabularyAutomator</code> and <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code> and the folder <code>~/Library/Logs/com.ankiautomator.app</code>. Cards already in Anki stay there."
+      "a_html": "Quit the app (menu bar icon > Quit) and move it from Applications to the Trash. Remove its entry under System Settings > Privacy &amp; Security > Accessibility. To delete your history, settings and log as well, delete the folders <code>VocabularyAutomator</code> and <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code> and the folder <code>~/Library/Logs/com.ankiautomator.app</code>. Finder hides <code>~/Library</code>: choose Go > Go to Folder and enter the path. Cards already in Anki stay there."
     }
   },
   "footer": {

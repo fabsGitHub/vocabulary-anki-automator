@@ -28,7 +28,7 @@
     "cta": "Für macOS herunterladen",
     "meta": "Version {version} · Vorschauversion · Apple Silicon und Intel",
     "ctaFallback": "GitHub Releases",
-    "metaFallback": "Der Download für macOS folgt in Kürze.",
+    "metaFallback": "Der Download für macOS ist noch nicht verfügbar.",
     "secondary": "So funktioniert es",
     "source": "Quellcode auf GitHub",
     "note": "Windows und Linux folgen mit dem ersten offiziellen Release.",
@@ -83,7 +83,7 @@
     },
     "f2": {
       "title": "Sie bestätigen jede Karte",
-      "body": "Nichts gelangt zu Anki, bevor Sie auf „Zu Anki hinzufügen“ drücken. Jedes Feld lässt sich vorher bearbeiten, und ändern Sie das Wort, wird die Aussprache neu aufgenommen."
+      "body": "Nichts gelangt zu Anki, bevor Sie auf „Zu Anki hinzufügen“ klicken. Jedes Feld lässt sich vorher bearbeiten, und ändern Sie das Wort, wird die Aussprache neu aufgenommen."
     },
     "f3": {
       "title": "Erkennt Ihre Sprachen",
@@ -129,7 +129,7 @@
     },
     "f10": {
       "title": "Anki-Einrichtung inklusive",
-      "body": "Fehlen Anki oder das Add-on AnkiConnect, kann die App sie installieren, aber erst, nachdem Sie in einem Dialog zugestimmt haben, der erklärt, was woher geladen und wie es geprüft wird. Beide Downloads sind auf eine feste Version festgelegt und werden vor der Installation anhand ihrer SHA-256-Prüfsumme geprüft."
+      "body": "Fehlen Anki oder das Add-on AnkiConnect, kann die App sie installieren, aber erst, nachdem Sie in einem Dialog zugestimmt haben, der erklärt, was woher geladen und wie es geprüft wird. Beide Downloads sind auf eine bestimmte Version festgelegt und werden vor der Installation anhand ihrer SHA-256-Prüfsumme geprüft."
     }
   },
   "data": {
@@ -146,13 +146,13 @@
     },
     "r2": {
       "what": "Der erfasste Text und seine Sprache",
-      "to_html": "Google <code>translate.google.com</code>",
+      "to_html": "Google Text-to-Speech <code>translate.google.com</code>",
       "when": "Bei jeder Erfassung, für die Aussprache. Noch einmal beim Bestätigen, wenn Sie das Wort geändert haben"
     },
     "r3": {
       "what": "Die Übersetzung und ihre Sprache",
-      "to_html": "Google <code>translate.google.com</code>",
-      "when": "Wenn eine Karte mit umgekehrter Karte an Anki geht, für die Aussprache der umgekehrten Karte"
+      "to_html": "Google Text-to-Speech <code>translate.google.com</code>",
+      "when": "Wenn zusätzlich eine umgekehrte Karte an Anki geht, für deren Aussprache"
     },
     "r4": {
       "what": "Englischer Text",
@@ -184,8 +184,8 @@
       "body": "die Spracherkennung, Pinyin und HSK-Stufe, Ihr Verlauf und Ihre Einstellungen. Auch AnkiConnect läuft auf Ihrem Mac (127.0.0.1)."
     },
     "n2": {
-      "title": "Wechseln Sie die Sprache",
-      "body": "im Bestätigungsfenster, wird die Karte mit denselben Anfragen neu ermittelt."
+      "title": "Sprachwechsel:",
+      "body": "Wechseln Sie im Bestätigungsfenster die Sprache, wird die Karte mit denselben Anfragen neu ermittelt."
     },
     "n3": {
       "title": "Bitte erfassen Sie keine Passwörter oder andere private Texte.",
@@ -203,7 +203,7 @@
       "body": "Mit Apple Silicon oder Intel. Vocabulary Automator wird unter macOS 26 Tahoe entwickelt. Ältere macOS-Versionen sind noch nicht getestet."
     },
     "i2": {
-      "title_html": "<a href=\"{ankiUrl}\">Anki für den Desktop</a>",
+      "title_html": "<a href=\"{ankiUrl}\">Anki Desktop</a>",
       "body_html": "Mit dem Add-on <strong>AnkiConnect</strong> (Code 2055492159). Karten gelangen zu Anki, während es geöffnet ist; sonst warten sie im Verlauf. Die App kann beides für Sie installieren."
     },
     "i3": {
@@ -220,8 +220,8 @@
     "yourSystem": "Ihr System",
     "macTitle": "Vocabulary Automator {version} für macOS",
     "macMeta": "Disk-Image (.dmg) · Apple Silicon und Intel",
-    "macButton": ".dmg herunterladen",
-    "macFallback": "Der Download für macOS folgt in Kürze.",
+    "macButton": "Disk-Image herunterladen",
+    "macFallback": "Der Download für macOS ist noch nicht verfügbar.",
     "macFallbackButton": "GitHub Releases",
     "checksumLabel": "SHA-256",
     "copy": "Kopieren",
@@ -229,10 +229,10 @@
     "copyAria": "SHA-256-Prüfsumme kopieren",
     "checksumHelp_html": "Zum Prüfen führen Sie im Terminal <code>shasum -a 256 ~/Downloads/{dmgFile}</code> aus und vergleichen das Ergebnis mit dem Wert oben.",
     "otherTitle": "Windows und Linux",
-    "otherBody": "Die Release-Pipeline baut Vocabulary Automator bereits für Windows und Linux. Diese Versionen erscheinen mit dem ersten offiziellen Release bei GitHub Releases. Einen Termin gibt es noch nicht.",
+    "otherBody": "Versionen für Windows und Linux erscheinen mit dem ersten offiziellen Release auf GitHub. Einen Termin gibt es noch nicht.",
     "otherLink": "GitHub Releases",
     "previewTitle": "Vorschauversion",
-    "previewBody": "Dies ist eine Vorschauversion. Apple hat sie noch nicht notarisiert, weil das Projekt bisher keine Apple-Developer-ID hat. Deshalb warnt macOS Sie beim ersten Öffnen. Die folgenden Schritte führen Sie an dieser Warnung vorbei und richten die eine Berechtigung ein, die die App braucht.",
+    "previewBody": "Dies ist eine Vorschauversion. Apple hat sie nicht notarisiert, weil das Projekt noch keine Apple-Developer-ID hat. Deshalb warnt macOS Sie beim ersten Öffnen. Die folgenden Schritte führen Sie an dieser Warnung vorbei und richten die eine Berechtigung ein, die die App braucht.",
     "stepsTitle": "Installieren und einrichten",
     "s1": {
       "title": "Installieren",
@@ -246,7 +246,7 @@
     },
     "s3": {
       "title": "Dem Hotkey das Kopieren erlauben",
-      "body_html": "Der Hotkey kopiert Ihre Markierung mit einem simulierten <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span>, und das erlaubt macOS nur mit der Berechtigung „Bedienungshilfen“. Die App fragt nicht selbst danach. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, klicken Sie auf <strong>„+“</strong>, wählen Sie Vocabulary Automator im Ordner „Programme“ und schalten Sie den Schalter ein. Ist das Einstellungsfenster geöffnet, zeigt es kurz eine Meldung, die hierher verweist. Scheint der Hotkey nichts zu tun, prüfen Sie zuerst diese Berechtigung. Kopiert eine Erfassung danach immer noch nichts, beenden Sie die App (Symbol in der Menüleiste > „Quit“) und öffnen Sie sie erneut."
+      "body_html": "Der Hotkey kopiert Ihre Markierung mit einem simulierten <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span>, und das erlaubt macOS nur mit der Berechtigung „Bedienungshilfen“. Die App fragt nicht selbst danach. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, klicken Sie auf <strong>„+“</strong>, wählen Sie Vocabulary Automator im Ordner „Programme“ und aktivieren Sie den Schalter daneben. Ist das Einstellungsfenster geöffnet, zeigt es kurz eine Meldung, die hierher verweist. Scheint der Hotkey nichts zu tun, prüfen Sie zuerst diese Berechtigung. Kopiert eine Erfassung danach immer noch nichts, beenden Sie die App (Symbol in der Menüleiste > „Quit“) und öffnen Sie sie erneut."
     },
     "s4": {
       "title": "Anki verbinden",
@@ -261,7 +261,7 @@
       "body_html": "Markieren Sie irgendwo ein Wort und drücken Sie <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Umschalt-Befehl-C</span>. Oder geben Sie auf dem Tab „Erfassung &amp; Sprache“ unter <strong>„Erfassung ausprobieren“</strong> ein Wort ein."
     },
     "updateTitle": "Die Vorschauversion aktualisieren",
-    "updateBody_html": "Die Vorschauversion aktualisiert sich nicht selbst. Laden Sie für ein Update die neue Version von dieser Seite, beenden Sie Vocabulary Automator (Symbol in der Menüleiste > „Quit“) und ersetzen Sie die App in „Programme“. Ihre Einstellungen und Ihr Verlauf bleiben erhalten. macOS zeigt unter Umständen noch einmal die Warnung aus Schritt 2. Außerdem behandelt macOS jede neue Vorschauversion als eigene App. Öffnen Sie deshalb <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, entfernen Sie den alten Eintrag von Vocabulary Automator mit <strong>„−“</strong> und fügen Sie den neuen mit <strong>„+“</strong> hinzu. Zeigt die App „Version … ist verfügbar – zum Aktualisieren neu starten“, kann sie die Vorschauversion damit nicht aktualisieren: Laden Sie die neue Version stattdessen von dieser Seite herunter.",
+    "updateBody_html": "Die Vorschauversion aktualisiert sich nicht selbst. Laden Sie für ein Update die neue Version von dieser Seite herunter, beenden Sie Vocabulary Automator (Symbol in der Menüleiste > „Quit“) und ersetzen Sie die App in „Programme“. Ihre Einstellungen und Ihr Verlauf bleiben erhalten. macOS zeigt unter Umständen noch einmal die Warnung aus Schritt 2. Außerdem behandelt macOS jede neue Vorschauversion als eigene App. Öffnen Sie deshalb <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, entfernen Sie den alten Eintrag von Vocabulary Automator mit <strong>„−“</strong> und fügen Sie den neuen mit <strong>„+“</strong> hinzu. Zeigt die App „Version … ist verfügbar – zum Aktualisieren neu starten“, kann sie die Vorschauversion damit nicht aktualisieren: Laden Sie die neue Version stattdessen von dieser Seite herunter.",
     "knowTitle": "Gut zu wissen vor der Installation",
     "k1": "Beispielsätze gibt es bisher für Englisch. Chinesische Karten bekommen einen einfachen Mustersatz, französische, deutsche, spanische und italienische noch keinen.",
     "k2": "Die Übersetzungen kommen von einem kostenlosen Übersetzungsdienst. Prüfen Sie sie vor dem Bestätigen.",
@@ -272,44 +272,52 @@
   "faq": {
     "title": "Häufige Fragen",
     "q1": {
-      "q": "Brauche ich ein Konto oder einen API-Schlüssel?",
-      "a_html": "Nein. Der Übersetzungsdienst MyMemory funktioniert ohne Schlüssel. Er übersetzt anonym etwa 5.000 Zeichen pro Tag. Tragen Sie unter „Erfassung &amp; Sprache“ eine Kontakt-E-Mail ein, erlaubt er etwa 50.000. Die Adresse geht nur an MyMemory."
+      "q": "Was kostet die App?",
+      "a_html": "Nichts. Die Vorschauversion lässt sich kostenlos herunterladen, und die Dienste für Übersetzung, Aussprache und Beispielsätze funktionieren ohne Konto und ohne Bezahlung."
     },
     "q2": {
+      "q": "Was ist Anki?",
+      "a_html": "<a href=\"{ankiUrl}\">Anki</a> ist ein kostenloses Karteikartenprogramm, das jede Karte kurz vor dem Vergessen wieder zeigt. Vocabulary Automator legt die Karten an, gelernt wird in Anki."
+    },
+    "q3": {
+      "q": "Brauche ich ein Konto oder einen API-Schlüssel?",
+      "a_html": "Nein. Der Übersetzungsdienst MyMemory funktioniert ohne Schlüssel. Für anonyme Nutzer übersetzt er etwa 5.000 Zeichen pro Tag. Tragen Sie unter „Erfassung &amp; Sprache“ eine Kontakt-E-Mail ein, erlaubt er etwa 50.000. Die Adresse geht nur an MyMemory."
+    },
+    "q4": {
       "q": "Warum warnt macOS beim Öffnen der App?",
       "a_html": "Die Vorschauversion ist noch nicht von Apple notarisiert, deshalb kann macOS sie nicht überprüfen. Folgen Sie einmal Schritt 2 unter <a href=\"#install\">„Download &amp; Installation“</a>. Danach öffnet sich die App normal."
     },
-    "q3": {
+    "q5": {
       "q": "Warum braucht die App die Berechtigung „Bedienungshilfen“?",
       "a_html": "Um Ihre Markierung zu kopieren, schickt der Hotkey <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span> an die App, in der Sie gerade lesen, und das erlaubt macOS nur mit dieser Berechtigung. Vocabulary Automator nutzt sie für nichts anderes."
     },
-    "q4": {
+    "q6": {
       "q": "Was passiert, wenn Anki geschlossen ist?",
-      "a_html": "Die Karte wird trotzdem im Verlauf gespeichert und als „Noch nicht in Anki“ markiert. Läuft Anki wieder, klicken Sie im Tab „Verlauf“ auf „Ausstehende zu Anki übertragen“."
+      "a_html": "Die Karte wird trotzdem im Verlauf gespeichert und als „Noch nicht in Anki“ markiert. Läuft Anki wieder, klicken Sie auf dem Tab „Verlauf“ auf „Ausstehende zu Anki übertragen“."
     },
-    "q5": {
+    "q7": {
       "q": "Funktioniert die App ohne Internet?",
       "a_html": "Teilweise. Spracherkennung, Pinyin und HSK-Stufe funktionieren offline. Ohne Verbindung bleiben Übersetzung, Übersetzung des Beispiels und Aussprache leer (englische und chinesische Karten bekommen trotzdem einen Mustersatz als Beispiel), ein Hinweis sagt das, und Sie können die Werte selbst eintragen."
     },
-    "q6": {
+    "q8": {
       "q": "Welche Sprachen werden unterstützt?",
       "a_html": "Englisch, Deutsch, Französisch, Spanisch, Italienisch und Chinesisch (vereinfacht), in jeder Kombination. Der Hotkey erkennt die Sprache unter denen, die Sie unter „Meine Sprachen“ eintragen. Für anderen Text nimmt er die Ausgangssprache unter „Erfassung &amp; Sprache“."
     },
-    "q7": {
+    "q9": {
       "q": "Welchen Notiztyp soll ich verwenden?",
       "a_html": "Jeden Notiztyp, den Sie in Anki haben. Sie wählen ihn pro Sprache, und seine Felder werden nach ihren Namen zugeordnet, oder Sie legen die Zuordnung selbst fest. Das Bestätigungsfenster warnt, wenn ein Wert kein Feld hat. Für Chinesisch eignet sich ein Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio zusammen mit der chinesischen Vorlage."
     },
-    "q8": {
-      "q": "Was passiert mit meiner Zwischenablage?",
-      "a_html": "Der Hotkey kopiert die Markierung über die Zwischenablage und stellt danach Ihren vorherigen Text wieder her. Wiederherstellen lässt sich nur Text, ein Bild in der Zwischenablage wird ersetzt. Der wiederhergestellte Text verliert außerdem die Markierung, mit der Passwortmanager ein kopiertes Passwort aus dem Verlauf der Zwischenablage heraushalten."
-    },
-    "q9": {
-      "q": "Kann ich den Hotkey ändern?",
-      "a_html": "Ja, auf dem Tab „Erfassung &amp; Sprache“. Eine Tastenkombination braucht <kbd>⌘</kbd>, <kbd>ctrl</kbd> oder <kbd>⌥</kbd> (Wahltaste), und nur Funktionstasten dürfen allein stehen. Hotkey-Profile fügen weitere Kombinationen hinzu, jede mit eigenem Sprachpaar und Stapel."
-    },
     "q10": {
+      "q": "Was passiert mit meiner Zwischenablage?",
+      "a_html": "Der Hotkey kopiert die Markierung über die Zwischenablage und stellt danach Ihren vorherigen Text wieder her. Wiederherstellen lässt sich nur Text: Ein Bild in der Zwischenablage wird ersetzt. Der wiederhergestellte Text verliert außerdem die Markierung, mit der Passwortmanager ein kopiertes Passwort aus dem Verlauf der Zwischenablage heraushalten."
+    },
+    "q11": {
+      "q": "Kann ich den Hotkey ändern?",
+      "a_html": "Ja, auf dem Tab „Erfassung &amp; Sprache“. Geben Sie die Tastenkombination als Modifikatoren und eine Taste ein, verbunden mit „+“, zum Beispiel <code>CommandOrControl+Shift+C</code>. Sie braucht Cmd, Strg oder Alt (Wahltaste); nur Funktionstasten (F1–F24) dürfen allein stehen. Hotkey-Profile fügen weitere Kombinationen hinzu, jede mit eigenem Sprachpaar und Stapel."
+    },
+    "q12": {
       "q": "Wie deinstalliere ich die App?",
-      "a_html": "Beenden Sie die App (Symbol in der Menüleiste > „Quit“) und legen Sie sie aus „Programme“ in den Papierkorb. Entfernen Sie ihren Eintrag unter Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen. Um auch Verlauf, Einstellungen und Protokoll zu entfernen, löschen Sie die Ordner <code>VocabularyAutomator</code> und <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code> sowie den Ordner <code>~/Library/Logs/com.ankiautomator.app</code>. Karten, die schon in Anki sind, bleiben dort."
+      "a_html": "Beenden Sie die App (Symbol in der Menüleiste > „Quit“) und legen Sie sie aus „Programme“ in den Papierkorb. Entfernen Sie ihren Eintrag unter Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen. Um auch Verlauf, Einstellungen und Protokoll zu entfernen, löschen Sie die Ordner <code>VocabularyAutomator</code> und <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code> sowie den Ordner <code>~/Library/Logs/com.ankiautomator.app</code>. Der Finder blendet <code>~/Library</code> aus: Wählen Sie „Gehe zu“ > „Gehe zum Ordner“ und geben Sie den Pfad ein. Karten, die schon in Anki sind, bleiben dort."
     }
   },
   "footer": {

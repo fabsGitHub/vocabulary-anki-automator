@@ -372,18 +372,18 @@ describe('build without a disk image', () => {
     result = await build({ outDir, downloadsDir: missing, siteUrl: `${SITE_URL}/` })
   })
 
-  test('links the macOS buttons to GitHub Releases and says the download is coming', async () => {
+  test('links the macOS buttons to GitHub Releases and says the download is not available yet', async () => {
     assert.equal(result.dmg, null)
     await assert.rejects(stat(path.join(outDir, 'downloads')), { code: 'ENOENT' })
     const pages = await readPages(outDir)
-    for (const [page, coming] of [
-      ['index.html', 'The macOS download is coming soon.'],
-      ['de/index.html', 'Der Download für macOS folgt in Kürze.'],
+    for (const [page, notYet] of [
+      ['index.html', 'The macOS download is not available yet.'],
+      ['de/index.html', 'Der Download für macOS ist noch nicht verfügbar.'],
     ]) {
       const html = pages[page]
       assert.ok(!html.includes('/downloads/'), `${page} links to a download`)
       assert.ok(!html.includes('id="sha256"'), `${page} shows a checksum`)
-      assert.ok(html.includes(coming), `${page} says the download is coming`)
+      assert.ok(html.includes(notYet), `${page} says the download is not available yet`)
       const primary = html.match(/<a class="btn btn-primary btn-lg" href="([^"]+)"/g)
       assert.equal(primary.length, 2, `${page} has a hero and a download-section button`)
       for (const tag of primary) assert.ok(tag.includes(`href="${RELEASES_URL}"`), tag)

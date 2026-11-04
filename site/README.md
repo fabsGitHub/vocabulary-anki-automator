@@ -40,7 +40,7 @@ builds somewhere else. The version comes from `src-tauri/tauri.conf.json`.
 Put the universal disk image into `site/downloads/` and build. The build copies the newest
 `.dmg` there to `dist/downloads/` under a name without spaces, and writes its size and
 SHA-256 into the page. Without a `.dmg`, the macOS buttons link to GitHub Releases and the
-page says that the download is coming.
+page says that the download is not available yet.
 
 ## Deploying
 
