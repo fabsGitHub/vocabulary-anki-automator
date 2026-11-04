@@ -41,6 +41,7 @@ import {
   publishedDmgName,
   readVersion,
   renderTemplate,
+  sourcePattern,
 } from './build.mjs'
 
 const SITE_URL = 'https://vocabulary-automator.vercel.app'
@@ -258,11 +259,19 @@ function checkCommonOutput(label, getOut) {
 
     test('links only to its own files and the allowed external pages', async () => {
       for (const [page, html] of Object.entries(pages)) {
-        for (const [url] of html.matchAll(/https?:\/\/[^\s"'<>)]+/g)) {
+        for (const [url] of html.matchAll(/https?:\/\/[^\s"'<>)]+/gi)) {
           const own = url === `${SITE_URL}/` || url.startsWith(`${SITE_URL}/`)
           assert.ok(own || ALLOWED_EXTERNAL.has(url), `${page} links to ${url}`)
         }
-        assert.ok(!/\s(?:href|src|content)="\/\//.test(html), `${page} has a protocol-relative URL`)
+        // A protocol-relative URL ("//host/x") loads from another server too, in
+        // any attribute: href, src, content, srcset, poster, action, data, …
+        assert.ok(!/=\s*["']?\s*\/\//.test(html), `${page} has a protocol-relative URL`)
+        for (const [, list] of html.matchAll(/\s(?:srcset|imagesrcset)\s*=\s*"([^"]*)"/gi)) {
+          for (const candidate of list.split(',')) {
+            const url = candidate.trim().split(/\s+/)[0]
+            assert.ok(/^\/(?!\/)/.test(url), `${page} has a srcset entry from elsewhere: ${url}`)
+          }
+        }
         for (const [, local] of html.matchAll(/\s(?:href|src)="(\/[^"#]*)"/g)) {
           const file = local.endsWith('/') ? `${local}index.html` : local
           await stat(path.join(outDir, file)).catch(() => {
@@ -344,12 +353,25 @@ function checkCommonOutput(label, getOut) {
       assert.equal(headers['X-Content-Type-Options'], 'nosniff')
       assert.equal(headers['Referrer-Policy'], 'strict-origin-when-cross-origin')
       assert.match(headers['Permissions-Policy'], /camera=\(\).*microphone=\(\).*geolocation=\(\)/)
-      const dmgRule = vercel.headers.find((rule) => rule.source.startsWith('/downloads/'))
-      assert.ok(
-        dmgRule.headers.some(
-          (h) => h.key === 'Content-Type' && h.value === 'application/x-apple-diskimage',
-        ),
-      )
+    })
+
+    test('applies the Vercel header rules to the URLs the build publishes', async () => {
+      const vercel = JSON.parse(await readFile(path.join(outDir, 'vercel.json'), 'utf8'))
+      /** The headers Vercel sends for `url`, read with the preview server's pattern logic. */
+      const headersFor = (url) =>
+        Object.fromEntries(
+          vercel.headers
+            .filter((rule) => sourcePattern(rule.source).test(url))
+            .flatMap((rule) => rule.headers.map((h) => [h.key, h.value])),
+        )
+      for (const url of ['/', '/de/', '/404.html', '/styles.css', '/main.js']) {
+        assert.match(headersFor(url)['Content-Security-Policy'] ?? '', /default-src 'self'/, url)
+      }
+      const dmg = headersFor(`/downloads/${DMG_PUBLISHED}`)
+      assert.equal(dmg['Content-Type'], 'application/x-apple-diskimage')
+      assert.equal(dmg['Content-Disposition'], 'attachment')
+      assert.ok(dmg['Content-Security-Policy'], 'the disk image gets the security headers too')
+      assert.equal(headersFor('/')['Content-Type'], undefined, 'pages keep their own type')
     })
   })
 }

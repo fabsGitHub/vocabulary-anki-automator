@@ -144,6 +144,24 @@ export function renderTemplate(template, { lookup, flags, partials, icons }) {
   return html
 }
 
+/**
+ * A vercel.json `source` such as `/downloads/(.*\.dmg)` as a RegExp: the
+ * groups are regular expressions, the rest is literal. The preview server
+ * applies the headers with it and the tests check the rules against the URLs
+ * the build publishes, so both read the patterns the same way.
+ */
+export function sourcePattern(source) {
+  let pattern = ''
+  let depth = 0
+  for (const char of source) {
+    if (char === '(') depth += 1
+    if (depth > 0) pattern += char
+    else pattern += char.replace(/[.*+?^${}|[\]\\]/g, '\\$&')
+    if (char === ')') depth -= 1
+  }
+  return new RegExp(`^${pattern}$`)
+}
+
 /** The newest `.dmg` in `dir` (by modification time), or null when there is none. */
 export async function findNewestDmg(dir) {
   let names

@@ -13,6 +13,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
+import { sourcePattern } from './build.mjs'
+
 const SITE_DIR = path.dirname(fileURLToPath(import.meta.url))
 
 const TYPES = {
@@ -25,19 +27,6 @@ const TYPES = {
   '.xml': 'application/xml; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
   '.dmg': 'application/octet-stream',
-}
-
-/** A vercel.json `source` such as `/downloads/(.*\.dmg)` as a RegExp: groups are regex, the rest literal. */
-function sourcePattern(source) {
-  let pattern = ''
-  let depth = 0
-  for (const char of source) {
-    if (char === '(') depth += 1
-    if (depth > 0) pattern += char
-    else pattern += char.replace(/[.*+?^${}|[\]\\]/g, '\\$&')
-    if (char === ')') depth -= 1
-  }
-  return new RegExp(`^${pattern}$`)
 }
 
 async function isFile(file) {
