@@ -171,13 +171,17 @@ export async function sha256File(file) {
   return hash.digest('hex')
 }
 
-/** A size in megabytes (10^6 bytes, as Finder counts them) with one decimal. */
+/**
+ * A size in megabytes (10^6 bytes, as Finder counts them) with one decimal,
+ * joined to its unit by a no-break space so the two never land on different
+ * lines.
+ */
 export function formatMegabytes(bytes, numberLocale) {
   const number = new Intl.NumberFormat(numberLocale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(bytes / 1_000_000)
-  return `${number} MB`
+  return `${number}\u00a0MB`
 }
 
 export function normalizeSiteUrl(raw) {

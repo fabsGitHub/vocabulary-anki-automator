@@ -26,7 +26,7 @@
     "title": "Vom markierten Wort zur fertigen Anki-Karte.",
     "subline_html": "Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie <kbd>⇧⌘C</kbd> (Umschalt-Befehl-C). Vocabulary Automator ermittelt Übersetzung und Aussprache und zeigt Ihnen die fertige Karte. Ein Druck auf <kbd>Enter</kbd>, und sie ist in Ihrem Stapel.",
     "cta": "Für macOS herunterladen",
-    "meta": "Version {version} · Vorschauversion · Apple Silicon und Intel",
+    "meta": "Version\u00a0{version}\u00a0· Vorschauversion\u00a0· Apple Silicon und Intel",
     "ctaFallback": "GitHub Releases",
     "metaFallback": "Der Download für macOS ist noch nicht verfügbar.",
     "secondary": "So funktioniert es",
@@ -107,13 +107,13 @@
     },
     "f6": {
       "title": "Chinesisch mit Pinyin und HSK-Stufe",
-      "body": "Text mit chinesischen Schriftzeichen wird immer als Chinesisch erfasst. Pinyin mit Tonzeichen und die HSK-3.0-Stufe stammen aus einer mitgelieferten Liste mit 10.969 Wörtern. Wörter außerhalb der Liste bekommen trotzdem Pinyin.",
-      "visualLabel": "Darstellung: das Wort 银行 mit dem Pinyin yín háng und der Stufe HSK 2",
+      "body": "Text mit chinesischen Schriftzeichen wird immer als Chinesisch erfasst. Pinyin mit Tonzeichen und die HSK-3.0-Stufe stammen aus einer mitgelieferten Liste mit 10.969\u00a0Wörtern. Wörter außerhalb der Liste bekommen trotzdem Pinyin.",
+      "visualLabel": "Darstellung: das Wort 银行 mit dem Pinyin yín háng und der Stufe HSK\u00a02",
       "front": "Vorderseite (Wort)",
       "hanzi": "银行",
       "pinyinLabel": "Pinyin",
       "pinyin": "yín háng",
-      "hsk": "HSK 2"
+      "hsk": "HSK\u00a02"
     },
     "f7": {
       "title": "Funktioniert auch ohne laufendes Anki",
@@ -172,7 +172,7 @@
     "r7": {
       "what": "Eine Anfrage nach der neuesten Versionsnummer, ohne erfassten Text",
       "to_html": "GitHub <code>github.com</code> und sein Download-Server",
-      "when": "Etwa 10 Sekunden nach dem Öffnen des Einstellungsfensters"
+      "when": "Etwa 10\u00a0Sekunden nach dem Öffnen des Einstellungsfensters"
     },
     "r8": {
       "what": "Download-Anfragen für Anki oder AnkiConnect",
@@ -200,7 +200,7 @@
     "title": "Was Sie brauchen",
     "i1": {
       "title": "Einen Mac",
-      "body": "Mit Apple Silicon oder Intel. Vocabulary Automator wird unter macOS 26 Tahoe entwickelt. Ältere macOS-Versionen sind noch nicht getestet."
+      "body": "Mit Apple Silicon oder Intel. Vocabulary Automator wird unter macOS\u00a026\u00a0Tahoe entwickelt. Ältere macOS-Versionen sind noch nicht getestet."
     },
     "i2": {
       "title_html": "<a href=\"{ankiUrl}\">Anki Desktop</a>",
@@ -219,7 +219,7 @@
     "title": "Download & Installation",
     "yourSystem": "Ihr System",
     "macTitle": "Vocabulary Automator {version} für macOS",
-    "macMeta": "Disk-Image (.dmg) · Apple Silicon und Intel",
+    "macMeta": "Disk-Image (.dmg)\u00a0· Apple Silicon und Intel",
     "macButton": "Disk-Image herunterladen",
     "macFallback": "Der Download für macOS ist noch nicht verfügbar.",
     "macFallbackButton": "GitHub Releases",
@@ -240,8 +240,8 @@
     },
     "s2": {
       "title": "Zum ersten Mal öffnen",
-      "sequoia_html": "<em>macOS 15 Sequoia und neuer:</em> Doppelklicken Sie in „Programme“ auf Vocabulary Automator. macOS meldet, dass die App nicht überprüft werden konnte. Klicken Sie auf <strong>„Fertig“</strong>. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit</strong>, scrollen Sie zum Abschnitt <strong>„Sicherheit“</strong> und klicken Sie neben dem Hinweis zu Vocabulary Automator auf <strong>„Dennoch öffnen“</strong>. Bestätigen Sie mit <strong>„Dennoch öffnen“</strong> und Ihrem Passwort oder Touch ID.",
-      "sonoma_html": "<em>macOS 14 Sonoma und älter:</em> Klicken Sie in „Programme“ bei gedrückter ctrl-Taste auf Vocabulary Automator, wählen Sie <strong>„Öffnen“</strong> und klicken Sie im Dialog noch einmal auf <strong>„Öffnen“</strong>.",
+      "sequoia_html": "<em>macOS\u00a015\u00a0Sequoia und neuer:</em> Doppelklicken Sie in „Programme“ auf Vocabulary Automator. macOS meldet, dass die App nicht überprüft werden konnte. Klicken Sie auf <strong>„Fertig“</strong>. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit</strong>, scrollen Sie zum Abschnitt <strong>„Sicherheit“</strong> und klicken Sie neben dem Hinweis zu Vocabulary Automator auf <strong>„Dennoch öffnen“</strong>. Bestätigen Sie mit <strong>„Dennoch öffnen“</strong> und Ihrem Passwort oder Touch\u00a0ID.",
+      "sonoma_html": "<em>macOS\u00a014\u00a0Sonoma und älter:</em> Klicken Sie in „Programme“ bei gedrückter ctrl-Taste auf Vocabulary Automator, wählen Sie <strong>„Öffnen“</strong> und klicken Sie im Dialog noch einmal auf <strong>„Öffnen“</strong>.",
       "once": "Das ist pro Version nur einmal nötig."
     },
     "s3": {
@@ -265,7 +265,7 @@
     "knowTitle": "Gut zu wissen vor der Installation",
     "k1": "Beispielsätze gibt es bisher für Englisch. Chinesische Karten bekommen einen einfachen Mustersatz, französische, deutsche, spanische und italienische noch keinen.",
     "k2": "Die Übersetzungen kommen von einem kostenlosen Übersetzungsdienst. Prüfen Sie sie vor dem Bestätigen.",
-    "k3": "Erfassungen sind auf 100 Zeichen begrenzt. In den Einstellungen lässt sich das auf bis zu 500 erhöhen.",
+    "k3": "Erfassungen sind auf 100\u00a0Zeichen begrenzt. In den Einstellungen lässt sich das auf bis zu 500 erhöhen.",
     "k4": "Die App fügt Anki nur neue Karten hinzu. Ihre vorhandenen Notizen ändert oder löscht sie nie.",
     "k5": "Die Vorschauversion ist nicht notarisiert und aktualisiert sich nicht selbst."
   },
@@ -281,7 +281,7 @@
     },
     "q3": {
       "q": "Brauche ich ein Konto oder einen API-Schlüssel?",
-      "a_html": "Nein. Der Übersetzungsdienst MyMemory funktioniert ohne Schlüssel. Für anonyme Nutzer übersetzt er etwa 5.000 Zeichen pro Tag. Tragen Sie unter „Erfassung &amp; Sprache“ eine Kontakt-E-Mail ein, erlaubt er etwa 50.000. Die Adresse geht nur an MyMemory."
+      "a_html": "Nein. Der Übersetzungsdienst MyMemory funktioniert ohne Schlüssel. Für anonyme Nutzer übersetzt er etwa 5.000\u00a0Zeichen pro Tag. Tragen Sie unter „Erfassung &amp; Sprache“ eine Kontakt-E-Mail ein, erlaubt er etwa 50.000. Die Adresse geht nur an MyMemory."
     },
     "q4": {
       "q": "Warum warnt macOS beim Öffnen der App?",
@@ -321,7 +321,7 @@
     }
   },
   "footer": {
-    "line": "Vocabulary Automator · Version {version} (Vorschauversion)",
+    "line": "Vocabulary Automator\u00a0· Version\u00a0{version} (Vorschauversion)",
     "source": "Quellcode auf GitHub",
     "releases": "GitHub Releases",
     "independence": "Vocabulary Automator ist ein unabhängiges Projekt. Es steht in keiner Verbindung zu Anki, AnkiWeb oder dem Add-on AnkiConnect und wird von ihnen weder unterstützt noch empfohlen.",

@@ -127,7 +127,7 @@
               <a class="btn btn-secondary btn-lg" href="#how">{{hero.secondary}}</a>
             </div>
 
-            <p class="hero-meta">{{hero.meta}}{{#dmg}} · {{build.dmgSize}}{{/dmg}}</p>
+            <p class="hero-meta">{{hero.meta}}{{#dmg}}&nbsp;· {{build.dmgSize}}{{/dmg}}</p>
             {{^dmg}}
             <p class="hero-meta">{{hero.metaFallback}}</p>
             {{/dmg}}
@@ -463,7 +463,9 @@
                 <span class="os-badge">{{download.yourSystem}}</span>
               </div>
               <h3 id="mac-title" class="platform-title">{{download.macTitle}}</h3>
-              <p class="platform-meta">{{download.macMeta}}{{#dmg}} · {{build.dmgSize}}{{/dmg}}</p>
+              <p class="platform-meta">
+                {{download.macMeta}}{{#dmg}}&nbsp;· {{build.dmgSize}}{{/dmg}}
+              </p>
               {{#dmg}}
               <a class="btn btn-primary btn-lg" href="{{build.dmgHref}}" download>
                 {{icon:download}}<span>{{download.macButton}}</span>

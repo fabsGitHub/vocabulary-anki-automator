@@ -148,10 +148,11 @@ describe('template rendering', () => {
 })
 
 describe('helpers', () => {
-  test('formats sizes in MB with one decimal, per language', () => {
-    assert.equal(formatMegabytes(DMG_BYTES, 'en-US'), '2.5 MB')
-    assert.equal(formatMegabytes(DMG_BYTES, 'de-DE'), '2,5 MB')
-    assert.equal(formatMegabytes(12_340_000, 'de-DE'), '12,3 MB')
+  test('formats sizes in MB with one decimal, per language, kept on one line', () => {
+    assert.equal(formatMegabytes(DMG_BYTES, 'en-US'), '2.5\u00a0MB')
+    assert.equal(formatMegabytes(DMG_BYTES, 'de-DE'), '2,5\u00a0MB')
+    assert.equal(formatMegabytes(12_340_000, 'de-DE'), '12,3\u00a0MB')
+    assert.ok(!formatMegabytes(DMG_BYTES, 'en-US').includes(' '), 'no breakable space')
   })
 
   test('publishes the disk image under a name without spaces', () => {
@@ -338,12 +339,13 @@ describe('build with a disk image', () => {
   test('renders the download link, size and checksum in both languages', async () => {
     const pages = await readPages(outDir)
     for (const [page, size] of [
-      ['index.html', '2.5 MB'],
-      ['de/index.html', '2,5 MB'],
+      ['index.html', '2.5\u00a0MB'],
+      ['de/index.html', '2,5\u00a0MB'],
     ]) {
       const html = pages[page]
       assert.ok(html.includes(`href="/downloads/${DMG_PUBLISHED}"`), `${page} download link`)
-      assert.ok(html.includes(` · ${size}</p>`), `${page} size ${size}`)
+      // The separator and the size stay on the line before them.
+      assert.ok(html.includes(`&nbsp;· ${size}</p>`), `${page} size ${size}`)
       assert.ok(html.includes(`<code id="sha256" class="checksum-value">${sha256}</code>`))
       assert.ok(html.includes(`shasum -a 256 ~/Downloads/${DMG_PUBLISHED}`), `${page} shasum`)
       assert.ok(html.includes('data-copy="sha256"'), `${page} copy button`)
@@ -356,7 +358,11 @@ describe('build with a disk image', () => {
       assert.equal(primary.length, 2, `${page} has a hero and a download-section button`)
       for (const tag of primary) assert.ok(tag.includes(`href="/downloads/${DMG_PUBLISHED}"`), tag)
     }
-    assert.ok(pages['index.html'].includes('Version 0.1.0 · Preview · Apple Silicon and Intel'))
+    assert.ok(
+      pages['index.html'].includes(
+        'Version\u00a00.1.0\u00a0· Preview\u00a0· Apple Silicon and Intel',
+      ),
+    )
   })
 
   checkCommonOutput('with a disk image', () => outDir)

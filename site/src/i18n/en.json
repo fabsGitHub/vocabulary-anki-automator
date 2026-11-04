@@ -26,7 +26,7 @@
     "title": "Turn the words you read into Anki cards.",
     "subline_html": "Select a word or phrase in any app and press <kbd>⇧⌘C</kbd> (Shift-Command-C). Vocabulary Automator looks up the translation and the pronunciation and shows you the finished card. Press <kbd>Enter</kbd>, and it is in your deck.",
     "cta": "Download for macOS",
-    "meta": "Version {version} · Preview · Apple Silicon and Intel",
+    "meta": "Version\u00a0{version}\u00a0· Preview\u00a0· Apple Silicon and Intel",
     "ctaFallback": "GitHub Releases",
     "metaFallback": "The macOS download is not available yet.",
     "secondary": "How it works",
@@ -107,13 +107,13 @@
     },
     "f6": {
       "title": "Chinese with pinyin and HSK level",
-      "body": "Text with Chinese characters is always captured as Chinese. Pinyin with tone marks and the HSK 3.0 level come from a bundled list of 10,969 words. Words outside the list still get pinyin.",
-      "visualLabel": "Illustration: the word 银行 with the pinyin yín háng and the level HSK 2",
+      "body": "Text with Chinese characters is always captured as Chinese. Pinyin with tone marks and the HSK\u00a03.0 level come from a bundled list of 10,969\u00a0words. Words outside the list still get pinyin.",
+      "visualLabel": "Illustration: the word 银行 with the pinyin yín háng and the level HSK\u00a02",
       "front": "Front (word)",
       "hanzi": "银行",
       "pinyinLabel": "Pinyin",
       "pinyin": "yín háng",
-      "hsk": "HSK 2"
+      "hsk": "HSK\u00a02"
     },
     "f7": {
       "title": "Works when Anki is closed",
@@ -172,7 +172,7 @@
     "r7": {
       "what": "A request for the newest version number, with no captured text",
       "to_html": "GitHub <code>github.com</code> and its download server",
-      "when": "About 10 seconds after the settings window opens"
+      "when": "About 10\u00a0seconds after the settings window opens"
     },
     "r8": {
       "what": "Download requests for Anki or AnkiConnect",
@@ -200,7 +200,7 @@
     "title": "What you need",
     "i1": {
       "title": "A Mac",
-      "body": "With Apple Silicon or Intel. Vocabulary Automator is developed on macOS 26 Tahoe. Older macOS versions have not been tested yet."
+      "body": "With Apple Silicon or Intel. Vocabulary Automator is developed on macOS\u00a026\u00a0Tahoe. Older macOS versions have not been tested yet."
     },
     "i2": {
       "title_html": "<a href=\"{ankiUrl}\">Anki Desktop</a>",
@@ -219,7 +219,7 @@
     "title": "Download & install",
     "yourSystem": "Your system",
     "macTitle": "Vocabulary Automator {version} for macOS",
-    "macMeta": "Disk image (.dmg) · Apple Silicon and Intel",
+    "macMeta": "Disk image (.dmg)\u00a0· Apple Silicon and Intel",
     "macButton": "Download .dmg",
     "macFallback": "The macOS download is not available yet.",
     "macFallbackButton": "GitHub Releases",
@@ -240,8 +240,8 @@
     },
     "s2": {
       "title": "Open it for the first time",
-      "sequoia_html": "<em>macOS 15 Sequoia and later:</em> Double-click Vocabulary Automator in Applications. macOS says it could not verify the app. Click <strong>Done</strong>. Open <strong>System Settings > Privacy &amp; Security</strong>, scroll down to <strong>Security</strong> and click <strong>Open Anyway</strong> next to the message about Vocabulary Automator. Confirm with <strong>Open Anyway</strong> and your password or Touch ID.",
-      "sonoma_html": "<em>macOS 14 Sonoma and earlier:</em> Control-click Vocabulary Automator in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> in the dialog.",
+      "sequoia_html": "<em>macOS\u00a015\u00a0Sequoia and later:</em> Double-click Vocabulary Automator in Applications. macOS says it could not verify the app. Click <strong>Done</strong>. Open <strong>System Settings > Privacy &amp; Security</strong>, scroll down to <strong>Security</strong> and click <strong>Open Anyway</strong> next to the message about Vocabulary Automator. Confirm with <strong>Open Anyway</strong> and your password or Touch\u00a0ID.",
+      "sonoma_html": "<em>macOS\u00a014\u00a0Sonoma and earlier:</em> Control-click Vocabulary Automator in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> in the dialog.",
       "once": "You need to do this only once per version."
     },
     "s3": {
@@ -265,7 +265,7 @@
     "knowTitle": "Good to know before you install",
     "k1": "Example sentences exist for English so far. Chinese cards get a simple template sentence, and French, German, Spanish and Italian cards get none yet.",
     "k2": "Translations come from a free translation service. Check them before you approve.",
-    "k3": "Captures are limited to 100 characters, and you can raise that to 500 in the settings.",
+    "k3": "Captures are limited to 100\u00a0characters, and you can raise that to 500 in the settings.",
     "k4": "The app only adds new cards to Anki. It never changes or deletes your existing notes.",
     "k5": "The preview is not notarized and does not update itself."
   },
@@ -281,7 +281,7 @@
     },
     "q3": {
       "q": "Do I need an account or an API key?",
-      "a_html": "No. The translation service, MyMemory, works without a key. MyMemory allows about 5,000 characters a day anonymously. If you add a contact e-mail under “Capture &amp; Language”, it allows about 50,000. The address goes to MyMemory only."
+      "a_html": "No. The translation service, MyMemory, works without a key. MyMemory allows about 5,000\u00a0characters a day anonymously. If you add a contact e-mail under “Capture &amp; Language”, it allows about 50,000. The address goes to MyMemory only."
     },
     "q4": {
       "q": "Why does macOS warn me when I open the app?",
@@ -321,7 +321,7 @@
     }
   },
   "footer": {
-    "line": "Vocabulary Automator · Version {version} (preview)",
+    "line": "Vocabulary Automator\u00a0· Version\u00a0{version} (preview)",
     "source": "Source code on GitHub",
     "releases": "GitHub Releases",
     "independence": "Vocabulary Automator is an independent project. It is not affiliated with or endorsed by Anki, AnkiWeb or the AnkiConnect add-on.",
