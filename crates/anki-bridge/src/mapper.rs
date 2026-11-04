@@ -2298,6 +2298,33 @@ mod auto_match_tests {
         );
     }
 
+    /// Why a global mapping nobody customized may be matched by field name
+    /// instead: on the classic note type the match is exactly the default
+    /// mapping, for every language pair a capture can have, so those users'
+    /// notes would stay as they are.
+    #[test]
+    fn the_classic_note_type_matches_the_old_default_for_every_pair() {
+        let classic = names(&["Front", "Back", "Context Sentence", "Notes", "Front Audio"]);
+        let langs = vocab_core::language::SUPPORTED_LANGS;
+        let mut pairs = 0;
+        for source in langs {
+            for target in langs.iter().filter(|target| *target != source) {
+                let m = auto_match(&classic, source, target);
+                assert_eq!(
+                    m.mapping,
+                    FieldMapping::apple_style_default(),
+                    "{source} -> {target}"
+                );
+                assert!(
+                    m.guessed.is_empty() && m.unmatched.is_empty(),
+                    "{source} -> {target}: {m:?}"
+                );
+                pairs += 1;
+            }
+        }
+        assert_eq!(pairs, 30);
+    }
+
     #[test]
     fn reproduces_both_presets_from_their_field_names() {
         let apple = names(&["Front", "Back", "Context Sentence", "Notes", "Front Audio"]);
