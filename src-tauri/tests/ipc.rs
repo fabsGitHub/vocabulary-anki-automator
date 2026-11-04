@@ -302,6 +302,28 @@ fn han_text_is_chinese_by_its_script() {
         .contains(&"annotate 学习".to_string()));
 }
 
+/// Han text for a learner whose own language is Chinese is not detected:
+/// the pipeline reverses the pair instead of translating zh-CN -> zh-CN.
+#[test]
+fn han_text_for_a_chinese_native_learner_is_left_to_the_pipeline() {
+    let mut options = Options::default();
+    options.config.translation.source_lang = "en".into();
+    options.config.translation.target_lang = "zh-CN".into();
+    options.config.learning.languages = vec![
+        learned("en", "english", "AppleStyleFinalV3"),
+        learned("fr", "french", "AppleStyleFinalV3"),
+    ];
+    let harness = Harness::with(options);
+
+    capture(&harness, "学习", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "zh-CN");
+    assert_eq!(pending["card"]["target_lang"], "en");
+    assert_eq!(pending["detection"], Value::Null);
+    assert_eq!(harness.providers.calls()[0], "translate zh-CN->en 学习");
+}
+
 /// Text in none of the learned languages is captured in the configured
 /// source language, and the window is told why.
 #[test]
