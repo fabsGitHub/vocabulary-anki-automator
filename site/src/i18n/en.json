@@ -23,7 +23,7 @@
   },
   "hero": {
     "eyebrow": "Desktop app for Anki",
-    "title": "Turn the words you read into Anki cards.",
+    "title_html": "Turn the <span class=\"hero-selection\">words</span> you read into Anki cards.",
     "subline_html": "Select a word or phrase in any app and press <kbd>⇧⌘C</kbd> (Shift-Command-C). Polywort looks up the translation and the pronunciation and shows you the finished card. Press <kbd>Enter</kbd>, and it is in your deck.",
     "cta": "Download for macOS",
     "meta": "Version\u00a0{version}\u00a0· Preview\u00a0· Apple Silicon and Intel",

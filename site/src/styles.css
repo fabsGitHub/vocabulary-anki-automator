@@ -1,8 +1,12 @@
 /* Polywort product site.
    One stylesheet, system fonts, no external resources. The page follows the
-   visitor's light or dark preference. The .mock-* rules draw the app's own
-   approval window with the app's palette (src/styles.css of the Automator),
-   darkened where its blue would miss AA contrast. */
+   visitor's light or dark preference. Its colours come from the app icon
+   (branding/README.md): raspberry for the brand and the primary actions,
+   violet for selections and focus rings, plum ink for headings. Every text
+   colour keeps WCAG AA against the backgrounds it is used on; contrast.test.mjs
+   checks the pairs. The .mock-* rules draw the app's own approval window with
+   the app's palette (src/styles.css of the Automator), darkened where its blue
+   would miss AA contrast. */
 
 /* ==========================================================================
    1. Tokens
@@ -11,28 +15,40 @@
   color-scheme: light dark;
 
   --bg: #ffffff;
-  --bg-alt: #f6f7fb;
+  --bg-alt: #f8f6fa;
   --surface: #ffffff;
-  --surface-2: #f1f3f8;
-  --border: #e3e6ee;
-  --border-strong: #cfd4df;
-  --text: #13151b;
-  --text-muted: #4f5564;
-  --text-subtle: #646a7a;
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-text: #4338ca;
-  --accent-soft: #eef0fe;
-  --accent-border: #c9ccf8;
+  --surface-2: #f3eff6;
+  --border: #e9e4ee;
+  --border-strong: #d6cede;
+  --text: #1d1622;
+  --text-muted: #574e60;
+  --text-subtle: #6a6175;
+  /* Plum ink of the icon's word and caret, for headings and strong text. */
+  --ink: #2c0f40;
+  /* The icon's raspberry (#e2306b), darkened until white text keeps 5.2:1. */
+  --accent: #d11d59;
+  --accent-hover: #bf1b51;
+  --accent-active: #ac1849;
+  --accent-text: #bf1b51;
+  --accent-soft: #fdeef3;
+  --accent-border: #f5c2d3;
   --on-accent: #ffffff;
+  /* The mark is a graphic, not text: the icon's own raspberry (4.3:1). */
+  --mark: #e2306b;
   --warning-bg: #fff6e8;
   --warning-border: #f3d9ab;
   --warning-text: #7a4100;
   --warning-icon: #b25d00;
-  --focus: #4f46e5;
+  --focus: #7957f9;
+  /* The icon's selection and the ink on it, for the selected word in the hero. */
+  --selection-top: #ae98ff;
+  --selection-bottom: #9478fa;
+  --selection-ink: #2c0f40;
+  --caret: #2c0f40;
+  --text-selection: rgb(148 120 250 / 0.3);
   --header-bg: rgb(255 255 255 / 0.84);
-  --glow-1: rgb(99 102 241 / 0.2);
-  --glow-2: rgb(56 189 248 / 0.14);
+  --glow-1: rgb(255 154 92 / 0.22);
+  --glow-2: rgb(148 120 250 / 0.16);
   --shadow-sm: 0 1px 2px rgb(16 24 40 / 0.05);
   --shadow-md: 0 1px 2px rgb(16 24 40 / 0.04), 0 10px 28px -12px rgb(16 24 40 / 0.14);
   --shadow-window:
@@ -87,30 +103,35 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d0e12;
-    --bg-alt: #121419;
-    --surface: #16181e;
-    --surface-2: #1c1f27;
-    --border: #252934;
-    --border-strong: #353a48;
-    --text: #ecedf2;
-    --text-muted: #a7abb8;
-    --text-subtle: #8b90a0;
-    --accent: #5b57e8;
-    /* Darker than --accent, as in light mode: white text keeps 6.2:1 (AA) on hover. */
-    --accent-hover: #4f4bdc;
-    --accent-text: #a5b4fc;
-    --accent-soft: rgb(99 102 241 / 0.16);
-    --accent-border: rgb(129 140 248 / 0.4);
+    --bg: #120e16;
+    --bg-alt: #17121c;
+    --surface: #1c1622;
+    --surface-2: #241d2b;
+    --border: #2f2737;
+    --border-strong: #45394f;
+    --text: #eee9f2;
+    --text-muted: #b4aabd;
+    --text-subtle: #988da3;
+    --ink: #faf6fc;
+    --accent: #d11d59;
+    /* Lighter on hover, as dark pages do; white text keeps 4.6:1 (AA). */
+    --accent-hover: #e02160;
+    --accent-active: #bf1b51;
+    --accent-text: #ff8fb0;
+    --accent-soft: #2c1626;
+    --accent-border: #5e2541;
     --on-accent: #ffffff;
+    --mark: #f0457b;
     --warning-bg: #231c10;
     --warning-border: #4a3815;
     --warning-text: #f5c27a;
     --warning-icon: #f5b04f;
-    --focus: #a5b4fc;
-    --header-bg: rgb(13 14 18 / 0.8);
-    --glow-1: rgb(99 102 241 / 0.24);
-    --glow-2: rgb(56 189 248 / 0.1);
+    --focus: #ae98ff;
+    --caret: #faf6fc;
+    --text-selection: rgb(148 120 250 / 0.42);
+    --header-bg: rgb(18 14 22 / 0.8);
+    --glow-1: rgb(226 48 107 / 0.22);
+    --glow-2: rgb(148 120 250 / 0.14);
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-md: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -14px rgb(0 0 0 / 0.6);
     --shadow-window:
@@ -175,6 +196,7 @@ h1,
 h2,
 h3,
 h4 {
+  color: var(--ink);
   line-height: 1.15;
   text-wrap: balance;
 }
@@ -215,12 +237,12 @@ a:hover {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  background: var(--text-selection);
 }
 
 strong {
   font-weight: 650;
-  color: var(--text);
+  color: var(--ink);
 }
 
 code {
@@ -344,6 +366,10 @@ kbd {
   background: var(--accent-hover);
 }
 
+.btn-primary:active {
+  background: var(--accent-active);
+}
+
 .btn-secondary {
   background: var(--surface);
   color: var(--text);
@@ -397,46 +423,22 @@ kbd {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-right: auto;
-  color: var(--text);
-  font-weight: 700;
-  font-size: 1.0625rem;
-  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-weight: 750;
+  font-size: 1.1875rem;
+  letter-spacing: -0.02em;
   text-decoration: none;
   white-space: nowrap;
 }
 
+/* branding/glyph.svg, one path filled with currentColor. */
 .mark {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   flex: none;
-}
-
-.mark-bg {
-  fill: var(--accent);
-}
-
-.mark-back {
-  fill: #ffffff;
-  fill-opacity: 0.42;
-}
-
-.mark-card {
-  fill: #ffffff;
-}
-
-.mark-select {
-  fill: var(--accent);
-  fill-opacity: 0.3;
-}
-
-.mark-caret {
-  fill: var(--accent);
-}
-
-.mark-line {
-  fill: #d3d6e4;
+  color: var(--mark);
 }
 
 .nav-desktop,
@@ -551,8 +553,7 @@ kbd {
 
 @media (max-width: 399px) {
   .brand {
-    gap: 8px;
-    font-size: 0.9375rem;
+    font-size: 1.0625rem;
   }
 
   .nav-mobile-toggle {
@@ -628,6 +629,29 @@ kbd {
   line-height: 1.04;
   letter-spacing: -0.032em;
   hyphens: manual;
+}
+
+/* The selected word of the app icon: the icon's violet selection with the
+   ink on it, and the text caret at its end. A sliced inline box, so only the
+   end of the word gets the caret even if it ever wraps. */
+.hero-selection {
+  padding: 0 0.04em 0 0.07em;
+  border-right: 0.075em solid var(--caret);
+  border-radius: 0.1em 0 0 0.1em;
+  background: linear-gradient(var(--selection-top), var(--selection-bottom));
+  color: var(--selection-ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-selection {
+    animation: caret-blink 1.1s step-end 0.9s 3;
+  }
+}
+
+@keyframes caret-blink {
+  50% {
+    border-right-color: transparent;
+  }
 }
 
 .hero-lead {
@@ -1675,6 +1699,7 @@ kbd {
 
 .callout-title {
   margin-bottom: var(--space-1);
+  color: inherit;
   font-size: var(--text-md);
   font-weight: 700;
 }
@@ -1783,7 +1808,6 @@ kbd {
 
 .box-title {
   margin-bottom: var(--space-3);
-  color: var(--text);
   font-size: var(--text-md);
   font-weight: 700;
 }

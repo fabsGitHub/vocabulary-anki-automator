@@ -1,8 +1,11 @@
-<svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true" focusable="false">
-  <rect class="mark-bg" width="32" height="32" rx="8" />
-  <rect class="mark-back" x="9.5" y="5" width="17" height="12.5" rx="2.5" transform="rotate(-9 18 11.25)" />
-  <rect class="mark-card" x="5.5" y="10" width="21" height="15.5" rx="3" />
-  <rect class="mark-select" x="8.75" y="13.75" width="9.5" height="4" rx="1.1" />
-  <rect class="mark-caret" x="18.75" y="12.75" width="1.4" height="6" rx="0.7" />
-  <rect class="mark-line" x="8.75" y="20.75" width="14" height="1.9" rx="0.95" />
+<svg class="mark" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true" focusable="false">
+  <path
+    fill="currentColor"
+    fill-rule="evenodd"
+    d="M20 8H52A8 8 0 0 1 60 16V36A8 8 0 0 1 56 42.93V24A12 12 0 0 0 44 12H13.07A8 8 0 0 1 20 8Z
+    M12 16H44A8 8 0 0 1 52 24V44A8 8 0 0 1 44 52H12A8 8 0 0 1 4 44V24A8 8 0 0 1 12 16Z
+    M14 24H30A2 2 0 0 1 32 26V34A2 2 0 0 1 30 36H14A2 2 0 0 1 12 34V26A2 2 0 0 1 14 24Z
+    M38 20H46A2 2 0 0 1 46 24H44V36H46A2 2 0 0 1 46 40H38A2 2 0 0 1 38 36H40V24H38A2 2 0 0 1 38 20Z
+    M14 44H38A2 2 0 0 1 38 48H14A2 2 0 0 1 14 44Z"
+  />
 </svg>

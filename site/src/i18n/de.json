@@ -23,7 +23,7 @@
   },
   "hero": {
     "eyebrow": "Desktop-App für Anki",
-    "title": "Vom markierten Wort zur fertigen Anki-Karte.",
+    "title_html": "Vom markierten <span class=\"hero-selection\">Wort</span> zur fertigen Anki-Karte.",
     "subline_html": "Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie <kbd>⇧⌘C</kbd> (Umschalt-Befehl-C). Polywort ermittelt Übersetzung und Aussprache und zeigt Ihnen die fertige Karte. Ein Druck auf <kbd>Enter</kbd>, und sie ist in Ihrem Stapel.",
     "cta": "Für macOS herunterladen",
     "meta": "Version\u00a0{version}\u00a0· Vorschauversion\u00a0· Apple Silicon und Intel",

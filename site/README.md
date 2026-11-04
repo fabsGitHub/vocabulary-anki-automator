@@ -12,6 +12,7 @@ from other servers, sets no cookies and has no analytics. Production URL:
 | ----------------------- | ------------------------------------------------------------------------ |
 | `build.mjs`             | Renders the pages into `dist/` (Node built-ins only, no npm packages)    |
 | `build.test.mjs`        | `node:test` checks of the built output                                   |
+| `contrast.test.mjs`     | WCAG contrast of the colour tokens in `src/styles.css`, light and dark   |
 | `serve.mjs`             | Local preview server with the headers from `vercel.json`                 |
 | `vercel.json`           | Clean URLs and security headers (CSP); the build copies it into `dist/`  |
 | `src/page.html`         | The page template, rendered once per language                            |
@@ -103,6 +104,19 @@ other project, `vocabulary-automator` (the name before the rename) included, can
 `site/dist/.vercel` and run `vercel link` again with `--project`. The
 production URL is <https://polywort.vercel.app>, the build's default `SITE_URL`. Never deploy
 from the repository root or `site/`: neither is the site.
+
+## Mark, icons and colours
+
+The artwork comes from `branding/` at the repository root (see its README). The header mark,
+`src/partials/mark.svg`, is the path of `branding/glyph.svg` filled with `currentColor`, so the
+stylesheet colours it, and `src/assets/favicon.svg` is a copy of `branding/favicon.svg`. When
+the branding changes, update both files.
+
+The colours are the tokens at the top of `src/styles.css`, taken from the icon: raspberry for
+the brand and the primary buttons, violet for the selected word in the hero, text selections
+and focus rings, plum ink for headings. `contrast.test.mjs` checks every text and UI colour
+against the backgrounds it sits on, in light and in dark mode, and fails below WCAG AA. The
+approval-window drawing keeps the app's own colours, its blue button included.
 
 ## Changing the copy
 

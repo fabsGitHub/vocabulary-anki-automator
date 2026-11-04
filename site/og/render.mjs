@@ -171,7 +171,7 @@ function window(copy) {
 }
 
 function ogSvg(copy) {
-  const title = wrap(copy.get('hero.title'), 17)
+  const title = wrap(copy.get('hero.title_html').replace(/<[^>]+>/g, ''), 17)
   const eyebrow = copy.get('hero.eyebrow')
   const eyebrowWidth = Math.round(textWidth(eyebrow, 17, 600) + 32)
   const titleY = 268

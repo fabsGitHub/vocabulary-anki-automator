@@ -1,8 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="#4f46e5"/>
-  <rect x="9.5" y="5" width="17" height="12.5" rx="2.5" fill="#ffffff" fill-opacity="0.42" transform="rotate(-9 18 11.25)"/>
-  <rect x="5.5" y="10" width="21" height="15.5" rx="3" fill="#ffffff"/>
-  <rect x="8.75" y="13.75" width="9.5" height="4" rx="1.1" fill="#4f46e5" fill-opacity="0.3"/>
-  <rect x="18.75" y="12.75" width="1.4" height="6" rx="0.7" fill="#4f46e5"/>
-  <rect x="8.75" y="20.75" width="14" height="1.9" rx="0.95" fill="#d3d6e4"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Browser-tab favicon: the app icon redrawn for 16 and 32 px. Full-bleed body, no text lines, a larger
+       selection and caret, and a straight (not rotated) back card so every edge lands on a whole pixel at 16 px
+       (2-unit grid). Flat colours; the id is prefixed so it does not clash when inlined. -->
+  <defs>
+    <linearGradient id="favicon-body" x1="14" y1="0" x2="18" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF9A5C"/>
+      <stop offset="1" stop-color="#E2306B"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#favicon-body)"/>
+  <rect x="6" y="6" width="22" height="16" rx="3" fill="#FFFFFF" fill-opacity="0.55"/>
+  <rect x="4" y="10" width="22" height="16" rx="3" fill="#FFFFFF"/>
+  <path fill="#9A80FB" d="M10 14H19V22H10A2 2 0 0 1 8 20V16A2 2 0 0 1 10 14Z"/>
+  <path fill="#2C0F40" d="M17 12H21A1 1 0 0 1 21 14H20V22H21A1 1 0 0 1 21 24H17A1 1 0 0 1 17 22H18V14H17A1 1 0 0 1 17 12Z"/>
 </svg>
