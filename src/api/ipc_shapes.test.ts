@@ -114,6 +114,7 @@ const pendingCapture = object({
   profile_id: nullable(string),
   detection: nullable(detection),
   filing: pendingFiling,
+  generation: integer,
 })
 const captureOrigin = literal('capture', 'curriculum', 'anki_import')
 const storedCapture = object({
@@ -382,7 +383,7 @@ const CALLS: Record<Wrapper, () => Promise<unknown>> = {
   discardPendingPayload: () => commands.discardPendingPayload(),
   executeCardGeneration: () => commands.executeCardGeneration(sample('Card')),
   captureText: () => commands.captureText('house', null),
-  rerunPendingCapture: () => commands.rerunPendingCapture('en', 'message'),
+  rerunPendingCapture: () => commands.rerunPendingCapture('en', 'message', 1),
   ankiStatus: () => commands.ankiStatus(),
   ankiModelFieldNames: () => commands.ankiModelFieldNames('Basic'),
   suggestFieldMapping: () => commands.suggestFieldMapping('Basic', 'en', 'de'),

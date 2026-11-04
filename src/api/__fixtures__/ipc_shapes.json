@@ -47,7 +47,8 @@
     {
       "args": [
         "sourceLang",
-        "text"
+        "text",
+        "generation"
       ],
       "command": "rerun_pending_capture",
       "function": "rerunPendingCapture",
@@ -914,6 +915,7 @@
           "deck": "English::AutomatedVocabulary",
           "model": "AppleStyleFinalV3"
         },
+        "generation": 1,
         "profile_id": null,
         "warnings": [
           {
@@ -990,6 +992,7 @@
           "deck": "Chinese::HSK",
           "model": "Chinese (HSK)"
         },
+        "generation": 2,
         "profile_id": "zh-de",
         "warnings": []
       },
@@ -1036,6 +1039,7 @@
           "deck": "french",
           "model": "AppleStyleFinalV3"
         },
+        "generation": 3,
         "profile_id": null,
         "warnings": []
       }

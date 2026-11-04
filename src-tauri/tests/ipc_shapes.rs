@@ -101,7 +101,7 @@ const COMMANDS: &[(&str, &str, &[&str], &str)] = &[
     (
         "rerunPendingCapture",
         "rerun_pending_capture",
-        &["sourceLang", "text"],
+        &["sourceLang", "text", "generation"],
         "PendingCapture",
     ),
     ("ankiStatus", "anki_status", &[], "AnkiStatus"),
@@ -556,6 +556,7 @@ fn shapes() -> Map<String, Value> {
                     profile_id: None,
                     detection: Some(confident_detection()),
                     filing: english_filing(),
+                    generation: 1,
                 }),
                 json_of(PendingCapture {
                     card: chinese_card(),
@@ -563,6 +564,7 @@ fn shapes() -> Map<String, Value> {
                     profile_id: Some("zh-de".into()),
                     detection: None,
                     filing: chinese_filing(),
+                    generation: 2,
                 }),
                 json_of(PendingCapture {
                     card: Card {
@@ -578,6 +580,7 @@ fn shapes() -> Map<String, Value> {
                         deck: "french".into(),
                         model: "AppleStyleFinalV3".into(),
                     },
+                    generation: 3,
                 }),
             ],
         ),
@@ -948,9 +951,10 @@ fn run_every_command() -> (Results, Harness) {
         "Anki is offline"
     );
     // The approval window's language switch: from here on the card is French.
+    let shown = harness.call("get_pending_payload", json!({}));
     let switched = call(
         "rerun_pending_capture",
-        json!({ "sourceLang": "fr", "text": "serendipity" }),
+        json!({ "sourceLang": "fr", "text": "serendipity", "generation": shown["generation"] }),
     );
     assert_eq!(switched["card"]["source_lang"], "fr");
     let pending = call("get_pending_payload", json!({}));

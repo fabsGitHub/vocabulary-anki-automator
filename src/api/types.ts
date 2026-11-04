@@ -101,6 +101,8 @@ export interface PendingCapture {
   /** `null` when the source language was not detected (a hotkey profile, or no learned languages). */
   detection: Detection | null
   filing: PendingFiling
+  /** Which capture this is; a re-run keeps the number (`rerunPendingCapture` names it). */
+  generation: number
 }
 
 export type CaptureOrigin = 'capture' | 'curriculum' | 'anki_import'

@@ -645,10 +645,23 @@ fn without_a_database_an_offline_anki_means_the_card_stays_pending() {
     );
 }
 
+/// The approval window's language switch for the capture it shows, the one
+/// pending (`0` with nothing pending).
 fn rerun(harness: &Harness, source_lang: &str, text: &str) -> Result<Value, Value> {
+    let generation = pending(harness)["generation"].as_u64().unwrap_or(0);
+    rerun_shown(harness, source_lang, text, generation)
+}
+
+/// The language switch of a window that shows capture `generation`.
+fn rerun_shown(
+    harness: &Harness,
+    source_lang: &str,
+    text: &str,
+    generation: u64,
+) -> Result<Value, Value> {
     harness.invoke(
         "rerun_pending_capture",
-        json!({ "sourceLang": source_lang, "text": text }),
+        json!({ "sourceLang": source_lang, "text": text, "generation": generation }),
     )
 }
 
@@ -669,6 +682,10 @@ fn a_capture_is_switched_to_the_language_the_user_picks() {
     assert_eq!(
         switched["card"]["captured_at"],
         before["card"]["captured_at"]
+    );
+    assert_eq!(
+        switched["generation"], before["generation"],
+        "the same capture"
     );
     assert_eq!(switched["profile_id"], Value::Null);
     assert_eq!(
@@ -701,6 +718,27 @@ fn a_capture_is_switched_to_the_language_the_user_picks() {
             "tts en message"
         ]
     );
+}
+
+/// A switch clicked in a window that still shows an older capture leaves the
+/// newer one alone: the older front is not re-run under its name.
+#[test]
+fn a_re_run_for_a_capture_that_was_replaced_is_refused() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+    let shown = pending(&harness)["generation"].as_u64().unwrap();
+    capture(&harness, "maison", None);
+    let newer = pending(&harness);
+    assert_ne!(newer["generation"], json!(shown));
+    let events = harness.events("translation-payload").len();
+
+    assert_eq!(
+        rerun_shown(&harness, "en", "message", shown),
+        Err(json!("The card was saved or discarded in the meantime."))
+    );
+
+    assert_eq!(pending(&harness), newer);
+    assert_eq!(harness.events("translation-payload").len(), events);
 }
 
 /// The front the user edited is what is captured again.

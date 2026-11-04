@@ -19,9 +19,11 @@
  * answers for an older capture is dropped, like a late save.
  *
  * A detected language can be switched: `rerun_pending_capture` builds the
- * card again for the chosen language from the current front. Its result also
- * arrives as `translation-payload`, in either order; whichever comes first is
- * shown, and the other is a re-delivery of the same capture.
+ * card again for the chosen language from the current front, for the capture
+ * on screen only (it names its `generation`, so a newer capture that has not
+ * reached the window yet is left alone). Its result also arrives as
+ * `translation-payload`, in either order; whichever comes first is shown, and
+ * the other is a re-delivery of the same capture.
  */
 
 import {
@@ -230,7 +232,7 @@ export function useApproval(): Approval {
 
     let switched: PendingCapture
     try {
-      switched = await rerunPendingCapture(lang, draft.front)
+      switched = await rerunPendingCapture(lang, draft.front, capture.generation)
     } catch (err) {
       if (mine === sequence) {
         phase.value = 'editing'

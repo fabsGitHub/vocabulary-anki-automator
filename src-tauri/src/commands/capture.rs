@@ -78,7 +78,8 @@ pub async fn capture_text<R: Runtime>(
 
 /// Captures the pending card's `text` again as `source_lang`, the language
 /// the user switched to in the approval window, and returns the new pending
-/// capture (also sent as `translation-payload`). See
+/// capture (also sent as `translation-payload`). `generation` is the capture
+/// the window shows; a different one pending is refused. See
 /// [`capture::rerun_capture`].
 #[tauri::command]
 pub async fn rerun_pending_capture<R: Runtime>(
@@ -86,8 +87,9 @@ pub async fn rerun_pending_capture<R: Runtime>(
     state: State<'_, AppState>,
     source_lang: String,
     text: String,
+    generation: u64,
 ) -> Result<PendingCapture, String> {
-    capture::rerun_capture(&app, &state, &source_lang, text).await
+    capture::rerun_capture(&app, &state, &source_lang, text, generation).await
 }
 
 pub(crate) fn hide_preview<R: Runtime>(app: &AppHandle<R>) {

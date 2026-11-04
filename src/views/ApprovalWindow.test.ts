@@ -49,6 +49,7 @@ function capture(
     profile_id: null,
     detection: null,
     filing: { deck: 'English::AutomatedVocabulary', model: 'AppleStyleFinalV3' },
+    generation: 1,
     ...overrides,
   }
 }
@@ -723,7 +724,7 @@ describe('switching the language', () => {
 
     const calls = callsTo('rerun_pending_capture')
     expect(calls).toHaveLength(1)
-    expect(calls[0].args).toEqual({ sourceLang: 'en', text: 'messages' })
+    expect(calls[0].args).toEqual({ sourceLang: 'en', text: 'messages', generation: 1 })
     expect(field('front').value).toBe('messages')
     expect(field('example-source').value).toBe('An example with messages.')
     expect(chip('en')?.attributes('aria-pressed')).toBe('true')

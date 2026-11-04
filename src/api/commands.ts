@@ -55,9 +55,14 @@ export function captureText(text: string, profileId: string | null): Promise<nul
 /**
  * Captures the pending card's `text` (the edited front) again as `sourceLang`
  * and returns the new pending capture, which also arrives as `translation-payload`.
+ * `generation` is the capture shown; the backend refuses when another one is pending.
  */
-export function rerunPendingCapture(sourceLang: string, text: string): Promise<PendingCapture> {
-  return invoke<PendingCapture>('rerun_pending_capture', { sourceLang, text })
+export function rerunPendingCapture(
+  sourceLang: string,
+  text: string,
+  generation: number,
+): Promise<PendingCapture> {
+  return invoke<PendingCapture>('rerun_pending_capture', { sourceLang, text, generation })
 }
 
 export function ankiStatus(): Promise<AnkiStatus> {

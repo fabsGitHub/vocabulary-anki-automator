@@ -219,9 +219,11 @@ pub struct PendingPayload {
 }
 
 impl PendingPayload {
-    /// Replaces the pending capture; returns its generation.
-    pub fn set(&self, capture: PendingCapture) -> u64 {
+    /// Replaces the pending capture; returns its generation, which is also
+    /// written into the capture.
+    pub fn set(&self, mut capture: PendingCapture) -> u64 {
         let generation = self.generations.fetch_add(1, Ordering::SeqCst) + 1;
+        capture.generation = generation;
         *lock(&self.current) = Some((generation, capture));
         generation
     }
@@ -249,10 +251,11 @@ impl PendingPayload {
     /// Replaces the pending capture with `capture` if it is still
     /// `generation`, keeping that generation: a re-run is the same capture,
     /// so a submission started for it still clears it.
-    pub fn replace_if(&self, generation: u64, capture: PendingCapture) -> bool {
+    pub fn replace_if(&self, generation: u64, mut capture: PendingCapture) -> bool {
         let mut current = lock(&self.current);
         match current.as_mut() {
             Some((g, pending)) if *g == generation => {
+                capture.generation = *g;
                 *pending = capture;
                 true
             }
@@ -318,6 +321,7 @@ mod tests {
             profile_id: None,
             detection: None,
             filing: Default::default(),
+            generation: 0,
         }
     }
 
@@ -349,9 +353,11 @@ mod tests {
         let payload = PendingPayload::default();
         let first = payload.set(pending("message"));
 
+        assert_eq!(payload.get().unwrap().generation, first);
         assert!(payload.replace_if(first, pending("message, again")));
         let (generation, capture) = payload.snapshot().unwrap();
         assert_eq!(generation, first, "the same capture");
+        assert_eq!(capture.generation, first, "the payload names it too");
         assert_eq!(capture.card.front, "message, again");
 
         let second = payload.set(pending("newer"));

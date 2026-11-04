@@ -81,6 +81,12 @@ pub struct PendingCapture {
     /// [`AppConfig::filing`]).
     #[serde(default)]
     pub filing: PendingFiling,
+    /// Which capture this is: [`PendingPayload::set`](crate::state::PendingPayload::set)
+    /// numbers every capture, and a re-run keeps its number. The approval
+    /// window names it when it re-runs the card, so a newer capture is never
+    /// re-run with the front of an older one.
+    #[serde(default)]
+    pub generation: u64,
 }
 
 /// Where a pending card will go, for the approval window to show. The push
@@ -189,7 +195,7 @@ pub async fn run_capture<R: Runtime>(
         captured_at: state.now(),
         tags: Vec::new(),
     };
-    let pending = match build_pending(state, &config, request, profile.id.clone()).await {
+    let mut pending = match build_pending(state, &config, request, profile.id.clone()).await {
         Ok(pending) => PendingCapture {
             detection,
             ..pending
@@ -200,7 +206,7 @@ pub async fn run_capture<R: Runtime>(
             return Err(err);
         }
     };
-    state.pending().set(pending.clone());
+    pending.generation = state.pending().set(pending.clone());
     present_preview(app, &pending);
     Ok(())
 }
@@ -211,7 +217,8 @@ pub async fn run_capture<R: Runtime>(
 /// fetched again; `captured_at`, tags and hotkey profile stay. `text` is the
 /// window's front, so an edit of it survives. Errors are returned for the
 /// window to show, never emitted as `capture-error`, and leave the pending
-/// capture as it was.
+/// capture as it was. `expected_generation` is the capture the window shows;
+/// a newer one that arrived since is refused, not re-run with the old front.
 ///
 /// Both the capture and the submission guard are held throughout: a hotkey
 /// pressed meanwhile is ignored, and an approval waits for the new card
@@ -222,6 +229,7 @@ pub async fn rerun_capture<R: Runtime>(
     state: &AppState,
     source_lang: &str,
     text: String,
+    expected_generation: u64,
 ) -> Result<PendingCapture, String> {
     let lang = normalize_lang(source_lang);
     if !SUPPORTED_LANGS.contains(&lang.as_str()) {
@@ -239,6 +247,9 @@ pub async fn rerun_capture<R: Runtime>(
     let Some((generation, previous)) = state.pending().snapshot() else {
         return Err("There is no card to switch.".to_string());
     };
+    if generation != expected_generation {
+        return Err("The card was saved or discarded in the meantime.".to_string());
+    }
     if lang == previous.card.target_lang {
         return Err(format!(
             "Cards are translated into {lang}; choose another language."
@@ -261,6 +272,7 @@ pub async fn rerun_capture<R: Runtime>(
     pending.detection = previous
         .detection
         .map(|found| chosen(found, &pending.card.source_lang));
+    pending.generation = generation;
     if !state.pending().replace_if(generation, pending.clone()) {
         return Err("The card was saved or discarded in the meantime.".to_string());
     }
@@ -320,6 +332,8 @@ async fn build_pending(
             deck: filing.deck,
             model: filing.model,
         },
+        // Numbered once it is stored.
+        generation: 0,
     })
 }
 
@@ -726,13 +740,22 @@ mod tests {
                 deck: "german".into(),
                 model: "Basic".into(),
             },
+            generation: 3,
         };
         let json = serde_json::to_value(&pending).unwrap();
         let keys: Vec<_> = json.as_object().unwrap().keys().cloned().collect();
         assert_eq!(
             keys,
-            ["card", "detection", "filing", "profile_id", "warnings"]
+            [
+                "card",
+                "detection",
+                "filing",
+                "generation",
+                "profile_id",
+                "warnings"
+            ]
         );
+        assert_eq!(json["generation"], 3);
         assert_eq!(json["detection"], serde_json::Value::Null);
         assert_eq!(json["profile_id"], "de-en");
         assert_eq!(
