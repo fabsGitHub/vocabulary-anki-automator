@@ -44,6 +44,13 @@ pub enum CardField {
     Pinyin,
     /// The HSK level as a number (`"3"`); empty when unknown.
     HskLevel,
+    /// `card.example_source` (the sentence in `card.source_lang`) on both
+    /// notes: never swapped, so a field named after a language ("English
+    /// Sentence") keeps that language on the reverse note too.
+    ExampleInSourceLang,
+    /// `card.example_target` (the sentence in `card.target_lang`) on both
+    /// notes: never swapped.
+    ExampleInTargetLang,
 }
 
 /// "Write `source` into the Anki field named `anki_field`."
@@ -292,6 +299,8 @@ fn field_value(card: &Card, direction: Direction, source: CardField) -> String {
             .hsk_level()
             .map(|level| level.to_string())
             .unwrap_or_default(),
+        CardField::ExampleInSourceLang => card.example_source.clone(),
+        CardField::ExampleInTargetLang => card.example_target.clone(),
     }
 }
 
@@ -332,7 +341,9 @@ pub fn add_note_params(note: &NoteSpec) -> Value {
 /// Field contents are converted from Anki's HTML to plain text (tags removed,
 /// `&nbsp;`/`&amp;`/... decoded, `[sound:...]` references dropped). Returns
 /// `None` unless both front and back are non-empty. Explicit
-/// `ExampleSource`/`ExampleTarget` bindings are read as they are; a half
+/// `ExampleSource`/`ExampleTarget` bindings are read as they are, or else
+/// `ExampleInSourceLang`/`ExampleInTargetLang` ones (on a forward note both
+/// name the same half); a half
 /// without a binding of its own comes from the `Example` field: what is left
 /// once the bound half is removed, or, with neither half bound, the text
 /// before and after its first line break. `Pinyin`/`HskLevel` bindings
@@ -365,8 +376,8 @@ pub fn card_from_note(
     }
     let mut card = Card::new(front, back, source_lang, target_lang, captured_at);
     (card.example_source, card.example_target) = example_halves(
-        read_bound(CardField::ExampleSource),
-        read_bound(CardField::ExampleTarget),
+        read_bound(CardField::ExampleSource).or_else(|| read_bound(CardField::ExampleInSourceLang)),
+        read_bound(CardField::ExampleTarget).or_else(|| read_bound(CardField::ExampleInTargetLang)),
         &read(CardField::Example),
     );
     card.notes = read(CardField::Notes);
@@ -782,6 +793,108 @@ mod tests {
         }
     }
 
+    /// A note type with "English Sentence" and "German Sentence" fields: the
+    /// reverse note swaps the sides, but each sentence stays in the field
+    /// named after its language.
+    #[test]
+    fn language_bound_examples_are_never_swapped() {
+        let card = english_card();
+        for direction in [Direction::Forward, Direction::Reverse] {
+            assert_eq!(
+                field_value(&card, direction, CardField::ExampleInSourceLang),
+                "It was pure serendipity.",
+                "{direction:?}"
+            );
+            assert_eq!(
+                field_value(&card, direction, CardField::ExampleInTargetLang),
+                "Es war reiner Zufall.",
+                "{direction:?}"
+            );
+        }
+        // The relative halves do swap, which is what language-named fields
+        // must not do.
+        assert_eq!(
+            field_value(&card, Direction::Reverse, CardField::ExampleSource),
+            "Es war reiner Zufall."
+        );
+
+        let mapping = FieldMapping {
+            fields: vec![
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+                FieldBinding::new("English Sentence", CardField::ExampleInSourceLang),
+                FieldBinding::new("German Sentence", CardField::ExampleInTargetLang),
+            ],
+            audio_field: Some("Audio".into()),
+        };
+        let reverse = map_card(&card, Direction::Reverse, &target(), &mapping, None);
+        assert_eq!(
+            reverse.fields,
+            BTreeMap::from([
+                ("Front".to_string(), "glücklicher Zufall".to_string()),
+                ("Back".to_string(), "serendipity".to_string()),
+                (
+                    "English Sentence".to_string(),
+                    "It was pure serendipity.".to_string()
+                ),
+                (
+                    "German Sentence".to_string(),
+                    "Es war reiner Zufall.".to_string()
+                ),
+            ])
+        );
+    }
+
+    #[test]
+    fn card_from_note_reads_language_bound_examples() {
+        let mapping = FieldMapping {
+            fields: vec![
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+                FieldBinding::new("English Sentence", CardField::ExampleInSourceLang),
+                FieldBinding::new("German Sentence", CardField::ExampleInTargetLang),
+                FieldBinding::new("Notes", CardField::Notes),
+            ],
+            audio_field: Some("Audio".into()),
+        };
+        let card = english_card();
+        let spec = map_card(
+            &card,
+            Direction::Forward,
+            &target(),
+            &mapping,
+            card.audio_front.as_deref(),
+        );
+        let back = card_from_note(
+            &stored(&spec),
+            &mapping,
+            &card.source_lang,
+            &card.target_lang,
+            card.captured_at,
+        );
+        let mut expected = card;
+        expected.audio_front = None;
+        assert_eq!(back, Some(expected));
+
+        // One language-bound half next to the combined field: the other half
+        // still comes out of `Example`.
+        let mapping = FieldMapping {
+            fields: vec![
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+                FieldBinding::new("Sentence", CardField::Example),
+                FieldBinding::new("German Sentence", CardField::ExampleInTargetLang),
+            ],
+            audio_field: None,
+        };
+        let mut card = english_card();
+        card.notes.clear();
+        card.audio_front = None;
+        let spec = map_card(&card, Direction::Forward, &target(), &mapping, None);
+        let back = card_from_note(&stored(&spec), &mapping, "en", "de", card.captured_at);
+        assert_eq!(back, Some(card));
+    }
+
     #[test]
     fn forward_example_matches_the_card_s_legacy_combined_example() {
         let pairs = [
@@ -992,7 +1105,9 @@ mod tests {
                 { "anki_field": "e", "source": "example" },
                 { "anki_field": "f", "source": "notes" },
                 { "anki_field": "g", "source": "pinyin" },
-                { "anki_field": "h", "source": "hsk_level" }
+                { "anki_field": "h", "source": "hsk_level" },
+                { "anki_field": "i", "source": "example_in_source_lang" },
+                { "anki_field": "j", "source": "example_in_target_lang" }
             ]
         }))
         .unwrap();
@@ -1008,6 +1123,8 @@ mod tests {
                 CardField::Notes,
                 CardField::Pinyin,
                 CardField::HskLevel,
+                CardField::ExampleInSourceLang,
+                CardField::ExampleInTargetLang,
             ]
         );
         assert_eq!(parsed.audio_field, None);

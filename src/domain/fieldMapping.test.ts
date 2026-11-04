@@ -4,6 +4,7 @@ import mapperSource from '../../crates/anki-bridge/src/mapper.rs?raw'
 import type { AppConfig, CardField, FieldMapping } from '../api'
 import { defaultConfig } from '../composables/useConfig'
 import {
+  CARD_FIELDS,
   appleStyleMapping,
   bindingFor,
   bindsSource,
@@ -15,12 +16,14 @@ import {
   withBinding,
 } from './fieldMapping'
 
+/** `ExampleInSourceLang` -> `example_in_source_lang`, as serde spells a `CardField`. */
+const toSnake = (variant: string) =>
+  variant.replace(/[a-z][A-Z]/g, (m) => `${m[0]}_${m[1]}`).toLowerCase()
+
 /** Reads a preset straight out of `anki_bridge::FieldMapping`'s Rust source. */
 function rustPreset(name: string): FieldMapping {
   const body = mapperSource.split(`pub fn ${name}() -> Self {`)[1]?.split('\n    }\n')[0]
   if (!body) throw new Error(`FieldMapping::${name} not found in mapper.rs`)
-  const toSnake = (variant: string) =>
-    variant.replace(/[a-z][A-Z]/g, (m) => `${m[0]}_${m[1]}`).toLowerCase()
   const fields = [...body.matchAll(/FieldBinding::new\("([^"]+)", CardField::(\w+)\)/g)].map(
     ([, anki_field, variant]) => ({ anki_field, source: toSnake(variant) as CardField }),
   )
@@ -29,6 +32,18 @@ function rustPreset(name: string): FieldMapping {
 }
 
 const names = (...list: string[]) => list
+
+describe('CARD_FIELDS', () => {
+  it('offers every anki_bridge::CardField variant exactly once', () => {
+    const body = mapperSource.split('pub enum CardField {')[1]?.split('\n}\n')[0]
+    if (!body) throw new Error('CardField not found in mapper.rs')
+    const variants = [...body.matchAll(/^ {4}([A-Z]\w*),$/gm)].map(([, variant]) =>
+      toSnake(variant),
+    )
+    expect(CARD_FIELDS).toHaveLength(10)
+    expect([...CARD_FIELDS].sort()).toEqual(variants.sort())
+  })
+})
 
 describe('presets', () => {
   it('equal FieldMapping::apple_style_default exactly', () => {

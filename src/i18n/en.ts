@@ -195,12 +195,14 @@ export const en = {
     sources: {
       front: 'Word (front)',
       back: 'Translation (back)',
-      example_source: 'Example sentence',
-      example_target: 'Example translation',
+      example_source: 'Example in the front’s language',
+      example_target: 'Example in the back’s language',
       example: 'Example and translation (two lines)',
       notes: 'Notes',
       pinyin: 'Pinyin',
       hsk_level: 'HSK level',
+      example_in_source_lang: 'Example in the language learned',
+      example_in_target_lang: 'Example in your language',
     },
   },
   history: {

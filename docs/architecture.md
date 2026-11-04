@@ -824,7 +824,8 @@ impl AnkiClient {
 pub enum AnkiError { Unreachable { message: String }, Api { message: String }, Duplicate { message: String }, Malformed { message: String } }
 
 #[serde(rename_all = "snake_case")]
-pub enum CardField { Front, Back, ExampleSource, ExampleTarget, Example, Notes, Pinyin, HskLevel }
+pub enum CardField { Front, Back, ExampleSource, ExampleTarget, Example, Notes, Pinyin, HskLevel,
+    ExampleInSourceLang, ExampleInTargetLang } // the last two: never swapped on the reverse note
 pub struct FieldBinding { pub anki_field: String, pub source: CardField }
 pub struct FieldMapping { pub fields: Vec<FieldBinding>, pub audio_field: Option<String> }
 impl FieldMapping {
@@ -871,7 +872,17 @@ Semantics:
 - Only AnkiConnect's exact `DUPLICATE_NOTE_MESSAGE` is `Duplicate`; anything else
   (e.g. a missing deck whose user-chosen name contains "duplicate") is `Api`.
 - `map_card(Reverse)` swaps front/back and example source/target; the `Example`
-  field is the combined example in display order.
+  field is the combined example in display order. `ExampleInSourceLang` and
+  `ExampleInTargetLang` are `card.example_source` and `card.example_target` on both
+  notes, never swapped: they fill fields named after a language ("English
+  Sentence"), which must keep that language on the reverse note.
+- `card_from_note` reads a forward note: an example half comes from its
+  `ExampleSource`/`ExampleTarget` binding, or else from its
+  `ExampleInSourceLang`/`ExampleInTargetLang` one, or else out of `Example`. Learn
+  does not offer the two direction-independent values: its import swaps both sides
+  and both example halves of a note whose hanzi is on the back
+  (`apps/learn/src-tauri/src/anki.rs`), which would be wrong for them, so offering
+  them needs a direction-aware `card_from_note` first.
 - Field values are HTML-escaped (`&`, `<`, `>`) and line breaks are written as
   `<br>` (a raw newline renders as a space in Anki's HTML fields, which put both
   example sentences on one line). `card_from_note` reverses this (tags stripped,
@@ -1054,6 +1065,21 @@ interface SetupStatus {
 type QueueItem =
   | { kind: 'review'; card_id: number; due_date: string }
   | { kind: 'new'; hanzi: string; curriculum_order: number }
+type CardField =
+  | 'front'
+  | 'back'
+  | 'example_source' // the half in this note's front language: swapped on the reverse note
+  | 'example_target'
+  | 'example'
+  | 'notes'
+  | 'pinyin'
+  | 'hsk_level'
+  | 'example_in_source_lang' // card.example_source on both notes: never swapped
+  | 'example_in_target_lang' // card.example_target on both notes: never swapped
+interface FieldMapping {
+  fields: { anki_field: string; source: CardField }[]
+  audio_field: string | null
+}
 ```
 
 ## 12. Deviations from IMPLEMENTATION_PLAN.md (and why)

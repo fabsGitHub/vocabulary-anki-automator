@@ -57,6 +57,8 @@ describe('binding fields', () => {
       'back',
       'example_source',
       'example_target',
+      'example_in_source_lang',
+      'example_in_target_lang',
       'example',
       'notes',
       'pinyin',

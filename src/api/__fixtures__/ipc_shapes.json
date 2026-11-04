@@ -385,7 +385,9 @@
       "example",
       "notes",
       "pinyin",
-      "hsk_level"
+      "hsk_level",
+      "example_in_source_lang",
+      "example_in_target_lang"
     ],
     "ConsentAction": [
       "anki_install",

@@ -529,6 +529,8 @@ fn shapes() -> Map<String, Value> {
                 CardField::Notes,
                 CardField::Pinyin,
                 CardField::HskLevel,
+                CardField::ExampleInSourceLang,
+                CardField::ExampleInTargetLang,
             ]
             .iter()
             .map(json_of)

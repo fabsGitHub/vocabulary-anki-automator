@@ -13,12 +13,14 @@
 import type { AppConfig, CardField, FieldBinding, FieldMapping } from '../api'
 import { isChinese } from './language'
 
-/** Every card value, in the order the binding selects list them. */
+/** Every card value, in the order the binding selects list them (the examples together). */
 export const CARD_FIELDS: readonly CardField[] = [
   'front',
   'back',
   'example_source',
   'example_target',
+  'example_in_source_lang',
+  'example_in_target_lang',
   'example',
   'notes',
   'pinyin',

@@ -193,12 +193,14 @@ export const de: MessageSchema = {
     sources: {
       front: 'Wort (Vorderseite)',
       back: 'Übersetzung (Rückseite)',
-      example_source: 'Beispielsatz',
-      example_target: 'Übersetzung des Beispiels',
+      example_source: 'Beispiel in der Sprache der Vorderseite',
+      example_target: 'Beispiel in der Sprache der Rückseite',
       example: 'Beispiel und Übersetzung (zwei Zeilen)',
       notes: 'Notizen',
       pinyin: 'Pinyin',
       hsk_level: 'HSK-Stufe',
+      example_in_source_lang: 'Beispiel in der Lernsprache',
+      example_in_target_lang: 'Beispiel in Ihrer Sprache',
     },
   },
   history: {

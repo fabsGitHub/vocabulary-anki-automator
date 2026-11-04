@@ -140,6 +140,8 @@ const cardField = literal(
   'notes',
   'pinyin',
   'hsk_level',
+  'example_in_source_lang',
+  'example_in_target_lang',
 )
 const fieldBinding = object({ anki_field: string, source: cardField })
 const fieldMapping = object({ fields: array(fieldBinding), audio_field: nullable(string) })

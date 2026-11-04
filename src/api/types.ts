@@ -128,7 +128,12 @@ export type QueueItem =
   | { kind: 'review'; card_id: number; due_date: string }
   | { kind: 'new'; hanzi: string; curriculum_order: number }
 
-/** A card value an Anki field can be filled with (`anki_bridge::CardField`). */
+/**
+ * A card value an Anki field can be filled with (`anki_bridge::CardField`).
+ * `example_source`/`example_target` follow the note's sides (swapped on the
+ * reverse note); `example_in_source_lang`/`example_in_target_lang` follow
+ * the card's languages and are never swapped.
+ */
 export type CardField =
   | 'front'
   | 'back'
@@ -138,6 +143,8 @@ export type CardField =
   | 'notes'
   | 'pinyin'
   | 'hsk_level'
+  | 'example_in_source_lang'
+  | 'example_in_target_lang'
 
 /** "Write `source` into the Anki field `anki_field`." */
 export interface FieldBinding {
