@@ -192,9 +192,16 @@ function parseTitle(html) {
 }
 
 const TITLE = { x: 72, y: 268, size: 56, weight: 800, spacing: -1.6, leading: 64, wrap: 17 }
+/** The caret after the selected word: its gap to the word's ink and its width. */
+const CARET = { offset: 4, width: 4.5 }
 
-/** One headline line as <text>, with the selected word in its own <tspan>. */
-function titleLine(line, index, word, { probe = false } = {}) {
+/**
+ * One headline line as <text>, with the selected word in its own <tspan>.
+ * `restX` starts the text after the word (its leading space included) at the
+ * caret's right edge, as on the page, where the caret is the word's border and
+ * a full space follows it. Without it the caret would sit inside that space.
+ */
+function titleLine(line, index, word, { probe = false, restX } = {}) {
   const y = TITLE.y + index * TITLE.leading
   const attrs = `xml:space="preserve" x="${TITLE.x}" y="${y}" font-size="${TITLE.size}" font-weight="${TITLE.weight}" letter-spacing="${TITLE.spacing}"`
   const at = word ? line.indexOf(word) : -1
@@ -202,7 +209,8 @@ function titleLine(line, index, word, { probe = false } = {}) {
     return `<text ${attrs} fill="${probe ? 'none' : INK}">${esc(line)}</text>`
   }
   const rest = probe ? 'fill-opacity="0"' : ''
-  return `<text ${attrs} fill="${INK}"><tspan ${rest}>${esc(line.slice(0, at))}</tspan><tspan>${esc(word)}</tspan><tspan ${rest}>${esc(line.slice(at + word.length))}</tspan></text>`
+  const restAt = restX === undefined ? '' : ` x="${restX}"`
+  return `<text ${attrs} fill="${INK}"><tspan ${rest}>${esc(line.slice(0, at))}</tspan><tspan>${esc(word)}</tspan><tspan${restAt} ${rest}>${esc(line.slice(at + word.length))}</tspan></text>`
 }
 
 /**
@@ -291,18 +299,20 @@ function ogSvg(copy, glyph, work) {
   const eyebrow = copy.get('hero.eyebrow')
   const eyebrowWidth = Math.round(textWidth(eyebrow, 17, 600) + 32)
   let selection = ''
+  let restX
   if (wordLine !== -1) {
     const { left, right } = measureWord(title[wordLine], wordLine, word, work)
     const base = TITLE.y + wordLine * TITLE.leading
     const top = base - Math.round(TITLE.size * 0.84)
     const height = Math.round(TITLE.size * 1.08)
     const x = left - 5
-    const caret = right + 4
+    const caret = right + CARET.offset
+    restX = caret + CARET.width
     selection = `<path d="M${x + 6} ${top}H${caret}V${top + height}H${x + 6}A6 6 0 0 1 ${x} ${top + height - 6}V${top + 6}A6 6 0 0 1 ${x + 6} ${top}Z" fill="url(#selection)"/>
-  <rect x="${caret}" y="${top}" width="4.5" height="${height}" fill="${INK}"/>`
+  <rect x="${caret}" y="${top}" width="${CARET.width}" height="${height}" fill="${INK}"/>`
   }
   const titleLines = title
-    .map((line, index) => titleLine(line, index, index === wordLine ? word : null))
+    .map((line, index) => titleLine(line, index, index === wordLine ? word : null, { restX }))
     .join('\n  ')
   const keysY = TITLE.y + title.length * TITLE.leading + 8
   const keys = ['⇧', '⌘', 'C']
