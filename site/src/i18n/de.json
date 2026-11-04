@@ -1,0 +1,328 @@
+{
+  "meta": {
+    "title": "Vocabulary Automator – Anki-Karten aus jedem Text",
+    "description": "Wort in einer beliebigen App markieren, Hotkey drücken, Karte prüfen und zu Anki hinzufügen. Mit Übersetzung, Aussprache und Spracherkennung. Für macOS.",
+    "ogTitle": "Vocabulary Automator",
+    "ogDescription": "Wort irgendwo markieren, Hotkey drücken, Karte bestätigen. Sie landet in Anki.",
+    "ogImageAlt": "Das Bestätigungsfenster von Vocabulary Automator mit einer Karte für das Wort „reluctant“"
+  },
+  "nav": {
+    "skip": "Zum Inhalt springen",
+    "label": "Hauptnavigation",
+    "how": "So funktioniert es",
+    "features": "Funktionen",
+    "data": "Ihre Daten",
+    "requirements": "Voraussetzungen",
+    "download": "Download",
+    "faq": "Fragen",
+    "langSwitch": "English",
+    "langSwitchAria": "This page in English",
+    "menu": "Menü",
+    "github": "GitHub",
+    "githubAria": "Quellcode auf GitHub"
+  },
+  "hero": {
+    "eyebrow": "Desktop-App für Anki",
+    "title": "Vom markierten Wort zur fertigen Anki-Karte.",
+    "subline_html": "Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie <kbd>⌘⇧C</kbd> (Befehl-Umschalt-C). Vocabulary Automator ermittelt Übersetzung und Aussprache und zeigt Ihnen die fertige Karte. Ein Druck auf <kbd>Enter</kbd>, und sie ist in Ihrem Stapel.",
+    "cta": "Für macOS herunterladen",
+    "meta": "Version {version} · Vorschauversion · Apple Silicon und Intel",
+    "ctaFallback": "GitHub Releases",
+    "metaFallback": "Der Download für macOS folgt in Kürze.",
+    "secondary": "So funktioniert es",
+    "source": "Quellcode auf GitHub",
+    "note": "Windows und Linux folgen mit dem ersten offiziellen Release.",
+    "mobileNote": "Vocabulary Automator ist eine Desktop-App. Öffnen Sie diese Seite auf Ihrem Mac, um sie herunterzuladen."
+  },
+  "mock": {
+    "label": "Darstellung des Bestätigungsfensters",
+    "description": "Das Fenster „Neue Karte“ mit einer Karte für das englische Wort „reluctant“: die Rückseite „widerwillig“, ein Beispielsatz mit deutscher Übersetzung, der Stapel „Englisch“, der Notiztyp „Einfach“ und die Schaltflächen „Verwerfen“ und „Zu Anki hinzufügen“.",
+    "title": "Neue Karte",
+    "langActive": "Englisch",
+    "langOther": "Französisch",
+    "target": "→ Deutsch",
+    "deck": "Stapel: Englisch",
+    "model": "Notiztyp: Einfach",
+    "front": "Vorderseite (Wort)",
+    "frontValue": "reluctant",
+    "back": "Rückseite (Übersetzung)",
+    "backValue": "widerwillig",
+    "example": "Beispielsatz",
+    "exampleValue": "He was reluctant to admit his mistake.",
+    "exampleTarget": "Übersetzung des Beispiels",
+    "exampleTargetValue": "Er gab seinen Fehler nur widerwillig zu.",
+    "notes": "Notizen",
+    "hint": "Enter fügt die Karte hinzu, Esc verwirft sie, Shift+Enter beginnt eine neue Zeile.",
+    "discard": "Verwerfen",
+    "approve": "Zu Anki hinzufügen"
+  },
+  "how": {
+    "title": "So funktioniert es",
+    "s1": {
+      "title": "Markieren und Hotkey drücken",
+      "body_html": "Markieren Sie ein Wort oder einen Ausdruck in einer App, aus der sich Text kopieren lässt, und drücken Sie <kbd>⌘⇧C</kbd>. Die App kopiert die Markierung und stellt danach Ihren vorherigen Text in der Zwischenablage wieder her."
+    },
+    "s2": {
+      "title": "Die Karte füllt sich",
+      "body": "Die App erkennt, in welcher Ihrer Sprachen der Text ist, übersetzt ihn und fügt die Aussprache hinzu. Englische Wörter bekommen zusätzlich einen Beispielsatz, chinesische Pinyin und die HSK-Stufe."
+    },
+    "s3": {
+      "title": "Sie prüfen",
+      "body_html": "Das Bestätigungsfenster zeigt die Karte. Ändern Sie, was Sie möchten, und drücken Sie <kbd>Enter</kbd> zum Hinzufügen oder <kbd>Esc</kbd> zum Verwerfen."
+    },
+    "s4": {
+      "title": "Die Karte landet in Anki",
+      "body": "Sie wird im Verlauf gespeichert und über AnkiConnect in den Stapel ihrer Sprache übertragen, auf Wunsch mit umgekehrter Karte. Ist Anki geschlossen, wartet sie im Verlauf, bis Sie sie übertragen."
+    }
+  },
+  "features": {
+    "title": "Was die App kann",
+    "f1": {
+      "title": "Funktioniert in jeder App",
+      "body": "Ein globaler Hotkey, wo immer Sie lesen. Schließen Sie das Einstellungsfenster, läuft die App in der Menüleiste weiter, und der Hotkey bleibt aktiv."
+    },
+    "f2": {
+      "title": "Sie bestätigen jede Karte",
+      "body": "Nichts gelangt zu Anki, bevor Sie auf „Zu Anki hinzufügen“ drücken. Jedes Feld lässt sich vorher bearbeiten, und ändern Sie das Wort, wird die Aussprache neu aufgenommen."
+    },
+    "f3": {
+      "title": "Erkennt Ihre Sprachen",
+      "body": "Tragen Sie unter „Meine Sprachen“ ein, was Sie lernen: Englisch, Deutsch, Französisch, Spanisch, Italienisch oder Chinesisch. Der Hotkey erkennt, in welcher davon der Text ist, und zwar ohne Internet. Passt ein kurzes Wort wie „message“ zu Englisch und zu Französisch, markiert das Fenster seine Vermutung, und ein Klick wechselt die Sprache.",
+      "visualLabel": "Darstellung: die Sprachchips „Englisch?“ und „Französisch“ neben „→ Deutsch“, mit dem Hinweis bei unsicherer Sprache",
+      "chipActive": "Englisch?",
+      "chipOther": "Französisch",
+      "target": "→ Deutsch",
+      "hint": "Das kann mehr als eine Ihrer Sprachen sein. Es wurde als Englisch gelesen. Falls das nicht stimmt, wählen Sie die richtige Sprache: Übersetzung, Beispiel, Aussprache und Stapel werden neu ermittelt."
+    },
+    "f4": {
+      "title": "Jede Sprache in ihrem eigenen Stapel",
+      "body": "Jede Sprache hat ihren eigenen Stapel, Notiztyp und ihre eigene Einstellung für die umgekehrte Karte. Die Felder werden nach ihren Namen zugeordnet: „Audio“ bekommt die Aussprache, „English Sentence“ das englische Beispiel."
+    },
+    "f5": {
+      "title": "Warnt, bevor etwas verloren geht",
+      "body": "Vor dem Bestätigen listet das Fenster jeden Wert auf, den der Notiztyp verwerfen würde, etwa Audio ohne passendes Feld. Fällt ein Dienst aus, entsteht die Karte trotzdem. Ein Hinweis nennt, was fehlt, und Sie können es selbst eintragen.",
+      "visualLabel": "Darstellung: der Hinweis „Nicht alles käme in Anki an“ für eine Aussprache ohne Feld",
+      "lostTitle": "Nicht alles käme in Anki an:",
+      "lostItem": "Aussprache: Für das Audio ist kein Feld von „Einfach“ gewählt."
+    },
+    "f6": {
+      "title": "Chinesisch mit Pinyin und HSK-Stufe",
+      "body": "Text mit chinesischen Schriftzeichen wird immer als Chinesisch erfasst. Pinyin mit Tonzeichen und die HSK-3.0-Stufe stammen aus einer mitgelieferten Liste mit 10.969 Wörtern. Wörter außerhalb der Liste bekommen trotzdem Pinyin.",
+      "visualLabel": "Darstellung: das Wort 银行 mit dem Pinyin yín háng und der Stufe HSK 2",
+      "front": "Vorderseite (Wort)",
+      "hanzi": "银行",
+      "pinyinLabel": "Pinyin",
+      "pinyin": "yín háng",
+      "hsk": "HSK 2"
+    },
+    "f7": {
+      "title": "Funktioniert auch ohne laufendes Anki",
+      "body": "Jede bestätigte Karte wird zuerst im lokalen Verlauf gespeichert. Läuft Anki nicht, bleibt sie dort als „Noch nicht in Anki“ stehen, und „Ausstehende zu Anki übertragen“ schickt sie später."
+    },
+    "f8": {
+      "title": "Seltene Wörter erkannt",
+      "body": "Ein einzelnes englisches Wort, das selten ist, bekommt eine Notiz mit einem gebräuchlicheren Synonym."
+    },
+    "f9": {
+      "title": "Mehr Hotkeys, mehr Sprachpaare",
+      "body": "Hotkey-Profile fügen Tastenkombinationen mit festem Sprachpaar und auf Wunsch eigenem Stapel hinzu."
+    },
+    "f10": {
+      "title": "Anki-Einrichtung inklusive",
+      "body": "Fehlen Anki oder das Add-on AnkiConnect, kann die App sie installieren, aber erst, nachdem Sie in einem Dialog zugestimmt haben, der erklärt, was woher geladen und wie es geprüft wird. Beide Downloads sind auf eine feste Version festgelegt und werden vor der Installation anhand ihrer SHA-256-Prüfsumme geprüft."
+    }
+  },
+  "data": {
+    "title": "Was mit Ihren Daten passiert",
+    "intro": "Vocabulary Automator hat kein Konto und keinen eigenen Server. Ihre Karten, Ihr Verlauf und Ihre Einstellungen bleiben auf Ihrem Mac. Um eine Karte zu füllen, schickt die App den erfassten Text an die Dienste in dieser Tabelle. Außer diesen Anfragen verlässt nichts Ihren Mac.",
+    "caption": "Anfragen der App und wann sie gesendet werden",
+    "colWhat": "Was gesendet wird",
+    "colTo": "An wen",
+    "colWhen": "Wann",
+    "r1": {
+      "what": "Der erfasste Text und das Sprachpaar, dazu Ihre Kontakt-E-Mail, falls Sie eine eingetragen haben",
+      "to_html": "<a href=\"{mymemoryUrl}\">MyMemory</a> <code>api.mymemory.translated.net</code>",
+      "when": "Bei jeder Erfassung, für die Übersetzung"
+    },
+    "r2": {
+      "what": "Der erfasste Text und seine Sprache",
+      "to_html": "Google <code>translate.google.com</code>",
+      "when": "Bei jeder Erfassung, für die Aussprache. Noch einmal beim Bestätigen, wenn Sie das Wort geändert haben"
+    },
+    "r3": {
+      "what": "Die Übersetzung und ihre Sprache",
+      "to_html": "Google <code>translate.google.com</code>",
+      "when": "Wenn eine Karte mit umgekehrter Karte an Anki geht, für die Aussprache der umgekehrten Karte"
+    },
+    "r4": {
+      "what": "Englischer Text",
+      "to_html": "dictionaryapi.dev <code>api.dictionaryapi.dev</code>",
+      "when": "Bei englischen Erfassungen, für einen Beispielsatz"
+    },
+    "r5": {
+      "what": "Ein einzelnes englisches Wort",
+      "to_html": "Datamuse <code>api.datamuse.com</code>",
+      "when": "Bei einzelnen englischen Wörtern, für die Seltenheitsprüfung und ein Synonym"
+    },
+    "r6": {
+      "what": "Der Beispielsatz",
+      "to_html": "<a href=\"{mymemoryUrl}\">MyMemory</a> <code>api.mymemory.translated.net</code>",
+      "when": "Wenn eine Karte einen Beispielsatz hat, für seine Übersetzung"
+    },
+    "r7": {
+      "what": "Eine Anfrage nach der neuesten Versionsnummer, ohne erfassten Text",
+      "to_html": "GitHub <code>github.com</code>",
+      "when": "Etwa 10 Sekunden nach dem Öffnen des Einstellungsfensters"
+    },
+    "r8": {
+      "what": "Download-Anfragen für Anki oder AnkiConnect",
+      "to_html": "GitHub <code>github.com</code> <code>raw.githubusercontent.com</code>",
+      "when": "Nur wenn Sie sie aus der App installieren und zustimmen"
+    },
+    "n1": {
+      "title": "Bleibt auf Ihrem Mac:",
+      "body": "die Spracherkennung, Pinyin und HSK-Stufe, Ihr Verlauf und Ihre Einstellungen. Auch AnkiConnect läuft auf Ihrem Mac (127.0.0.1)."
+    },
+    "n2": {
+      "title": "Wechseln Sie die Sprache",
+      "body": "im Bestätigungsfenster, wird die Karte mit denselben Anfragen neu ermittelt."
+    },
+    "n3": {
+      "title": "Bitte erfassen Sie keine Passwörter oder andere private Texte.",
+      "body": "Alles, was Sie erfassen, geht an die oben genannten Dienste."
+    },
+    "n4": {
+      "title": "Wo Ihre Daten liegen:",
+      "body_html": "der Verlauf in <code>~/Library/Application Support/VocabularyAutomator/vocab.sqlite3</code>, die Einstellungen in <code>~/Library/Application Support/com.ankiautomator.app/config.json</code>."
+    }
+  },
+  "req": {
+    "title": "Was Sie brauchen",
+    "i1": {
+      "title": "Einen Mac",
+      "body": "Mit Apple Silicon oder Intel. Vocabulary Automator wird unter macOS 26 Tahoe entwickelt. Ältere macOS-Versionen sind noch nicht getestet."
+    },
+    "i2": {
+      "title_html": "<a href=\"{ankiUrl}\">Anki für den Desktop</a>",
+      "body_html": "Mit dem Add-on <strong>AnkiConnect</strong> (Code 2055492159). Karten gelangen zu Anki, während es geöffnet ist; sonst warten sie im Verlauf. Die App kann beides für Sie installieren."
+    },
+    "i3": {
+      "title": "Die Berechtigung „Bedienungshilfen“",
+      "body_html": "Damit der Hotkey Ihre Markierung kopieren kann. <a href=\"#install\">Die Schritte stehen weiter unten.</a>"
+    },
+    "i4": {
+      "title": "Eine Internetverbindung",
+      "body": "Für Übersetzung, Aussprache und Beispielsätze."
+    }
+  },
+  "download": {
+    "title": "Download & Installation",
+    "yourSystem": "Ihr System",
+    "macTitle": "Vocabulary Automator {version} für macOS",
+    "macMeta": "Disk-Image (.dmg) · Apple Silicon und Intel",
+    "macButton": ".dmg herunterladen",
+    "macFallback": "Der Download für macOS folgt in Kürze.",
+    "macFallbackButton": "GitHub Releases",
+    "checksumLabel": "SHA-256",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "copyAria": "SHA-256-Prüfsumme kopieren",
+    "checksumHelp_html": "Zum Prüfen führen Sie im Terminal <code>shasum -a 256 ~/Downloads/{dmgFile}</code> aus und vergleichen das Ergebnis mit dem Wert oben.",
+    "otherTitle": "Windows und Linux",
+    "otherBody": "Die Release-Pipeline baut Vocabulary Automator bereits für Windows und Linux. Diese Versionen erscheinen mit dem ersten offiziellen Release bei GitHub Releases. Einen Termin gibt es noch nicht.",
+    "otherLink": "GitHub Releases",
+    "previewTitle": "Vorschauversion",
+    "previewBody": "Dies ist eine Vorschauversion. Apple hat sie noch nicht notarisiert, weil das Projekt bisher keine Apple-Developer-ID hat. Deshalb warnt macOS Sie beim ersten Öffnen. Die folgenden Schritte führen Sie an dieser Warnung vorbei und richten die eine Berechtigung ein, die die App braucht.",
+    "stepsTitle": "Installieren und einrichten",
+    "s1": {
+      "title": "Installieren",
+      "body": "Öffnen Sie die heruntergeladene .dmg-Datei und ziehen Sie Vocabulary Automator in den Ordner „Programme“."
+    },
+    "s2": {
+      "title": "Zum ersten Mal öffnen",
+      "sequoia_html": "<em>macOS 15 Sequoia und neuer:</em> Doppelklicken Sie in „Programme“ auf Vocabulary Automator. macOS meldet, dass die App nicht überprüft werden konnte. Klicken Sie auf <strong>„Fertig“</strong>. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit</strong>, scrollen Sie zum Abschnitt <strong>„Sicherheit“</strong> und klicken Sie neben dem Hinweis zu Vocabulary Automator auf <strong>„Dennoch öffnen“</strong>. Bestätigen Sie mit <strong>„Dennoch öffnen“</strong> und Ihrem Passwort oder Touch ID.",
+      "sonoma_html": "<em>macOS 14 Sonoma und älter:</em> Klicken Sie in „Programme“ bei gedrückter ctrl-Taste auf Vocabulary Automator, wählen Sie <strong>„Öffnen“</strong> und klicken Sie im Dialog noch einmal auf <strong>„Öffnen“</strong>.",
+      "once": "Das ist pro Version nur einmal nötig."
+    },
+    "s3": {
+      "title": "Dem Hotkey das Kopieren erlauben",
+      "body_html": "Der Hotkey kopiert Ihre Markierung mit einem simulierten <kbd>⌘C</kbd>, und das erlaubt macOS nur mit der Berechtigung „Bedienungshilfen“. Die App fragt nicht selbst danach. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, klicken Sie auf <strong>„+“</strong>, wählen Sie Vocabulary Automator im Ordner „Programme“ und schalten Sie den Schalter ein. Fehlt die Berechtigung, zeigt die erste Erfassung eine Meldung, die hierher verweist. Kopiert eine Erfassung danach immer noch nichts, beenden Sie die App (Symbol in der Menüleiste > „Quit“) und öffnen Sie sie erneut."
+    },
+    "s4": {
+      "title": "Anki verbinden",
+      "body_html": "Öffnen Sie <a href=\"{ankiUrl}\">Anki</a>. In Vocabulary Automator zeigt der Tab <strong>„Anki-Verbindung“</strong>, was fehlt, und installiert Anki oder AnkiConnect, wenn Sie zustimmen. Starten Sie Anki nach der Installation von AnkiConnect neu. Wählen Sie danach dort den Stapel und den Notiztyp für Ihre Karten. Ein Stapel, den es noch nicht gibt, wird mit der ersten Karte angelegt."
+    },
+    "s5": {
+      "title": "Ihre Sprachen eintragen",
+      "body_html": "Tragen Sie unter <strong>„Meine Sprachen“</strong> die Sprachen ein, die Sie lernen. Ihre eigene Sprache, in die übersetzt wird, legen Sie unter <strong>„Erfassung &amp; Sprache“</strong> fest."
+    },
+    "s6": {
+      "title": "Ausprobieren",
+      "body_html": "Markieren Sie irgendwo ein Wort und drücken Sie <kbd>⌘⇧C</kbd>. Oder geben Sie auf dem Tab „Erfassung &amp; Sprache“ unter <strong>„Erfassung ausprobieren“</strong> ein Wort ein."
+    },
+    "updateTitle": "Die Vorschauversion aktualisieren",
+    "updateBody_html": "Die Vorschauversion aktualisiert sich nicht selbst. Laden Sie für ein Update die neue Version von dieser Seite, beenden Sie Vocabulary Automator (Symbol in der Menüleiste > „Quit“) und ersetzen Sie die App in „Programme“. Ihre Einstellungen und Ihr Verlauf bleiben erhalten. macOS zeigt unter Umständen noch einmal die Warnung aus Schritt 2. Außerdem behandelt macOS jede neue Vorschauversion als eigene App. Öffnen Sie deshalb <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, entfernen Sie den alten Eintrag von Vocabulary Automator mit <strong>„−“</strong> und fügen Sie den neuen mit <strong>„+“</strong> hinzu. Meldet die App eine neue Version, laden Sie auch diese von dieser Seite.",
+    "knowTitle": "Gut zu wissen vor der Installation",
+    "k1": "Beispielsätze gibt es bisher für Englisch. Chinesische Karten bekommen einen einfachen Mustersatz, französische, deutsche, spanische und italienische noch keinen.",
+    "k2": "Die Übersetzungen kommen von einem kostenlosen Übersetzungsdienst. Prüfen Sie sie vor dem Bestätigen.",
+    "k3": "Erfassungen sind auf 100 Zeichen begrenzt. In den Einstellungen lässt sich das auf bis zu 500 erhöhen.",
+    "k4": "Die App fügt Anki nur neue Karten hinzu. Ihre vorhandenen Notizen ändert oder löscht sie nie.",
+    "k5": "Die Vorschauversion ist nicht notarisiert und aktualisiert sich nicht selbst."
+  },
+  "faq": {
+    "title": "Häufige Fragen",
+    "q1": {
+      "q": "Brauche ich ein Konto oder einen API-Schlüssel?",
+      "a_html": "Nein. Der Übersetzungsdienst MyMemory funktioniert ohne Schlüssel. Er übersetzt anonym etwa 5.000 Zeichen pro Tag. Tragen Sie unter „Erfassung &amp; Sprache“ eine Kontakt-E-Mail ein, erlaubt er etwa 50.000. Die Adresse geht nur an MyMemory."
+    },
+    "q2": {
+      "q": "Warum warnt macOS beim Öffnen der App?",
+      "a_html": "Die Vorschauversion ist noch nicht von Apple notarisiert, deshalb kann macOS sie nicht überprüfen. Folgen Sie einmal Schritt 2 unter <a href=\"#install\">„Download &amp; Installation“</a>. Danach öffnet sich die App normal."
+    },
+    "q3": {
+      "q": "Warum braucht die App die Berechtigung „Bedienungshilfen“?",
+      "a_html": "Um Ihre Markierung zu kopieren, schickt der Hotkey <kbd>⌘C</kbd> an die App, in der Sie gerade lesen, und das erlaubt macOS nur mit dieser Berechtigung. Vocabulary Automator nutzt sie für nichts anderes."
+    },
+    "q4": {
+      "q": "Was passiert, wenn Anki geschlossen ist?",
+      "a_html": "Die Karte wird trotzdem im Verlauf gespeichert und als „Noch nicht in Anki“ markiert. Läuft Anki wieder, klicken Sie im Tab „Verlauf“ auf „Ausstehende zu Anki übertragen“."
+    },
+    "q5": {
+      "q": "Funktioniert die App ohne Internet?",
+      "a_html": "Teilweise. Spracherkennung, Pinyin und HSK-Stufe funktionieren offline. Übersetzung, Aussprache und Beispielsätze brauchen das Internet. Ohne Verbindung bleiben diese Felder leer, ein Hinweis sagt das, und Sie können die Werte selbst eintragen."
+    },
+    "q6": {
+      "q": "Welche Sprachen werden unterstützt?",
+      "a_html": "Englisch, Deutsch, Französisch, Spanisch, Italienisch und Chinesisch (vereinfacht), in jeder Kombination. Der Hotkey erkennt die Sprache unter denen, die Sie unter „Meine Sprachen“ eintragen. Für anderen Text nimmt er die Ausgangssprache unter „Erfassung &amp; Sprache“."
+    },
+    "q7": {
+      "q": "Welchen Notiztyp soll ich verwenden?",
+      "a_html": "Jeden Notiztyp, den Sie in Anki haben. Sie wählen ihn pro Sprache, und seine Felder werden nach ihren Namen zugeordnet, oder Sie legen die Zuordnung selbst fest. Das Bestätigungsfenster warnt, wenn ein Wert kein Feld hat. Für Chinesisch eignet sich ein Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio zusammen mit der chinesischen Vorlage."
+    },
+    "q8": {
+      "q": "Was passiert mit meiner Zwischenablage?",
+      "a_html": "Der Hotkey kopiert die Markierung über die Zwischenablage und stellt danach Ihren vorherigen Text wieder her. Wiederherstellen lässt sich nur Text, ein Bild in der Zwischenablage wird ersetzt. Der wiederhergestellte Text verliert außerdem die Markierung, mit der Passwortmanager ein kopiertes Passwort aus dem Verlauf der Zwischenablage heraushalten."
+    },
+    "q9": {
+      "q": "Kann ich den Hotkey ändern?",
+      "a_html": "Ja, auf dem Tab „Erfassung &amp; Sprache“. Eine Tastenkombination braucht <kbd>⌘</kbd>, <kbd>ctrl</kbd> oder <kbd>⌥</kbd> (Wahltaste), und nur Funktionstasten dürfen allein stehen. Hotkey-Profile fügen weitere Kombinationen hinzu, jede mit eigenem Sprachpaar und Stapel."
+    },
+    "q10": {
+      "q": "Wie deinstalliere ich die App?",
+      "a_html": "Beenden Sie die App (Symbol in der Menüleiste > „Quit“) und legen Sie sie aus „Programme“ in den Papierkorb. Entfernen Sie ihren Eintrag unter Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen. Wenn Sie auch Verlauf und Einstellungen löschen möchten, löschen Sie die Ordner <code>VocabularyAutomator</code> und <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code>. Karten, die schon in Anki sind, bleiben dort."
+    }
+  },
+  "footer": {
+    "line": "Vocabulary Automator · Version {version} (Vorschauversion)",
+    "source": "Quellcode auf GitHub",
+    "releases": "GitHub Releases",
+    "independence": "Vocabulary Automator ist ein unabhängiges Projekt. Es steht in keiner Verbindung zu Anki, AnkiWeb oder dem Add-on AnkiConnect und wird von ihnen weder unterstützt noch empfohlen.",
+    "credits": "Für Chinesisch enthält die App Daten aus CC-CEDICT (CC BY-SA 4.0) und zwei HSK-Wortlisten (MIT-Lizenz). Die vollständigen Angaben stehen im Hilfedialog der App.",
+    "siteNote": "Diese Website setzt keine Cookies, verwendet keine Analysedienste und lädt nichts von fremden Servern."
+  },
+  "nf": {
+    "title": "Seite nicht gefunden",
+    "body": "Unter dieser Adresse gibt es keine Seite.",
+    "home": "Zur Startseite"
+  }
+}

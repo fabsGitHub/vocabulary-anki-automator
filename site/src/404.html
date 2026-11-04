@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{en:nf.title}} · {{de:nf.title}} – Vocabulary Automator</title>
+    <meta name="robots" content="noindex" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0e12" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="not-found-page">
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="/">
+          {{>mark}}
+          <span class="brand-name">Vocabulary Automator</span>
+        </a>
+      </div>
+    </header>
+
+    <main id="main" class="not-found">
+      <div class="container not-found-inner">
+        <p class="not-found-code" aria-hidden="true">404</p>
+        <div class="not-found-columns">
+          <section class="not-found-block" aria-labelledby="nf-en">
+            <h1 id="nf-en">{{en:nf.title}}</h1>
+            <p>{{en:nf.body}}</p>
+            <a class="btn btn-primary" href="/">{{en:nf.home}}</a>
+          </section>
+          <section class="not-found-block" lang="de" aria-labelledby="nf-de">
+            <h2 id="nf-de">{{de:nf.title}}</h2>
+            <p>{{de:nf.body}}</p>
+            <a class="btn btn-secondary" href="/de/" hreflang="de">{{de:nf.home}}</a>
+          </section>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

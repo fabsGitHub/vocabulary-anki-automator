@@ -70,6 +70,33 @@ export default [
       },
     },
   },
+  {
+    // The product site's build, tests, preview server and image script (site/)
+    // run under Node.
+    files: ['site/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        Buffer: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+        URL: 'readonly',
+      },
+    },
+  },
+  {
+    // The product site's one browser script.
+    files: ['site/src/**/*.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        document: 'readonly',
+        Element: 'readonly',
+        navigator: 'readonly',
+        Node: 'readonly',
+        window: 'readonly',
+      },
+    },
+  },
   prettierConfig,
   {
     ignores: [
@@ -83,6 +110,7 @@ export default [
       'apps/**/dist-web/**',
       'apps/**/src-tauri/gen/**',
       '.claude/**',
+      'site/dist/**',
     ],
   },
 ]

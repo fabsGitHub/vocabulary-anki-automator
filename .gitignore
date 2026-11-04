@@ -26,3 +26,8 @@ dist-ssr
 # Cargo workspace build output (Milestone B moved it to the repo root)
 /target
 dist-web
+
+# Product site (site/): the build output, the .dmg input folder and the Vercel CLI link
+/site/dist
+/site/downloads
+.vercel
