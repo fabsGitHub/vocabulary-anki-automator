@@ -10,9 +10,11 @@
 //! the user's previous clipboard text is put back afterwards, and an empty
 //! clipboard is reported instead of silently dropped, because on macOS it
 //! almost always means the app lacks the Accessibility permission that
-//! synthetic keystrokes need.
+//! synthetic keystrokes need. The keystrokes are sent from the main thread
+//! (see [`OnMainThread`]).
 
 use std::{
+    future::Future,
     sync::{Arc, OnceLock},
     thread,
     time::Duration,
@@ -237,7 +239,8 @@ pub fn pipeline_error_message(err: &PipelineError) -> String {
 /// copied is an error with a hint at the usual cause.
 async fn copy_selection<R: Runtime>(app: &AppHandle<R>) -> Result<String, String> {
     tokio::time::sleep(RELEASE_DELAY).await;
-    copy_through(app.clipboard(), press_copy_shortcut, COPY_DELAY).await
+    let press_copy = || async { on_main_thread(app, press_copy_shortcut).await? };
+    copy_through(app.clipboard(), press_copy, COPY_DELAY).await
 }
 
 /// Plain-text access to the clipboard, the only part [`copy_through`] needs.
@@ -260,18 +263,21 @@ impl<R: Runtime> TextClipboard for tauri_plugin_clipboard_manager::Clipboard<R> 
 /// clear the clipboard (so "nothing was copied" can be told apart from an old
 /// value), press copy, wait `copy_delay`, read, and put the user's text back,
 /// also when the keystroke could not be sent.
-async fn copy_through(
+async fn copy_through<F>(
     clipboard: &impl TextClipboard,
-    press_copy: impl FnOnce() -> Result<(), String>,
+    press_copy: impl FnOnce() -> F,
     copy_delay: Duration,
-) -> Result<String, String> {
+) -> Result<String, String>
+where
+    F: Future<Output = Result<(), String>>,
+{
     // Only text can be put back; other content (an image) is replaced by the
     // copied text, exactly as a manual copy would do.
     let previous = clipboard.read().filter(|text| !text.is_empty());
     if let Err(err) = clipboard.write(String::new()) {
         log::warn!("Could not clear the clipboard before copying: {err}");
     }
-    let copied = match press_copy() {
+    let copied = match press_copy().await {
         Ok(()) => {
             tokio::time::sleep(copy_delay).await;
             Ok(clipboard.read().unwrap_or_default())
@@ -290,10 +296,35 @@ async fn copy_through(
     Ok(copied)
 }
 
+/// Proof that code runs on the main thread: only [`on_main_thread`] makes one.
+/// The copy keystroke needs it on macOS: to find the key that types "c" in
+/// the current keyboard layout, enigo asks the Text Input Sources API, and
+/// since macOS 26 that API aborts the app when called from any other thread.
+struct OnMainThread(());
+
+/// Runs `f` on the main thread and returns its result. The main thread is
+/// busy while `f` runs, so `f` must be short.
+async fn on_main_thread<R: Runtime, T: Send + 'static>(
+    app: &AppHandle<R>,
+    f: impl FnOnce(OnMainThread) -> T + Send + 'static,
+) -> Result<T, String> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.run_on_main_thread(move || {
+        // Fails only if the capture waiting for it was dropped.
+        let _ = sender.send(f(OnMainThread(())));
+    })
+    .map_err(|err| format!("The copy keystroke could not be sent: {err}"))?;
+    receiver
+        .await
+        .map_err(|_| "The copy keystroke was not sent: the app is closing.".to_string())
+}
+
 /// Releases every modifier the hotkey may have left down, then sends the
-/// platform's copy shortcut. `Enigo` lives only inside this synchronous
-/// function: it must never be held across an `.await`.
-fn press_copy_shortcut() -> Result<(), String> {
+/// platform's copy shortcut, on the main thread. That takes the three
+/// `KEY_STEP` pauses plus enigo's own delay before each of the 8 key events
+/// (20 ms on macOS, so about 235 ms in all). `Enigo` lives only inside this
+/// synchronous function: it must never be held across an `.await`.
+fn press_copy_shortcut(_: OnMainThread) -> Result<(), String> {
     let mut enigo = Enigo::new(&Settings::default()).map_err(|err| {
         log::error!("Could not create the keyboard simulator: {err}");
         nothing_copied_message()
@@ -338,7 +369,12 @@ fn nothing_copied_message() -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
+    use std::{
+        panic::{self, AssertUnwindSafe},
+        sync::{mpsc, Mutex},
+    };
+
+    use tauri::RunEvent;
 
     use super::*;
 
@@ -378,9 +414,9 @@ mod tests {
         }
     }
 
-    fn copy(
+    fn copy<F: Future<Output = Result<(), String>>>(
         clipboard: &FakeClipboard,
-        press: impl FnOnce() -> Result<(), String>,
+        press: impl FnOnce() -> F,
     ) -> Result<String, String> {
         tauri::async_runtime::block_on(copy_through(clipboard, press, Duration::ZERO))
     }
@@ -389,7 +425,7 @@ mod tests {
     fn the_selection_is_returned_and_the_users_text_put_back() {
         let clipboard = FakeClipboard::holding(Some("the user's text"));
 
-        let copied = copy(&clipboard, || {
+        let copied = copy(&clipboard, || async {
             clipboard.copy_into("serendipity");
             Ok(())
         });
@@ -403,7 +439,7 @@ mod tests {
     fn nothing_copied_is_an_error_and_the_users_text_is_put_back() {
         let clipboard = FakeClipboard::holding(Some("the user's text"));
 
-        let err = copy(&clipboard, || Ok(())).unwrap_err();
+        let err = copy(&clipboard, || async { Ok(()) }).unwrap_err();
 
         assert_eq!(err, nothing_copied_message());
         assert_eq!(clipboard.current().as_deref(), Some("the user's text"));
@@ -413,7 +449,10 @@ mod tests {
     fn a_failed_keystroke_still_puts_the_users_text_back() {
         let clipboard = FakeClipboard::holding(Some("the user's text"));
 
-        let err = copy(&clipboard, || Err("no keyboard simulator".to_string())).unwrap_err();
+        let err = copy(&clipboard, || async {
+            Err("no keyboard simulator".to_string())
+        })
+        .unwrap_err();
 
         assert_eq!(err, "no keyboard simulator");
         assert_eq!(clipboard.current().as_deref(), Some("the user's text"));
@@ -423,13 +462,63 @@ mod tests {
     fn without_text_to_restore_the_selection_stays_on_the_clipboard() {
         let clipboard = FakeClipboard::holding(None);
 
-        let copied = copy(&clipboard, || {
+        let copied = copy(&clipboard, || async {
             clipboard.copy_into("Haus");
             Ok(())
         });
 
         assert_eq!(copied.as_deref(), Ok("Haus"));
         assert_eq!(clipboard.current().as_deref(), Some("Haus"));
+    }
+
+    /// The mock event loop never ends on its own, so the test ends it by
+    /// unwinding with this payload.
+    const STOP: &str = "stop the event loop";
+
+    /// Loop iterations to wait for the keystroke; each one sleeps 1 s.
+    const MAX_IDLE_LOOPS: u32 = 5;
+
+    #[test]
+    fn the_copy_keystroke_runs_on_the_event_loop_thread() {
+        let app = tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("mock app");
+        let event_loop_thread = thread::current().id();
+        let (sender, receiver) = mpsc::channel();
+        let ran_on = Arc::new(Mutex::new(None));
+        let seen = Arc::clone(&ran_on);
+
+        let outcome = panic::catch_unwind(AssertUnwindSafe(move || {
+            let mut sender = Some(sender);
+            let mut idle_loops = 0;
+            app.run(move |handle, event| match event {
+                RunEvent::Ready => {
+                    let handle = handle.clone();
+                    let sender = sender.take().expect("one Ready event");
+                    // From a task on the async runtime, like the hotkey capture.
+                    tauri::async_runtime::spawn(async move {
+                        let result = on_main_thread(&handle, |_| thread::current().id()).await;
+                        sender.send(result).expect("the test is waiting");
+                    });
+                }
+                RunEvent::MainEventsCleared => {
+                    if let Ok(result) = receiver.try_recv() {
+                        *seen.lock().unwrap() = Some(result);
+                        panic::panic_any(STOP);
+                    }
+                    idle_loops += 1;
+                    assert!(idle_loops < MAX_IDLE_LOOPS, "the keystroke never ran");
+                }
+                _ => {}
+            });
+        }));
+
+        if let Err(payload) = outcome {
+            if payload.downcast_ref::<&str>() != Some(&STOP) {
+                panic::resume_unwind(payload);
+            }
+        }
+        assert_eq!(*ran_on.lock().unwrap(), Some(Ok(event_loop_thread)));
     }
 
     #[test]
