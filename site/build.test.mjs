@@ -423,6 +423,8 @@ function checkCommonOutput(label, getOut) {
       assert.ok(sitemap.includes(`<loc>${SITE_URL}/de/</loc>`))
       const robots = await readFile(path.join(outDir, 'robots.txt'), 'utf8')
       assert.ok(robots.includes(`Sitemap: ${SITE_URL}/sitemap.xml`))
+      const ignored = (await readFile(path.join(outDir, '.vercelignore'), 'utf8')).split('\n')
+      assert.ok(ignored.includes('.env*'), 'the token file `vercel link` writes is never uploaded')
       const vercel = JSON.parse(await readFile(path.join(outDir, 'vercel.json'), 'utf8'))
       assert.equal(vercel.cleanUrls, true)
       const headers = Object.fromEntries(

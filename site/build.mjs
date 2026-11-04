@@ -466,6 +466,9 @@ export async function build({
 
   outputs.set('sitemap.xml', sitemap(site))
   outputs.set('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${site}/sitemap.xml\n`)
+  // `vercel link` drops a .env.local with a project token (and a .gitignore)
+  // into this folder, which is deployed as it is: they must never be uploaded.
+  outputs.set('.vercelignore', '.env*\n.gitignore\n')
 
   // Only now is the output folder emptied. vercel.json and the pages go first,
   // so even an interrupted copy below leaves a folder the next build recognizes.
