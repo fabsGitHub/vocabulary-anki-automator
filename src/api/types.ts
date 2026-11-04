@@ -210,6 +210,17 @@ export interface AutoMatch {
   unmatched: string[]
 }
 
+/** What `create_recommended_note_type` set up in Anki. */
+export interface RecommendedNoteType {
+  model_name: string
+  /** Fills every field of the note type. */
+  mapping: FieldMapping
+  /** `false`: Anki already had a note type of that name with every field. */
+  created: boolean
+  /** Matching the note type's fields by name gives exactly `mapping`, so it need not be saved. */
+  matches_by_name: boolean
+}
+
 /** A card value a push would not deliver (`anki_bridge::LostValue`). */
 export type LostValue =
   /** The mapping names a field the note type lacks, and the card has a value for it. */
@@ -270,7 +281,11 @@ export interface AnkiConfig {
   deck_name: string
   model_name: string
   create_reverse: boolean
-  field_mapping: FieldMapping
+  /**
+   * `null` (the default): matched by field name against the note type at push
+   * time, never saved. The backend also stores the Apple-style preset as `null`.
+   */
+  field_mapping: FieldMapping | null
 }
 
 /** `config.json` (§ 8.1), exactly as `get_current_settings` returns and `apply_settings` takes it. */

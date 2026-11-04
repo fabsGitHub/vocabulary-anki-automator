@@ -1,17 +1,25 @@
 import { describe, expect, it } from 'vitest'
 
 import mapperSource from '../../crates/anki-bridge/src/mapper.rs?raw'
-import type { AppConfig, CardField, FieldMapping } from '../api'
+import type { AppConfig, AutoMatch, CardField, FieldMapping } from '../api'
 import { defaultConfig } from '../composables/useConfig'
 import {
   CARD_FIELDS,
+  MAPPING_PRESETS,
+  RECOMMENDED_NOTE_TYPE,
   appleStyleMapping,
   bindingFor,
   bindsSource,
   chineseMapping,
+  copyMapping,
   effectiveBindings,
+  lacksPinyin,
   missingFields,
   needsChineseNoteType,
+  recommendedMapping,
+  recommendedNoteTypeAction,
+  sameMapping,
+  selectRecommendedNoteType,
   withAudioField,
   withBinding,
 } from './fieldMapping'
@@ -56,10 +64,61 @@ describe('presets', () => {
     expect(chineseMapping()).toEqual(rustPreset('chinese_default'))
   })
 
+  it('equal FieldMapping::recommended exactly', () => {
+    expect(rustPreset('recommended').fields).toHaveLength(7)
+    expect(recommendedMapping()).toEqual(rustPreset('recommended'))
+  })
+
+  it('name the recommended note type as anki_bridge::RECOMMENDED_NOTE_TYPE does', () => {
+    const rust = /pub const RECOMMENDED_NOTE_TYPE: &str = "([^"]+)";/.exec(mapperSource)
+    expect(rust?.[1]).toBe('Vocabulary Automator')
+    expect(RECOMMENDED_NOTE_TYPE).toBe(rust?.[1])
+  })
+
+  it('offer the recommended mapping first', () => {
+    expect(Object.keys(MAPPING_PRESETS)).toEqual(['recommended', 'apple', 'chinese'])
+    expect(MAPPING_PRESETS.recommended()).toEqual(recommendedMapping())
+  })
+
   it('are fresh objects, so editing one never changes the next', () => {
     const first = chineseMapping()
     first.fields[0].anki_field = 'Edited'
     expect(chineseMapping().fields[0].anki_field).toBe('Hanzi')
+  })
+})
+
+describe('recommendedNoteTypeAction', () => {
+  it('says "Use" once Anki lists the note type, "Create" before', () => {
+    expect(recommendedNoteTypeAction(['Basic'])).toBe('noteType.create')
+    expect(recommendedNoteTypeAction(['Basic', RECOMMENDED_NOTE_TYPE])).toBe('noteType.use')
+  })
+})
+
+describe('selectRecommendedNoteType', () => {
+  const custom: FieldMapping = { fields: [{ anki_field: 'Q', source: 'front' }], audio_field: null }
+
+  it('leaves the mapping to the match by name when that gives the recommended one', () => {
+    const place = { model_name: 'AppleStyleFinalV3', field_mapping: custom }
+    selectRecommendedNoteType(place, {
+      model_name: RECOMMENDED_NOTE_TYPE,
+      mapping: recommendedMapping(),
+      created: true,
+      matches_by_name: true,
+    })
+    expect(place).toEqual({ model_name: 'Vocabulary Automator', field_mapping: null })
+  })
+
+  it('saves a copy of the mapping when the match would differ', () => {
+    const mapping = recommendedMapping()
+    const place = { model_name: 'Basic', field_mapping: null as FieldMapping | null }
+    selectRecommendedNoteType(place, {
+      model_name: RECOMMENDED_NOTE_TYPE,
+      mapping,
+      created: false,
+      matches_by_name: false,
+    })
+    expect(place).toEqual({ model_name: 'Vocabulary Automator', field_mapping: mapping })
+    expect(place.field_mapping).not.toBe(mapping)
   })
 })
 
@@ -153,19 +212,69 @@ describe('missingFields (mirrors FieldMapping::missing_fields)', () => {
   })
 })
 
+describe('sameMapping and copyMapping', () => {
+  it('compare bindings in order, and the audio field', () => {
+    expect(sameMapping(appleStyleMapping(), appleStyleMapping())).toBe(true)
+    const reordered = appleStyleMapping()
+    reordered.fields.reverse()
+    expect(sameMapping(reordered, appleStyleMapping())).toBe(false)
+    expect(sameMapping(withAudioField(appleStyleMapping(), null), appleStyleMapping())).toBe(false)
+    expect(sameMapping(withBinding(appleStyleMapping(), 'Notes', null), appleStyleMapping())).toBe(
+      false,
+    )
+  })
+
+  it('copy without sharing a binding', () => {
+    const original = chineseMapping()
+    const copy = copyMapping(original)
+    expect(copy).toEqual(original)
+    copy.fields[0].anki_field = 'Edited'
+    expect(original.fields[0].anki_field).toBe('Hanzi')
+  })
+})
+
+describe('lacksPinyin', () => {
+  it('checks the saved mapping, else the preview, and knows nothing without either', () => {
+    const preview = { mapping: appleStyleMapping(), guessed: [], unmatched: [] }
+    expect(lacksPinyin(appleStyleMapping(), null)).toBe(true)
+    expect(lacksPinyin(chineseMapping(), preview)).toBe(false)
+    expect(lacksPinyin(null, preview)).toBe(true)
+    expect(lacksPinyin(null, { ...preview, mapping: chineseMapping() })).toBe(false)
+    expect(lacksPinyin(null, null)).toBe(false)
+  })
+})
+
 describe('needsChineseNoteType (J5)', () => {
+  /** What matching AppleStyleFinalV3 by name gives: no field takes the pinyin. */
+  const APPLE_V3_MATCH: AutoMatch = {
+    mapping: {
+      fields: [
+        { anki_field: 'Front', source: 'front' },
+        { anki_field: 'Back', source: 'back' },
+      ],
+      audio_field: 'Audio',
+    },
+    guessed: [],
+    unmatched: [],
+  }
+  const CHINESE_MATCH: AutoMatch = { mapping: chineseMapping(), guessed: [], unmatched: [] }
+
   function config(edit: (c: AppConfig) => void): AppConfig {
     const c = defaultConfig()
+    c.anki.field_mapping = appleStyleMapping()
     edit(c)
     return c
   }
 
+  const chineseSource = (c: AppConfig) => (c.translation.source_lang = 'zh-CN')
+
   it('is off for non-Chinese setups', () => {
     expect(needsChineseNoteType(defaultConfig())).toBe(false)
+    expect(needsChineseNoteType(defaultConfig(), APPLE_V3_MATCH)).toBe(false)
   })
 
   it('warns when the default source is Chinese and nothing receives the pinyin', () => {
-    expect(needsChineseNoteType(config((c) => (c.translation.source_lang = 'zh-CN')))).toBe(true)
+    expect(needsChineseNoteType(config(chineseSource))).toBe(true)
   })
 
   it('warns when only a profile captures Chinese', () => {
@@ -180,6 +289,18 @@ describe('needsChineseNoteType (J5)', () => {
       }),
     )
     expect(needsChineseNoteType(withProfile)).toBe(true)
+  })
+
+  it('checks a mapping matched by name through its preview, and stays silent without one', () => {
+    const matched = config((c) => {
+      chineseSource(c)
+      c.anki.field_mapping = null
+    })
+    expect(needsChineseNoteType(matched)).toBe(false)
+    expect(needsChineseNoteType(matched, APPLE_V3_MATCH)).toBe(true)
+    expect(needsChineseNoteType(matched, CHINESE_MATCH)).toBe(false)
+    // A saved mapping wins over any preview.
+    expect(needsChineseNoteType(config(chineseSource), CHINESE_MATCH)).toBe(true)
   })
 
   it('is satisfied by the Chinese preset or any pinyin binding', () => {

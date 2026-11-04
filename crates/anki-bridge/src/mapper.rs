@@ -15,6 +15,9 @@
 //! [`FieldMapping::auto_match`] builds a mapping from a note type's field
 //! names alone (the keyword tables at the end of this file), and
 //! [`FieldMapping::lost_values`] says what a push of a card would drop.
+//!
+//! [`recommended_note_type`] is the note type the app recommends: a field for
+//! every value a card has, with [`FieldMapping::recommended`] filling it.
 
 use std::collections::BTreeMap;
 
@@ -22,9 +25,15 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use vocab_core::{language::normalize_lang, Card, ScriptMetadata, ScriptVariant};
+use vocab_core::{
+    language::{normalize_lang, SUPPORTED_LANGS},
+    Card, ScriptMetadata, ScriptVariant,
+};
 
-use crate::{client::NoteInfo, html};
+use crate::{
+    client::{CardTemplate, NoteInfo},
+    html,
+};
 
 /// A card value that can be written to, and read back from, an Anki field.
 /// Serialized as its snake_case name (`"example_source"`, `"hsk_level"`, ...).
@@ -110,6 +119,26 @@ impl FieldMapping {
                 FieldBinding::new("Pinyin", CardField::Pinyin),
                 FieldBinding::new("Meaning", CardField::Back),
                 FieldBinding::new("Sentence", CardField::Example),
+            ],
+            audio_field: Some("Audio".to_string()),
+        }
+    }
+
+    /// The mapping of [`recommended_note_type`]: every value has a field of
+    /// its own. The sentences are bound by language, never swapped, so on the
+    /// reverse note "Sentence" still holds the sentence in the captured
+    /// language and "Sentence Translation" its translation, under whichever
+    /// word is asked.
+    pub fn recommended() -> Self {
+        Self {
+            fields: vec![
+                FieldBinding::new("Front", CardField::Front),
+                FieldBinding::new("Back", CardField::Back),
+                FieldBinding::new("Sentence", CardField::ExampleInSourceLang),
+                FieldBinding::new("Sentence Translation", CardField::ExampleInTargetLang),
+                FieldBinding::new("Pinyin", CardField::Pinyin),
+                FieldBinding::new("HSK Level", CardField::HskLevel),
+                FieldBinding::new("Notes", CardField::Notes),
             ],
             audio_field: Some("Audio".to_string()),
         }
@@ -233,6 +262,19 @@ impl FieldMapping {
             &normalize_lang(source_lang),
             &normalize_lang(target_lang),
         )
+    }
+
+    /// Whether matching `model_fields` by name ([`auto_match`](Self::auto_match))
+    /// gives exactly this mapping, bindings in this order, for every pair of
+    /// supported languages: then a mapping left unset (matched at push time)
+    /// files every card as this one would, and nothing needs saving.
+    pub fn is_matched_by_name(&self, model_fields: &[String]) -> bool {
+        SUPPORTED_LANGS.iter().all(|source| {
+            SUPPORTED_LANGS
+                .iter()
+                .filter(|target| *target != source)
+                .all(|target| Self::auto_match(model_fields, source, target).mapping == *self)
+        })
     }
 
     /// The bindings that take effect: the first one for each Anki field. Both
@@ -580,6 +622,176 @@ fn parse_hsk_level(text: &str) -> Option<u8> {
         _ => None,
     }
 }
+
+// ---------------------------------------------------------------------------
+// The recommended note type
+
+/// The name of the recommended note type, and the one place the product
+/// name appears in Rust; the settings form mirrors it (`RECOMMENDED_NOTE_TYPE`
+/// in `src/domain/fieldMapping.ts`, which its tests read from here).
+pub const RECOMMENDED_NOTE_TYPE: &str = "Vocabulary Automator";
+
+/// A note type to create, as [`AnkiClient::create_model`](crate::AnkiClient::create_model)
+/// takes it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoteTypeSpec {
+    pub name: String,
+    /// In order; the first is the one Anki requires on every note.
+    pub fields: Vec<String>,
+    /// Shared by every card of the note type.
+    pub css: String,
+    pub templates: Vec<CardTemplate>,
+}
+
+/// [`RECOMMENDED_NOTE_TYPE`]: a field for every value a card has, filled by
+/// [`FieldMapping::recommended`] (which matching its field names by name also
+/// gives, for every language pair), and one card per note.
+///
+/// The card asks the note's `Front`. The answer side puts the pronunciation
+/// right under it, since the `Audio` field speaks the note's own `Front` (the
+/// reverse note's is the prompt in the user's language), and then answers
+/// with the pinyin over `Back`, so it stands next to the Hanzi it belongs to
+/// in both directions: under the question forward, over the answer reversed.
+/// Whatever the note has of the sentence and its translation, notes and HSK
+/// level follow; empty fields leave no trace. The reverse note swaps `Front`
+/// and `Back` but not the sentences, so both notes answer with the sentence
+/// in the captured language over its translation. The CSS has a
+/// light and a dark variant (Anki and AnkiMobile mark dark mode with
+/// `nightMode`, AnkiDroid with `night_mode`) and loads nothing from anywhere:
+/// no fonts, images or scripts.
+pub fn recommended_note_type() -> NoteTypeSpec {
+    NoteTypeSpec {
+        name: RECOMMENDED_NOTE_TYPE.to_string(),
+        fields: RECOMMENDED_FIELDS.map(String::from).to_vec(),
+        css: RECOMMENDED_CSS.to_string(),
+        templates: vec![CardTemplate {
+            name: "Recall".to_string(),
+            front: RECOMMENDED_FRONT.to_string(),
+            back: RECOMMENDED_BACK.to_string(),
+        }],
+    }
+}
+
+const RECOMMENDED_FIELDS: [&str; 8] = [
+    "Front",
+    "Back",
+    "Sentence",
+    "Sentence Translation",
+    "Audio",
+    "Pinyin",
+    "HSK Level",
+    "Notes",
+];
+
+const RECOMMENDED_FRONT: &str = r#"<div class="word">{{Front}}</div>"#;
+
+const RECOMMENDED_BACK: &str = r#"{{FrontSide}}
+{{#Audio}}<div class="audio">{{Audio}}</div>{{/Audio}}
+
+<hr id=answer>
+
+{{#Pinyin}}<div class="pinyin">{{Pinyin}}</div>{{/Pinyin}}
+<div class="meaning">{{Back}}</div>
+{{#Sentence}}<div class="sentence">{{Sentence}}</div>{{/Sentence}}
+{{#Sentence Translation}}<div class="sentence-translation">{{Sentence Translation}}</div>{{/Sentence Translation}}
+{{#Notes}}<div class="notes">{{Notes}}</div>{{/Notes}}
+{{#HSK Level}}<div class="hsk"><span>HSK {{HSK Level}}</span></div>{{/HSK Level}}"#;
+
+const RECOMMENDED_CSS: &str = r#".card {
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --rule: #d2d2d7;
+  --chip: #f0f0f3;
+  margin: 0;
+  padding: 28px 18px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-size: 20px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--text);
+  background-color: #ffffff;
+}
+
+.card.nightMode,
+.card.night_mode,
+.nightMode .card,
+.night_mode .card {
+  --text: #f2f2f7;
+  --muted: #a1a1a8;
+  --rule: #3a3a3e;
+  --chip: #2c2c30;
+  background-color: #1c1c1e;
+}
+
+.word {
+  font-size: 2em;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+}
+
+hr#answer {
+  max-width: 420px;
+  margin: 22px auto;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.meaning {
+  font-size: 1.4em;
+  font-weight: 500;
+  overflow-wrap: break-word;
+}
+
+.pinyin {
+  margin-bottom: 4px;
+  font-size: 1.05em;
+  color: var(--muted);
+}
+
+.sentence,
+.sentence-translation,
+.notes {
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.sentence {
+  margin-top: 22px;
+}
+
+.sentence-translation {
+  margin-top: 4px;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.notes {
+  margin-top: 18px;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.hsk {
+  margin-top: 16px;
+}
+
+.hsk span {
+  display: inline-block;
+  padding: 1px 10px;
+  border-radius: 999px;
+  font-size: 0.7em;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  background-color: var(--chip);
+}
+
+.audio {
+  margin-top: 10px;
+}
+"#;
 
 // ---------------------------------------------------------------------------
 // Matching a note type's fields by name (FieldMapping::auto_match)
@@ -2238,8 +2450,8 @@ mod auto_match_tests {
         );
     }
 
-    /// The user's real situation: the default mapping on their note type.
-    /// The example is reported once, as the missing "Context Sentence".
+    /// The user's report: the old default mapping on their note type. The
+    /// example is reported once, as the missing "Context Sentence".
     #[test]
     fn today_s_default_mapping_loses_example_and_audio_on_apple_v3() {
         let default = FieldMapping::apple_style_default();
@@ -2296,6 +2508,33 @@ mod auto_match_tests {
             m.mapping.fields[3],
             FieldBinding::new("German Sentence", CardField::ExampleInSourceLang)
         );
+    }
+
+    /// Why the Automator matches a global mapping nobody customized by field
+    /// name: on the classic note type the match is exactly the old default,
+    /// for every language pair a capture can have, so those users' notes stay
+    /// as they were.
+    #[test]
+    fn the_classic_note_type_matches_the_old_default_for_every_pair() {
+        let classic = names(&["Front", "Back", "Context Sentence", "Notes", "Front Audio"]);
+        let langs = vocab_core::language::SUPPORTED_LANGS;
+        let mut pairs = 0;
+        for source in langs {
+            for target in langs.iter().filter(|target| *target != source) {
+                let m = auto_match(&classic, source, target);
+                assert_eq!(
+                    m.mapping,
+                    FieldMapping::apple_style_default(),
+                    "{source} -> {target}"
+                );
+                assert!(
+                    m.guessed.is_empty() && m.unmatched.is_empty(),
+                    "{source} -> {target}: {m:?}"
+                );
+                pairs += 1;
+            }
+        }
+        assert_eq!(pairs, 30);
     }
 
     #[test]
@@ -2618,5 +2857,424 @@ mod auto_match_tests {
             })
         );
         assert_eq!(serde_json::from_value::<AutoMatch>(value).unwrap(), matched);
+    }
+}
+
+/// The recommended note type: its fields, its mapping, and both notes of a
+/// card on it.
+#[cfg(test)]
+mod recommended_tests {
+    use chrono::{TimeZone, Utc};
+
+    use super::*;
+
+    const FWD_AUDIO: &[u8] = b"ID3 fwd";
+    const REV_AUDIO: &[u8] = b"ID3 rev";
+
+    fn fields() -> Vec<String> {
+        recommended_note_type().fields
+    }
+
+    fn english_card() -> Card {
+        let captured_at = Utc.with_ymd_and_hms(2026, 11, 4, 12, 0, 0).unwrap();
+        let mut card = Card::new("serendipity", "glücklicher Zufall", "en", "de", captured_at);
+        card.example_source = "It was pure serendipity.".into();
+        card.example_target = "Es war reiner Zufall.".into();
+        card.notes = "Rare word. More common synonym: luck".into();
+        card.audio_front = Some(FWD_AUDIO.to_vec());
+        card
+    }
+
+    fn chinese_card() -> Card {
+        let captured_at = Utc.with_ymd_and_hms(2026, 11, 4, 12, 0, 0).unwrap();
+        let mut card = Card::new("学习", "lernen", "zh-CN", "de", captured_at);
+        card.example_source = "我们一起学习中文。".into();
+        card.example_target = "Wir lernen zusammen Chinesisch.".into();
+        card.notes = "Auch: studieren".into();
+        card.audio_front = Some(FWD_AUDIO.to_vec());
+        card.script_metadata = ScriptMetadata::Chinese {
+            pinyin: "xué xí".into(),
+            hsk_level: Some(1),
+            script_variant: ScriptVariant::Simplified,
+        };
+        card
+    }
+
+    /// The note `map_card` sends for `card` on the recommended note type.
+    fn note(card: &Card, direction: Direction, audio: &[u8]) -> NoteSpec {
+        let target = AnkiTarget::new("Deck", RECOMMENDED_NOTE_TYPE);
+        map_card(
+            card,
+            direction,
+            &target,
+            &FieldMapping::recommended(),
+            Some(audio),
+        )
+    }
+
+    fn filled(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
+        pairs
+            .iter()
+            .map(|(field, value)| (field.to_string(), value.to_string()))
+            .collect()
+    }
+
+    /// Every `{{...}}` in `template`, without Anki's section marks.
+    fn references(template: &str) -> Vec<String> {
+        template
+            .split("{{")
+            .skip(1)
+            .map(|rest| rest.split("}}").next().unwrap_or_default())
+            .map(|name| name.trim_start_matches(['#', '/', '^']).to_string())
+            .collect()
+    }
+
+    #[test]
+    fn the_note_type_has_its_fields_in_order_and_one_card() {
+        let spec = recommended_note_type();
+        assert_eq!(spec.name, "Vocabulary Automator");
+        assert_eq!(spec.name, RECOMMENDED_NOTE_TYPE);
+        assert_eq!(
+            spec.fields,
+            [
+                "Front",
+                "Back",
+                "Sentence",
+                "Sentence Translation",
+                "Audio",
+                "Pinyin",
+                "HSK Level",
+                "Notes"
+            ]
+        );
+        assert_eq!(spec.templates.len(), 1);
+        assert_eq!(spec.templates[0].name, "Recall");
+    }
+
+    #[test]
+    fn the_templates_name_only_its_fields() {
+        let template = &recommended_note_type().templates[0];
+        assert_eq!(references(&template.front), ["Front"]);
+        let back = references(&template.back);
+        assert_eq!(back[0], "FrontSide");
+        for name in &back[1..] {
+            assert!(fields().contains(name), "{name} is not a field");
+        }
+        // Every field but the question itself appears on the answer side.
+        for field in &fields()[1..] {
+            assert!(back.contains(field), "{field} is not shown");
+        }
+        assert!(template.back.contains("<hr id=answer>"));
+    }
+
+    /// `template` as Anki renders it for `values`: a `{{#Field}}` section
+    /// only when the field is not empty, then every `{{Field}}` replaced.
+    fn render(template: &str, values: &BTreeMap<String, String>) -> String {
+        let mut out = template.to_string();
+        for (name, value) in values {
+            let (open, close) = (format!("{{{{#{name}}}}}"), format!("{{{{/{name}}}}}"));
+            while let Some(start) = out.find(&open) {
+                let end = start + out[start..].find(&close).expect("a closed section");
+                let inner = out[start + open.len()..end].to_string();
+                let kept = if value.is_empty() {
+                    String::new()
+                } else {
+                    inner
+                };
+                out.replace_range(start..end + close.len(), &kept);
+            }
+            out = out.replace(&format!("{{{{{name}}}}}"), value);
+        }
+        assert!(!out.contains("{{"), "a field left over: {out}");
+        out
+    }
+
+    /// The answer side of `note`, top to bottom, one line per block of text
+    /// and `—` for the rule; the audio field holds the `[sound:...]` tag
+    /// Anki appends to it.
+    fn answer_side(note: &NoteSpec) -> Vec<String> {
+        let mut values = note.fields.clone();
+        let audio = note.audio.as_ref().expect("a pronunciation");
+        for field in &audio.fields {
+            values.insert(field.clone(), format!("[sound:{}]", audio.filename));
+        }
+        let template = &recommended_note_type().templates[0];
+        let back = template.back.replace("{{FrontSide}}", &template.front);
+        render(&back, &values)
+            .replace("<hr id=answer>", "—")
+            .lines()
+            .map(|line| {
+                let mut text = String::new();
+                let mut in_tag = false;
+                for c in line.chars() {
+                    match c {
+                        '<' => in_tag = true,
+                        '>' => in_tag = false,
+                        _ if !in_tag => text.push(c),
+                        _ => {}
+                    }
+                }
+                text.trim().to_string()
+            })
+            .filter(|line| !line.is_empty())
+            .collect()
+    }
+
+    fn sound(note: &NoteSpec) -> String {
+        format!("[sound:{}]", note.audio.as_ref().unwrap().filename)
+    }
+
+    /// The pronunciation sits under the word it speaks, and the pinyin next
+    /// to the Hanzi, in both directions: forward 学习 / xué xí / lernen,
+    /// reversed lernen / xué xí / 学习, never the pinyin under "lernen" alone.
+    #[test]
+    fn the_answer_keeps_pronunciation_and_pinyin_next_to_their_word() {
+        let card = chinese_card();
+        let forward = note(&card, Direction::Forward, FWD_AUDIO);
+        assert_eq!(
+            answer_side(&forward),
+            [
+                "学习",
+                &sound(&forward),
+                "—",
+                "xué xí",
+                "lernen",
+                "我们一起学习中文。",
+                "Wir lernen zusammen Chinesisch.",
+                "Auch: studieren",
+                "HSK 1",
+            ]
+        );
+        let reverse = note(&card, Direction::Reverse, REV_AUDIO);
+        assert_eq!(
+            answer_side(&reverse),
+            [
+                "lernen",
+                &sound(&reverse),
+                "—",
+                "xué xí",
+                "学习",
+                "我们一起学习中文。",
+                "Wir lernen zusammen Chinesisch.",
+                "Auch: studieren",
+                "HSK 1",
+            ]
+        );
+
+        // Without pinyin and HSK level, their blocks leave no trace.
+        let english = note(&english_card(), Direction::Forward, FWD_AUDIO);
+        assert_eq!(
+            answer_side(&english),
+            [
+                "serendipity",
+                &sound(&english),
+                "—",
+                "glücklicher Zufall",
+                "It was pure serendipity.",
+                "Es war reiner Zufall.",
+                "Rare word. More common synonym: luck",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_css_has_a_dark_variant_and_loads_nothing() {
+        let spec = recommended_note_type();
+        for selector in [".card.nightMode", ".card.night_mode", ".nightMode .card"] {
+            assert!(spec.css.contains(selector), "{selector}");
+        }
+        let everything = [
+            spec.css.as_str(),
+            &spec.templates[0].front,
+            &spec.templates[0].back,
+        ]
+        .concat()
+        .to_lowercase();
+        for remote in [
+            "url(", "@import", "http", "<script", "<link", "<img", "src=",
+        ] {
+            assert!(!everything.contains(remote), "{remote}");
+        }
+    }
+
+    #[test]
+    fn the_mapping_fills_every_field() {
+        let mapping = FieldMapping::recommended();
+        assert_eq!(
+            mapping,
+            FieldMapping {
+                fields: vec![
+                    FieldBinding::new("Front", CardField::Front),
+                    FieldBinding::new("Back", CardField::Back),
+                    FieldBinding::new("Sentence", CardField::ExampleInSourceLang),
+                    FieldBinding::new("Sentence Translation", CardField::ExampleInTargetLang),
+                    FieldBinding::new("Pinyin", CardField::Pinyin),
+                    FieldBinding::new("HSK Level", CardField::HskLevel),
+                    FieldBinding::new("Notes", CardField::Notes),
+                ],
+                audio_field: Some("Audio".into()),
+            }
+        );
+        assert!(mapping.missing_fields(&fields()).is_empty());
+        let mut written: Vec<&str> = mapping
+            .fields
+            .iter()
+            .map(|binding| binding.anki_field.as_str())
+            .chain(mapping.audio_field())
+            .collect();
+        written.sort_unstable();
+        let mut all: Vec<&str> = RECOMMENDED_FIELDS.to_vec();
+        all.sort_unstable();
+        assert_eq!(written, all, "every field is written, each once");
+    }
+
+    /// So a place that uses the note type can leave its mapping unset.
+    #[test]
+    fn matching_its_fields_by_name_gives_the_mapping_for_every_pair() {
+        assert!(FieldMapping::recommended().is_matched_by_name(&fields()));
+        let m = FieldMapping::auto_match(&fields(), "en", "de");
+        assert!(m.guessed.is_empty() && m.unmatched.is_empty(), "{m:?}");
+
+        // A field added in Anki changes nothing; reordered fields reorder the
+        // match, and a renamed one is matched as it is now spelled.
+        let mut extended = fields();
+        extended.push("Image".into());
+        assert!(FieldMapping::recommended().is_matched_by_name(&extended));
+        let mut reordered = fields();
+        reordered.swap(0, 1);
+        assert!(!FieldMapping::recommended().is_matched_by_name(&reordered));
+        let mut renamed = fields();
+        renamed[0] = "front".into();
+        assert!(!FieldMapping::recommended().is_matched_by_name(&renamed));
+        assert!(FieldMapping::apple_style_default().is_matched_by_name(&[
+            "Front".into(),
+            "Back".into(),
+            "Context Sentence".into(),
+            "Notes".into(),
+            "Front Audio".into(),
+        ]));
+    }
+
+    #[test]
+    fn both_notes_of_an_english_card_fill_their_fields() {
+        let card = english_card();
+        let forward = note(&card, Direction::Forward, FWD_AUDIO);
+        assert_eq!(
+            forward.fields,
+            filled(&[
+                ("Front", "serendipity"),
+                ("Back", "glücklicher Zufall"),
+                ("Sentence", "It was pure serendipity."),
+                ("Sentence Translation", "Es war reiner Zufall."),
+                ("Pinyin", ""),
+                ("HSK Level", ""),
+                ("Notes", "Rare word. More common synonym: luck"),
+            ])
+        );
+        assert_eq!(
+            forward.audio.map(|audio| audio.fields),
+            Some(vec!["Audio".to_string()])
+        );
+        // The reverse note asks the translation; the sentence stays the
+        // English one, with its German translation under it.
+        let reverse = note(&card, Direction::Reverse, REV_AUDIO);
+        assert_eq!(
+            reverse.fields,
+            filled(&[
+                ("Front", "glücklicher Zufall"),
+                ("Back", "serendipity"),
+                ("Sentence", "It was pure serendipity."),
+                ("Sentence Translation", "Es war reiner Zufall."),
+                ("Pinyin", ""),
+                ("HSK Level", ""),
+                ("Notes", "Rare word. More common synonym: luck"),
+            ])
+        );
+        let attachment = reverse.audio.expect("reverse audio");
+        assert_eq!(attachment.fields, ["Audio"]);
+        assert_eq!(attachment.data_b64, STANDARD.encode(REV_AUDIO));
+    }
+
+    #[test]
+    fn both_notes_of_a_chinese_card_fill_pinyin_and_hsk_level() {
+        let card = chinese_card();
+        assert_eq!(
+            note(&card, Direction::Forward, FWD_AUDIO).fields,
+            filled(&[
+                ("Front", "学习"),
+                ("Back", "lernen"),
+                ("Sentence", "我们一起学习中文。"),
+                ("Sentence Translation", "Wir lernen zusammen Chinesisch."),
+                ("Pinyin", "xué xí"),
+                ("HSK Level", "1"),
+                ("Notes", "Auch: studieren"),
+            ])
+        );
+        assert_eq!(
+            note(&card, Direction::Reverse, REV_AUDIO).fields,
+            filled(&[
+                ("Front", "lernen"),
+                ("Back", "学习"),
+                ("Sentence", "我们一起学习中文。"),
+                ("Sentence Translation", "Wir lernen zusammen Chinesisch."),
+                ("Pinyin", "xué xí"),
+                ("HSK Level", "1"),
+                ("Notes", "Auch: studieren"),
+            ])
+        );
+    }
+
+    #[test]
+    fn a_full_card_loses_nothing() {
+        let mapping = FieldMapping::recommended();
+        for card in [english_card(), chinese_card()] {
+            assert_eq!(
+                mapping.lost_values(&card, &fields()),
+                vec![],
+                "{}",
+                card.front
+            );
+        }
+    }
+
+    /// Learn's import reads a note of this type back as the card.
+    #[test]
+    fn a_forward_note_reads_back_as_the_card() {
+        let card = chinese_card();
+        let spec = note(&card, Direction::Forward, FWD_AUDIO);
+        let info = NoteInfo {
+            note_id: 1,
+            model_name: RECOMMENDED_NOTE_TYPE.into(),
+            tags: card.tags.clone(),
+            fields: spec
+                .fields
+                .iter()
+                .enumerate()
+                .map(|(order, (name, value))| {
+                    let field = crate::client::NoteField {
+                        value: value.clone(),
+                        order: order as u32,
+                    };
+                    (name.clone(), field)
+                })
+                .collect(),
+            cards: vec![2],
+            modified: None,
+        };
+        let back = card_from_note(
+            &info,
+            &FieldMapping::recommended(),
+            "zh-CN",
+            "de",
+            card.captured_at,
+        )
+        .expect("front and back are set");
+        assert_eq!(
+            back,
+            Card {
+                audio_front: None,
+                ..card
+            }
+        );
     }
 }

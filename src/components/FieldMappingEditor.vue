@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * Edits one field mapping, bound with `v-model:mapping` (Milestones H and
- * J5): the Anki tab's `anki.field_mapping`.
+ * Edits one saved field mapping, bound with `v-model:mapping` (Milestones H
+ * and J5): a customized `anki.field_mapping` or learned language's mapping,
+ * inside `MappingChoiceEditor`.
  *
  * With Anki online it lists every field of the note type and binds each to a
  * card value or to nothing; offline it can still edit the bindings already
@@ -32,9 +33,11 @@ import {
 import {
   CARD_FIELDS,
   MAPPING_PRESETS,
+  RECOMMENDED_NOTE_TYPE,
   bindingFor,
   effectiveBindings,
   missingFields,
+  sameMapping,
   withAudioField,
   withBinding,
   type MappingPresetId,
@@ -105,18 +108,6 @@ const matchError = ref<string | null>(null)
 /** Bumped by every match and every change of note type or pair, so a late answer is dropped. */
 let matchRequest = 0
 
-function sameMapping(a: FieldMapping, b: FieldMapping): boolean {
-  return (
-    a.audio_field === b.audio_field &&
-    a.fields.length === b.fields.length &&
-    a.fields.every(
-      (binding, index) =>
-        binding.anki_field === b.fields[index].anki_field &&
-        binding.source === b.fields[index].source,
-    )
-  )
-}
-
 /** The last match's leftovers, while the mapping is still what it produced. */
 const matchResult = computed(() =>
   matched.value && sameMapping(matched.value.mapping, mapping.value) ? matched.value : null,
@@ -184,6 +175,14 @@ function sourceLabel(source: CardField): string {
           {{ matching ? t('mapping.matching') : t('mapping.matchByName') }}
         </button>
         <span class="input-hint">{{ t('mapping.presets') }}</span>
+        <button
+          type="button"
+          class="btn btn-secondary btn-mini"
+          data-test="preset-recommended"
+          @click="applyPreset('recommended')"
+        >
+          {{ t('mapping.presetRecommended', { name: RECOMMENDED_NOTE_TYPE }) }}
+        </button>
         <button
           type="button"
           class="btn btn-secondary btn-mini"

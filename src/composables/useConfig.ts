@@ -23,7 +23,6 @@ import {
   type HotkeyProfile,
   type LearnedLanguage,
 } from '../api'
-import { appleStyleMapping } from '../domain/fieldMapping'
 import { normalizeLang } from '../domain/language'
 import { IS_MAC } from '../domain/shortcuts'
 import { validateConfig, type ConfigIssue } from '../domain/validation'
@@ -46,7 +45,7 @@ export function defaultConfig(): AppConfig {
       deck_name: 'English::AutomatedVocabulary',
       model_name: 'AppleStyleFinalV3',
       create_reverse: true,
-      field_mapping: appleStyleMapping(),
+      field_mapping: null,
     },
     consent: { anki_install_granted_at: null, ankiconnect_provision_granted_at: null },
     learning: { languages: [] },
@@ -94,7 +93,8 @@ function mappingPayload(mapping: FieldMapping): FieldMapping {
 /**
  * A complete config from whatever `get_current_settings` returned: missing
  * sections take their defaults and language codes are made canonical, so the
- * form never has to deal with partial or legacy data.
+ * form never has to deal with partial or legacy data. A missing mapping is
+ * `null`, matched by field name.
  */
 export function normalizeConfig(raw: unknown): AppConfig {
   const base = defaultConfig()
@@ -135,7 +135,7 @@ export function normalizeConfig(raw: unknown): AppConfig {
       model_name: text(anki.model_name, base.anki.model_name),
       create_reverse:
         typeof anki.create_reverse === 'boolean' ? anki.create_reverse : base.anki.create_reverse,
-      field_mapping: mapping ? normalizeMapping(mapping) : base.anki.field_mapping,
+      field_mapping: mapping ? normalizeMapping(mapping) : null,
     },
     consent: {
       anki_install_granted_at: optionalText(consent.anki_install_granted_at),
@@ -162,7 +162,9 @@ export function normalizeConfig(raw: unknown): AppConfig {
 
 /**
  * Exactly what `apply_settings` receives: the § 8.1 keys and nothing else,
- * text trimmed, blank optional values as `null`, language codes canonical.
+ * text trimmed, blank optional values as `null` and language codes
+ * canonical. A customized mapping is sent as it is, even one equal to the
+ * match by name: customizing is a choice, kept when the note type changes.
  */
 export function toSettingsPayload(config: AppConfig): AppConfig {
   return {
@@ -188,7 +190,7 @@ export function toSettingsPayload(config: AppConfig): AppConfig {
       deck_name: config.anki.deck_name.trim(),
       model_name: config.anki.model_name.trim(),
       create_reverse: config.anki.create_reverse,
-      field_mapping: mappingPayload(config.anki.field_mapping),
+      field_mapping: config.anki.field_mapping ? mappingPayload(config.anki.field_mapping) : null,
     },
     consent: {
       anki_install_granted_at: config.consent.anki_install_granted_at,

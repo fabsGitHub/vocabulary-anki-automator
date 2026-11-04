@@ -1,5 +1,6 @@
 //! `anki_status`, `anki_model_field_names`, `suggest_field_mapping`,
-//! `check_pending_fields`, `launch_anki_desktop`.
+//! `check_pending_fields`, `create_recommended_note_type`,
+//! `launch_anki_desktop`.
 //!
 //! The frontend used to call AnkiConnect itself, which is why AnkiConnect had
 //! to accept every web origin. These commands ask through `anki-bridge`
@@ -8,7 +9,7 @@
 
 use std::{path::Path, time::Duration};
 
-use anki_bridge::{AnkiClient, AutoMatch, FieldMapping};
+use anki_bridge::{recommended_note_type, AnkiClient, AnkiError, AutoMatch, FieldMapping};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use vocab_core::Card;
@@ -133,6 +134,78 @@ pub async fn check_pending_fields(
     let card = card.unwrap_or(pending.card);
     let client = AnkiClient::new(config.anki.connect_url).with_timeout(STATUS_TIMEOUT);
     Ok(Some(check_fields(&client, &filing, &card).await))
+}
+
+/// What `create_recommended_note_type` set up.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecommendedNoteType {
+    /// The note type (`anki_bridge::RECOMMENDED_NOTE_TYPE`).
+    pub model_name: String,
+    /// The mapping that fills every one of its fields
+    /// (`FieldMapping::recommended`).
+    pub mapping: FieldMapping,
+    /// `false` when Anki already had a note type of that name with every
+    /// field, which is then used as it is.
+    pub created: bool,
+    /// Whether matching the note type's fields by name gives exactly
+    /// `mapping` for every language pair (`FieldMapping::is_matched_by_name`):
+    /// then the settings leave the mapping `null` instead of saving it.
+    pub matches_by_name: bool,
+}
+
+/// Creates the recommended note type in the user's Anki collection
+/// (`anki_bridge::recommended_note_type`), or reuses a note type of that name
+/// that has all its fields. One of another shape is refused with a message,
+/// and no existing note type is ever changed: AnkiConnect's `createModel`
+/// only adds. It writes to the collection, so only the settings' button calls
+/// it, never startup, and the tests only against a mock AnkiConnect. The
+/// config is not touched; the settings form selects the note type and the
+/// user saves.
+#[tauri::command]
+pub async fn create_recommended_note_type(
+    state: State<'_, AppState>,
+) -> Result<RecommendedNoteType, String> {
+    let client = AnkiClient::new(state.config().anki.connect_url);
+    let anki = |err: AnkiError| err.to_string();
+    let spec = recommended_note_type();
+    let mapping = FieldMapping::recommended();
+    let exists = client
+        .model_names()
+        .await
+        .map_err(anki)?
+        .contains(&spec.name);
+    let fields = if exists {
+        let fields = client.model_field_names(&spec.name).await.map_err(anki)?;
+        let missing = mapping.missing_fields(&fields);
+        if !missing.is_empty() {
+            return Err(format!(
+                "Anki already has a note type named “{}”, but some of its fields are missing: \
+                 {}. It was left as it is: rename it in Anki (Tools → Manage Note Types) and \
+                 try again, or choose it and customize the field mapping.",
+                spec.name,
+                missing
+                    .iter()
+                    .map(|field| format!("“{field}”"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        log::info!("Anki already has the note type {:?}; using it.", spec.name);
+        fields
+    } else {
+        client
+            .create_model(&spec.name, &spec.fields, &spec.css, &spec.templates)
+            .await
+            .map_err(anki)?;
+        log::info!("Created the note type {:?} in Anki.", spec.name);
+        spec.fields
+    };
+    Ok(RecommendedNoteType {
+        matches_by_name: mapping.is_matched_by_name(&fields),
+        model_name: spec.name,
+        mapping,
+        created: !exists,
+    })
 }
 
 /// Starts the Anki desktop app.

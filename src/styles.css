@@ -871,6 +871,19 @@ textarea[readonly] {
   justify-content: flex-end;
 }
 
+.note-type-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.note-type-offer .inline-result {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.mapping-choice,
 .mapping-editor {
   display: flex;
   flex-direction: column;

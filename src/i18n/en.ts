@@ -97,15 +97,6 @@ export const en = {
     deckPlaceholder: 'e.g. {deck}',
     model: 'Note type',
     mapping: 'Field mapping',
-    mappingAuto: 'Matched by field name',
-    mappingCustom: 'Customized',
-    mappingAutoHint:
-      'Each field of “{model}” is filled according to its name: “Audio” gets the pronunciation, “English Sentence” the English example, and so on. Nothing is saved until you customize it.',
-    mappingOffline: 'Connect to Anki to see how the fields of “{model}” are matched.',
-    customize: 'Customize',
-    rematch: 'Stop customizing',
-    audioTo: 'Pronunciation → {field}',
-    noAudio: 'No field for the pronunciation',
   },
   profiles: {
     title: 'Hotkey profiles',
@@ -202,6 +193,15 @@ export const en = {
   },
   mapping: {
     title: 'Field mapping',
+    auto: 'Matched by field name',
+    custom: 'Customized',
+    autoHint:
+      'Each field of “{model}” is filled according to its name: “Audio” gets the pronunciation, “English Sentence” the English example, and so on. Nothing is saved until you customize it.',
+    autoOffline: 'Connect to Anki to see how the fields of “{model}” are matched.',
+    customize: 'Customize',
+    rematch: 'Stop customizing',
+    audioTo: 'Pronunciation → {field}',
+    noAudioField: 'No field for the pronunciation',
     intro: 'Choose what goes into each field of the note type “{model}”.',
     presets: 'Presets:',
     matchByName: 'Match by field name',
@@ -210,6 +210,7 @@ export const en = {
     matchFailed: 'The fields could not be matched: {error}',
     matchedGuessed: 'Filled by position because no name fit:',
     matchedUnmatched: 'Left empty:',
+    presetRecommended: '{name} (recommended)',
     presetApple: 'Apple style',
     presetChinese: 'Chinese (Hanzi/Pinyin/Meaning/Audio)',
     ankiField: 'Anki field',
@@ -227,7 +228,7 @@ export const en = {
     missing:
       'The note type “{model}” does not have these fields, so Anki silently drops their values:',
     chineseWarning:
-      'Chinese captures need a note type with Hanzi, Pinyin, Meaning and Audio fields, and a mapping that fills Pinyin. Choose such a note type and apply the Chinese preset, or bind a field to Pinyin.',
+      'Chinese captures need a note type with a Pinyin field. Click “{button}” above while Anki runs, or choose a note type with a Pinyin field and bind that field to Pinyin.',
     sources: {
       front: 'Word (front)',
       back: 'Translation (back)',
@@ -240,6 +241,21 @@ export const en = {
       example_in_source_lang: 'Example in the language learned',
       example_in_target_lang: 'Example in your language',
     },
+  },
+  noteType: {
+    create: 'Create the recommended note type',
+    use: 'Use the recommended note type',
+    creating: 'Creating the note type…',
+    createHint:
+      'Adds the note type “{name}” to Anki, with a field for everything a card holds: word, translation, example and its translation, pronunciation, pinyin, HSK level and notes.',
+    useHint:
+      'Anki already has a note type named “{name}”. It is selected here if it has every recommended field, and it is never changed.',
+    created: '“{name}” was added to Anki.',
+    reused: 'Anki already has “{name}”, with every recommended field.',
+    saveToUse: 'It is selected here; save the settings to use it.',
+    alreadySelected: 'It is already selected here.',
+    inUse: 'It is selected here, and the saved settings already use it.',
+    failed: 'The note type could not be set up: {error}',
   },
   history: {
     title: 'Recent captures',
@@ -373,7 +389,7 @@ export const en = {
       'Select a word or phrase in any app and press your hotkey. Check the card in the approval window, then press Enter to add it or Esc to discard it. With languages listed under “My languages”, the hotkey recognizes the language of the text by itself.',
     step4Title: '4. Chinese',
     step4Body:
-      'Text with Chinese characters gets pinyin and, for HSK words, the HSK level. Use a note type with Hanzi, Pinyin, Meaning and Audio fields together with the Chinese mapping preset.',
+      'Text with Chinese characters gets pinyin and, for HSK words, the HSK level. The recommended note type has a field for each (Pinyin and HSK Level): while Anki runs, click “Create the recommended note type” on the “Anki connection” tab or in a “My languages” entry.',
   },
   update: {
     available: 'Version {version} is available – restart to update.',

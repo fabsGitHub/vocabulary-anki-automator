@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import type { CaptureOrigin, PipelineStage, ProviderError } from '../api'
 import { CREDIT_SOURCES } from '../domain/credits'
-import { CARD_FIELDS, chineseMapping } from '../domain/fieldMapping'
+import { CARD_FIELDS, chineseMapping, recommendedMapping } from '../domain/fieldMapping'
 import { de } from './de'
 import { en } from './en'
 import { UI_LANGS, i18n, setLocale, toUiLang } from './index'
@@ -122,11 +122,24 @@ describe('Anki field names', () => {
     ]
     expect(names).toEqual(['Hanzi', 'Pinyin', 'Meaning', 'Audio'])
     for (const locale of UI_LANGS) {
-      for (const key of ['mapping.presetChinese', 'mapping.chineseWarning', 'help.step4Body']) {
-        for (const name of names) {
-          expect(MESSAGES[locale][key], `${locale}:${key}`).toContain(name)
-        }
+      for (const name of names) {
+        expect(MESSAGES[locale]['mapping.presetChinese'], locale).toContain(name)
       }
+    }
+  })
+
+  it('name the fields the Chinese advice points to verbatim, and its button by its label', () => {
+    const fields = recommendedMapping()
+      .fields.filter((binding) => ['pinyin', 'hsk_level'].includes(binding.source))
+      .map((binding) => binding.anki_field)
+    expect(fields).toEqual(['Pinyin', 'HSK Level'])
+    for (const locale of UI_LANGS) {
+      const messages = MESSAGES[locale]
+      // Either note type the warning offers needs a field spelled like this.
+      expect(messages['mapping.chineseWarning'], locale).toContain('Pinyin')
+      expect(messages['mapping.chineseWarning'], locale).toContain('{button}')
+      for (const field of fields) expect(messages['help.step4Body'], locale).toContain(field)
+      expect(messages['help.step4Body'], locale).toContain(messages['noteType.create'])
     }
   })
 })

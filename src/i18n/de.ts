@@ -93,16 +93,6 @@ export const de: MessageSchema = {
     deckPlaceholder: 'z. B. {deck}',
     model: 'Notiztyp',
     mapping: 'Feldzuordnung',
-    mappingAuto: 'Nach Feldnamen zugeordnet',
-    mappingCustom: 'Angepasst',
-    mappingAutoHint:
-      'Jedes Feld von „{model}“ wird nach seinem Namen gefüllt: „Audio“ bekommt die Aussprache, „English Sentence“ das englische Beispiel und so weiter. Gespeichert wird nichts, bis Sie die Zuordnung anpassen.',
-    mappingOffline:
-      'Verbinden Sie Anki, um zu sehen, wie die Felder von „{model}“ zugeordnet werden.',
-    customize: 'Anpassen',
-    rematch: 'Nicht mehr anpassen',
-    audioTo: 'Aussprache → {field}',
-    noAudio: 'Kein Feld für die Aussprache',
   },
   profiles: {
     title: 'Hotkey-Profile',
@@ -202,6 +192,15 @@ export const de: MessageSchema = {
   },
   mapping: {
     title: 'Feldzuordnung',
+    auto: 'Nach Feldnamen zugeordnet',
+    custom: 'Angepasst',
+    autoHint:
+      'Jedes Feld von „{model}“ wird nach seinem Namen gefüllt: „Audio“ bekommt die Aussprache, „English Sentence“ das englische Beispiel und so weiter. Gespeichert wird nichts, bis Sie die Zuordnung anpassen.',
+    autoOffline: 'Verbinden Sie Anki, um zu sehen, wie die Felder von „{model}“ zugeordnet werden.',
+    customize: 'Anpassen',
+    rematch: 'Nicht mehr anpassen',
+    audioTo: 'Aussprache → {field}',
+    noAudioField: 'Kein Feld für die Aussprache',
     intro: 'Legen Sie fest, was in jedes Feld des Notiztyps „{model}“ kommt.',
     presets: 'Vorlagen:',
     matchByName: 'Nach Feldnamen zuordnen',
@@ -210,6 +209,7 @@ export const de: MessageSchema = {
     matchFailed: 'Die Felder konnten nicht zugeordnet werden: {error}',
     matchedGuessed: 'Nach Position gefüllt, weil kein Name passte:',
     matchedUnmatched: 'Bleiben leer:',
+    presetRecommended: '{name} (empfohlen)',
     presetApple: 'Apple-Stil',
     presetChinese: 'Chinesisch (Hanzi/Pinyin/Meaning/Audio)',
     ankiField: 'Anki-Feld',
@@ -227,7 +227,7 @@ export const de: MessageSchema = {
     missing:
       'Der Notiztyp „{model}“ hat diese Felder nicht, deshalb verwirft Anki ihre Werte stillschweigend:',
     chineseWarning:
-      'Chinesische Erfassungen brauchen einen Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio sowie eine Zuordnung, die Pinyin füllt. Wählen Sie einen solchen Notiztyp und wenden Sie die chinesische Vorlage an, oder ordnen Sie einem Feld Pinyin zu.',
+      'Chinesische Erfassungen brauchen einen Notiztyp mit einem Pinyin-Feld. Klicken Sie oben auf „{button}“, während Anki läuft, oder wählen Sie einen Notiztyp mit Pinyin-Feld und ordnen Sie diesem Feld Pinyin zu.',
     sources: {
       front: 'Wort (Vorderseite)',
       back: 'Übersetzung (Rückseite)',
@@ -240,6 +240,23 @@ export const de: MessageSchema = {
       example_in_source_lang: 'Beispiel in der Lernsprache',
       example_in_target_lang: 'Beispiel in Ihrer Sprache',
     },
+  },
+  noteType: {
+    create: 'Empfohlenen Notiztyp anlegen',
+    use: 'Empfohlenen Notiztyp verwenden',
+    creating: 'Notiztyp wird angelegt…',
+    createHint:
+      'Legt in Anki den Notiztyp „{name}“ an, mit einem Feld für alles, was eine Karte enthält: Wort, Übersetzung, Beispiel und seine Übersetzung, Aussprache, Pinyin, HSK-Stufe und Notizen.',
+    useHint:
+      'Anki hat schon einen Notiztyp namens „{name}“. Er wird hier ausgewählt, wenn er alle empfohlenen Felder hat, und nie verändert.',
+    created: '„{name}“ wurde in Anki angelegt.',
+    reused: 'Anki hat „{name}“ schon, mit allen empfohlenen Feldern.',
+    saveToUse:
+      'Der Notiztyp ist hier ausgewählt; speichern Sie die Einstellungen, um ihn zu verwenden.',
+    alreadySelected: 'Der Notiztyp ist hier schon ausgewählt.',
+    inUse:
+      'Der Notiztyp ist hier ausgewählt, und die gespeicherten Einstellungen verwenden ihn schon.',
+    failed: 'Der Notiztyp konnte nicht eingerichtet werden: {error}',
   },
   history: {
     title: 'Letzte Erfassungen',
@@ -375,7 +392,7 @@ export const de: MessageSchema = {
       'Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie Ihren Hotkey. Prüfen Sie die Karte im Bestätigungsfenster und drücken Sie Enter zum Hinzufügen oder Esc zum Verwerfen. Sind unter „Meine Sprachen“ Sprachen eingetragen, erkennt der Hotkey die Sprache des Textes selbst.',
     step4Title: '4. Chinesisch',
     step4Body:
-      'Text mit chinesischen Schriftzeichen bekommt Pinyin und bei HSK-Wörtern die HSK-Stufe. Verwenden Sie einen Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio zusammen mit der chinesischen Vorlage.',
+      'Text mit chinesischen Schriftzeichen bekommt Pinyin und bei HSK-Wörtern die HSK-Stufe. Der empfohlene Notiztyp hat für beides ein Feld (Pinyin und HSK Level): Klicken Sie, während Anki läuft, auf dem Tab „Anki-Verbindung“ oder in einem Eintrag unter „Meine Sprachen“ auf „Empfohlenen Notiztyp anlegen“.',
   },
   update: {
     available: 'Version {version} ist verfügbar – zum Aktualisieren neu starten.',

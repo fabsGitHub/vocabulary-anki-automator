@@ -88,6 +88,12 @@
     },
     {
       "args": [],
+      "command": "create_recommended_note_type",
+      "function": "createRecommendedNoteType",
+      "returns": "RecommendedNoteType"
+    },
+    {
+      "args": [],
       "command": "launch_anki_desktop",
       "function": "launchAnkiDesktop",
       "returns": "string"
@@ -187,27 +193,7 @@
         "connect_url": "http://127.0.0.1:8765",
         "create_reverse": true,
         "deck_name": "English::AutomatedVocabulary",
-        "field_mapping": {
-          "audio_field": "Front Audio",
-          "fields": [
-            {
-              "anki_field": "Front",
-              "source": "front"
-            },
-            {
-              "anki_field": "Back",
-              "source": "back"
-            },
-            {
-              "anki_field": "Context Sentence",
-              "source": "example"
-            },
-            {
-              "anki_field": "Notes",
-              "source": "notes"
-            }
-          ]
-        },
+        "field_mapping": null,
         "model_name": "AppleStyleFinalV3"
       },
       {
@@ -262,27 +248,7 @@
           "connect_url": "http://127.0.0.1:8765",
           "create_reverse": true,
           "deck_name": "English::AutomatedVocabulary",
-          "field_mapping": {
-            "audio_field": "Front Audio",
-            "fields": [
-              {
-                "anki_field": "Front",
-                "source": "front"
-              },
-              {
-                "anki_field": "Back",
-                "source": "back"
-              },
-              {
-                "anki_field": "Context Sentence",
-                "source": "example"
-              },
-              {
-                "anki_field": "Notes",
-                "source": "notes"
-              }
-            ]
-          },
+          "field_mapping": null,
           "model_name": "AppleStyleFinalV3"
         },
         "consent": {
@@ -1156,6 +1122,84 @@
         "curriculum_order": 4,
         "hanzi": "学习",
         "kind": "new"
+      }
+    ],
+    "RecommendedNoteType": [
+      {
+        "created": true,
+        "mapping": {
+          "audio_field": "Audio",
+          "fields": [
+            {
+              "anki_field": "Front",
+              "source": "front"
+            },
+            {
+              "anki_field": "Back",
+              "source": "back"
+            },
+            {
+              "anki_field": "Sentence",
+              "source": "example_in_source_lang"
+            },
+            {
+              "anki_field": "Sentence Translation",
+              "source": "example_in_target_lang"
+            },
+            {
+              "anki_field": "Pinyin",
+              "source": "pinyin"
+            },
+            {
+              "anki_field": "HSK Level",
+              "source": "hsk_level"
+            },
+            {
+              "anki_field": "Notes",
+              "source": "notes"
+            }
+          ]
+        },
+        "matches_by_name": true,
+        "model_name": "Vocabulary Automator"
+      },
+      {
+        "created": false,
+        "mapping": {
+          "audio_field": "Audio",
+          "fields": [
+            {
+              "anki_field": "Front",
+              "source": "front"
+            },
+            {
+              "anki_field": "Back",
+              "source": "back"
+            },
+            {
+              "anki_field": "Sentence",
+              "source": "example_in_source_lang"
+            },
+            {
+              "anki_field": "Sentence Translation",
+              "source": "example_in_target_lang"
+            },
+            {
+              "anki_field": "Pinyin",
+              "source": "pinyin"
+            },
+            {
+              "anki_field": "HSK Level",
+              "source": "hsk_level"
+            },
+            {
+              "anki_field": "Notes",
+              "source": "notes"
+            }
+          ]
+        },
+        "matches_by_name": false,
+        "model_name": "Vocabulary Automator"
       }
     ],
     "Script": [
