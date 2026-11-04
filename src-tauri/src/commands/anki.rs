@@ -1,4 +1,5 @@
-//! `anki_status`, `anki_model_field_names`, `launch_anki_desktop`.
+//! `anki_status`, `anki_model_field_names`, `suggest_field_mapping`,
+//! `launch_anki_desktop`.
 //!
 //! The frontend used to call AnkiConnect itself, which is why AnkiConnect had
 //! to accept every web origin. These commands ask through `anki-bridge`
@@ -7,7 +8,7 @@
 
 use std::{path::Path, time::Duration};
 
-use anki_bridge::AnkiClient;
+use anki_bridge::{AnkiClient, AutoMatch, FieldMapping};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -81,6 +82,27 @@ pub async fn anki_model_field_names(
         .model_field_names(&model)
         .await
         .map_err(|err| err.to_string())
+}
+
+/// A mapping for note type `model` matched from its field names, for cards
+/// `source_lang` -> `target_lang` (`FieldMapping::auto_match`): the settings
+/// form's "Match by field name". Nothing is saved; the form applies it.
+#[tauri::command]
+pub async fn suggest_field_mapping(
+    state: State<'_, AppState>,
+    model: String,
+    source_lang: String,
+    target_lang: String,
+) -> Result<AutoMatch, String> {
+    let fields = AnkiClient::new(state.config().anki.connect_url)
+        .model_field_names(&model)
+        .await
+        .map_err(|err| err.to_string())?;
+    Ok(FieldMapping::auto_match(
+        &fields,
+        &source_lang,
+        &target_lang,
+    ))
 }
 
 /// Starts the Anki desktop app.

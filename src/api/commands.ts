@@ -12,6 +12,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type {
   AnkiStatus,
   AppConfig,
+  AutoMatch,
   Card,
   ConsentAction,
   ConsentState,
@@ -56,6 +57,15 @@ export function ankiStatus(): Promise<AnkiStatus> {
 
 export function ankiModelFieldNames(model: string): Promise<string[]> {
   return invoke<string[]>('anki_model_field_names', { model })
+}
+
+/** Binds every field of note type `model` by its name, for cards `sourceLang` -> `targetLang`. */
+export function suggestFieldMapping(
+  model: string,
+  sourceLang: string,
+  targetLang: string,
+): Promise<AutoMatch> {
+  return invoke<AutoMatch>('suggest_field_mapping', { model, sourceLang, targetLang })
 }
 
 export function launchAnkiDesktop(): Promise<string> {

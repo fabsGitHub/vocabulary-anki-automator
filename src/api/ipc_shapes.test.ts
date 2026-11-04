@@ -145,6 +145,11 @@ const cardField = literal(
 )
 const fieldBinding = object({ anki_field: string, source: cardField })
 const fieldMapping = object({ fields: array(fieldBinding), audio_field: nullable(string) })
+const autoMatch = object({
+  mapping: fieldMapping,
+  guessed: array(string),
+  unmatched: array(string),
+})
 const hotkeyProfile = object({
   id: string,
   label: string,
@@ -197,6 +202,7 @@ const SCHEMAS = {
   CardField: cardField,
   FieldBinding: fieldBinding,
   FieldMapping: fieldMapping,
+  AutoMatch: autoMatch,
   HotkeyProfile: hotkeyProfile,
   TranslationConfig: translationConfig,
   AnkiConfig: ankiConfig,
@@ -225,6 +231,7 @@ interface Types {
   CardField: T.CardField
   FieldBinding: T.FieldBinding
   FieldMapping: T.FieldMapping
+  AutoMatch: T.AutoMatch
   HotkeyProfile: T.HotkeyProfile
   TranslationConfig: T.TranslationConfig
   AnkiConfig: T.AnkiConfig
@@ -261,6 +268,7 @@ interface Results {
   boolean: boolean
   'StoredCapture[]': T.StoredCapture[]
   SyncReport: T.SyncReport
+  AutoMatch: T.AutoMatch
   never: never
 }
 
@@ -273,6 +281,7 @@ const RETURNS = {
   captureText: 'null',
   ankiStatus: 'AnkiStatus',
   ankiModelFieldNames: 'string[]',
+  suggestFieldMapping: 'AutoMatch',
   launchAnkiDesktop: 'string',
   getSetupStatus: 'SetupStatus',
   grantConsent: 'ConsentState',
@@ -307,6 +316,7 @@ const CALLS: Record<Wrapper, () => Promise<unknown>> = {
   captureText: () => commands.captureText('house', null),
   ankiStatus: () => commands.ankiStatus(),
   ankiModelFieldNames: () => commands.ankiModelFieldNames('Basic'),
+  suggestFieldMapping: () => commands.suggestFieldMapping('Basic', 'en', 'de'),
   launchAnkiDesktop: () => commands.launchAnkiDesktop(),
   getSetupStatus: () => commands.getSetupStatus(),
   grantConsent: () => commands.grantConsent('anki_install'),

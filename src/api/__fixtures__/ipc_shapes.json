@@ -59,6 +59,16 @@
       "returns": "string[]"
     },
     {
+      "args": [
+        "model",
+        "sourceLang",
+        "targetLang"
+      ],
+      "command": "suggest_field_mapping",
+      "function": "suggestFieldMapping",
+      "returns": "AutoMatch"
+    },
+    {
       "args": [],
       "command": "launch_anki_desktop",
       "function": "launchAnkiDesktop",
@@ -327,6 +337,55 @@
           "target_lang": "fr"
         },
         "ui_lang": "de"
+      }
+    ],
+    "AutoMatch": [
+      {
+        "guessed": [],
+        "mapping": {
+          "audio_field": "Audio",
+          "fields": [
+            {
+              "anki_field": "Front",
+              "source": "front"
+            },
+            {
+              "anki_field": "Back",
+              "source": "back"
+            },
+            {
+              "anki_field": "English Sentence",
+              "source": "example_in_source_lang"
+            },
+            {
+              "anki_field": "German Sentence",
+              "source": "example_in_target_lang"
+            }
+          ]
+        },
+        "unmatched": []
+      },
+      {
+        "guessed": [
+          "Q",
+          "A"
+        ],
+        "mapping": {
+          "audio_field": null,
+          "fields": [
+            {
+              "anki_field": "Q",
+              "source": "front"
+            },
+            {
+              "anki_field": "A",
+              "source": "back"
+            }
+          ]
+        },
+        "unmatched": [
+          "Add Reverse"
+        ]
       }
     ],
     "CaptureErrorPayload": [

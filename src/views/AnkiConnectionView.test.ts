@@ -2,7 +2,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { effectScope } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AnkiStatus, AppConfig, SetupStatus } from '../api'
+import type { AnkiStatus, AppConfig, AutoMatch, SetupStatus } from '../api'
 import {
   ANKI_CONNECTION_KEY,
   useAnkiConnection,
@@ -14,6 +14,7 @@ import {
   useConfig,
   type ConfigStore,
 } from '../composables/useConfig'
+import { chineseMapping } from '../domain/fieldMapping'
 import { i18n, setLocale } from '../i18n'
 import { callsTo, commandNames, invokeCalls, onCommand, resetTauri } from '../test/fakeTauri'
 import AnkiConnectionView from './AnkiConnectionView.vue'
@@ -240,13 +241,108 @@ describe('online', () => {
 })
 
 describe('the settings this tab owns', () => {
-  it('flags a missing deck name', async () => {
+  beforeEach(() => {
     onCommand('anki_status', OFFLINE)
     onCommand('get_setup_status', setup())
+  })
+
+  it('flags a missing deck name', async () => {
     await mountTab()
     const edit = (config: AppConfig) => (config.anki.deck_name = ' ')
     edit(store.config.value)
     await flushPromises()
     expect(wrapper?.text()).toContain('Required.')
+  })
+
+  it('edits anki.field_mapping through the mapping editor', async () => {
+    await mountTab()
+    await wrapper?.find('tr[data-field="Notes"] select').setValue('hsk_level')
+    expect(store.config.value.anki.field_mapping.fields).toContainEqual({
+      anki_field: 'Notes',
+      source: 'hsk_level',
+    })
+    await wrapper?.find('[data-test="preset-chinese"]').trigger('click')
+    expect(store.config.value.anki.field_mapping).toEqual(chineseMapping())
+    expect(store.dirty.value).toBe(true)
+  })
+
+  it('toggles the reverse card', async () => {
+    await mountTab()
+    expect(store.config.value.anki.create_reverse).toBe(true)
+    await wrapper?.find('[data-test="create-reverse"]').setValue(false)
+    expect(store.config.value.anki.create_reverse).toBe(false)
+  })
+
+  it('J5: asks for a Chinese note type when Chinese is captured without a pinyin field', async () => {
+    await mountTab()
+    store.config.value.translation.source_lang = 'zh-CN'
+    await flushPromises()
+    const warning = wrapper?.find('[data-test="chinese-warning"]')
+    expect(warning?.text()).toContain('Hanzi, Pinyin, Meaning and Audio')
+
+    await wrapper?.find('[data-test="preset-chinese"]').trigger('click')
+    expect(wrapper?.find('[data-test="chinese-warning"]').exists()).toBe(false)
+  })
+
+  it('J5: also warns when only a hotkey profile captures Chinese', async () => {
+    await mountTab()
+    expect(wrapper?.find('[data-test="chinese-warning"]').exists()).toBe(false)
+    store.config.value.hotkey_profiles.push({
+      id: 'zh-de',
+      label: 'Chinese',
+      shortcut: 'CommandOrControl+Shift+H',
+      source_lang: 'zh-CN',
+      target_lang: 'de',
+      deck_name: null,
+    })
+    await flushPromises()
+    expect(wrapper?.find('[data-test="chinese-warning"]').exists()).toBe(true)
+  })
+})
+
+describe('match by field name', () => {
+  const APPLE_V3_FIELDS = ['Front', 'Back', 'English Sentence', 'German Sentence', 'Audio']
+  const APPLE_V3_MATCH: AutoMatch = {
+    mapping: {
+      fields: [
+        { anki_field: 'Front', source: 'front' },
+        { anki_field: 'Back', source: 'back' },
+        { anki_field: 'English Sentence', source: 'example_in_source_lang' },
+        { anki_field: 'German Sentence', source: 'example_in_target_lang' },
+      ],
+      audio_field: 'Audio',
+    },
+    guessed: [],
+    unmatched: [],
+  }
+
+  it("fixes the default mapping for the user's AppleStyleFinalV3 note type", async () => {
+    onCommand('anki_status', ONLINE)
+    onCommand('anki_model_field_names', APPLE_V3_FIELDS)
+    onCommand('suggest_field_mapping', APPLE_V3_MATCH)
+    await mountTab()
+    expect(
+      wrapper?.findAll('[data-test="missing-fields"] code').map((code) => code.text()),
+    ).toEqual(['Context Sentence', 'Notes', 'Front Audio'])
+    expect(store.dirty.value).toBe(false)
+
+    await wrapper?.find('[data-test="match-by-name"]').trigger('click')
+    await flushPromises()
+
+    expect(callsTo('suggest_field_mapping').map((call) => call.args)).toEqual([
+      { model: 'AppleStyleFinalV3', sourceLang: 'en', targetLang: 'de' },
+    ])
+    expect(store.config.value.anki.field_mapping).toEqual(APPLE_V3_MATCH.mapping)
+    expect(store.dirty.value).toBe(true)
+    expect(wrapper?.find('[data-test="missing-fields"]').exists()).toBe(false)
+  })
+
+  it('is disabled while Anki is offline', async () => {
+    onCommand('anki_status', OFFLINE)
+    onCommand('get_setup_status', setup())
+    await mountTab()
+    const button = wrapper?.find('[data-test="match-by-name"]')
+    expect(button?.attributes('disabled')).toBeDefined()
+    expect(button?.attributes('title')).toBe('Connect to Anki to match the fields by name.')
   })
 })

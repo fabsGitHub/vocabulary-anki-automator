@@ -657,27 +657,28 @@ language pair in capture order.
 
 ### 8.2 Commands (`invoke` names; JS passes args in camelCase)
 
-| command                       | args                                                | returns                                                                                                 |
-| ----------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `get_current_settings`        | —                                                   | `AppConfig`                                                                                             |
-| `apply_settings`              | `newCfg: AppConfig`                                 | `null` (re-registers shortcuts; validation errors as `string`)                                          |
-| `get_pending_payload`         | —                                                   | `PendingCapture \| null`                                                                                |
-| `discard_pending_payload`     | —                                                   | `null` (clears state, hides `preview`)                                                                  |
-| `execute_card_generation`     | `card: Card`                                        | `SubmitResult`                                                                                          |
-| `capture_text`                | `text: string, profileId: string \| null`           | `null` (runs the pipeline as if the hotkey had copied `text`; the internal capture event for tests/E2E) |
-| `anki_status`                 | —                                                   | `AnkiStatus`                                                                                            |
-| `anki_model_field_names`      | `model: string`                                     | `string[]`                                                                                              |
-| `launch_anki_desktop`         | —                                                   | `string`                                                                                                |
-| `get_setup_status`            | —                                                   | `SetupStatus`                                                                                           |
-| `grant_consent`               | `action: "anki_install" \| "ankiconnect_provision"` | `ConsentState`                                                                                          |
-| `download_and_install_anki`   | —                                                   | `string` (error unless consent granted)                                                                 |
-| `auto_provision_ankiconnect`  | —                                                   | `string` (error unless consent granted)                                                                 |
-| `check_ankiconnect_installed` | —                                                   | `boolean`                                                                                               |
-| `list_recent_captures`        | `limit: number`                                     | `StoredCapture[]`                                                                                       |
-| `delete_capture`              | `id: number`                                        | `boolean`                                                                                               |
-| `sync_pending_captures`       | —                                                   | `SyncReport`                                                                                            |
-| `capture_in_progress`         | —                                                   | `boolean`                                                                                               |
-| `restart_app`                 | —                                                   | never returns                                                                                           |
+| command                       | args                                                    | returns                                                                                                 |
+| ----------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `get_current_settings`        | —                                                       | `AppConfig`                                                                                             |
+| `apply_settings`              | `newCfg: AppConfig`                                     | `null` (re-registers shortcuts; validation errors as `string`)                                          |
+| `get_pending_payload`         | —                                                       | `PendingCapture \| null`                                                                                |
+| `discard_pending_payload`     | —                                                       | `null` (clears state, hides `preview`)                                                                  |
+| `execute_card_generation`     | `card: Card`                                            | `SubmitResult`                                                                                          |
+| `capture_text`                | `text: string, profileId: string \| null`               | `null` (runs the pipeline as if the hotkey had copied `text`; the internal capture event for tests/E2E) |
+| `anki_status`                 | —                                                       | `AnkiStatus`                                                                                            |
+| `anki_model_field_names`      | `model: string`                                         | `string[]`                                                                                              |
+| `suggest_field_mapping`       | `model: string, sourceLang: string, targetLang: string` | `AutoMatch` (`modelFieldNames`, then `FieldMapping::auto_match`; saves nothing)                         |
+| `launch_anki_desktop`         | —                                                       | `string`                                                                                                |
+| `get_setup_status`            | —                                                       | `SetupStatus`                                                                                           |
+| `grant_consent`               | `action: "anki_install" \| "ankiconnect_provision"`     | `ConsentState`                                                                                          |
+| `download_and_install_anki`   | —                                                       | `string` (error unless consent granted)                                                                 |
+| `auto_provision_ankiconnect`  | —                                                       | `string` (error unless consent granted)                                                                 |
+| `check_ankiconnect_installed` | —                                                       | `boolean`                                                                                               |
+| `list_recent_captures`        | `limit: number`                                         | `StoredCapture[]`                                                                                       |
+| `delete_capture`              | `id: number`                                            | `boolean`                                                                                               |
+| `sync_pending_captures`       | —                                                       | `SyncReport`                                                                                            |
+| `capture_in_progress`         | —                                                       | `boolean`                                                                                               |
+| `restart_app`                 | —                                                       | never returns                                                                                           |
 
 Events: `translation-payload` (`PendingCapture`, emitted to the `preview`
 window), `capture-error` (`{ message: string }`, app-wide),
@@ -708,6 +709,10 @@ Further rules both sides rely on:
   (`app_state` `automator.unsynced_deck.<id>`).
 - `launch_anki_desktop` waits for `open -a Anki` on macOS and reports a missing
   Anki instead of "Starting Anki…".
+- `suggest_field_mapping` only reads from Anki and writes no config: the Anki tab's
+  "Match by field name" replaces the form's mapping and audio field with the result
+  (a user edit, so the form becomes dirty) and lists its `guessed` and `unmatched`
+  fields; nothing is saved until the user saves the form.
 
 ### 8.3 Windows and capabilities
 
@@ -1104,6 +1109,11 @@ type CardField =
 interface FieldMapping {
   fields: { anki_field: string; source: CardField }[]
   audio_field: string | null
+}
+interface AutoMatch {
+  mapping: FieldMapping // bindings in note-type order
+  guessed: string[] // fields bound only by position
+  unmatched: string[] // fields left empty (the audio field excluded)
 }
 ```
 

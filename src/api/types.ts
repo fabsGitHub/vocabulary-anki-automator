@@ -158,6 +158,16 @@ export interface FieldMapping {
   audio_field: string | null
 }
 
+/** A mapping matched from a note type's field names (`anki_bridge::AutoMatch`). */
+export interface AutoMatch {
+  /** Bindings in note-type order. */
+  mapping: FieldMapping
+  /** Fields bound only by position, because no name fit. */
+  guessed: string[]
+  /** Fields left empty (the audio field excluded). */
+  unmatched: string[]
+}
+
 /** An extra capture shortcut with its own language pair and optional deck (Milestone H). */
 export interface HotkeyProfile {
   id: string

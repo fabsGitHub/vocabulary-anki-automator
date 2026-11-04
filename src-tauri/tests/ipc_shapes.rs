@@ -32,7 +32,7 @@ mod common;
 
 use std::{collections::BTreeMap, fs, path::PathBuf, sync::Arc};
 
-use anki_bridge::{CardField, FieldBinding, FieldMapping};
+use anki_bridge::{AutoMatch, CardField, FieldBinding, FieldMapping};
 use chrono::{DateTime, Utc};
 use common::Harness;
 use serde::{de::DeserializeOwned, Serialize};
@@ -102,6 +102,12 @@ const COMMANDS: &[(&str, &str, &[&str], &str)] = &[
         &["model"],
         "string[]",
     ),
+    (
+        "suggestFieldMapping",
+        "suggest_field_mapping",
+        &["model", "sourceLang", "targetLang"],
+        "AutoMatch",
+    ),
     ("launchAnkiDesktop", "launch_anki_desktop", &[], "string"),
     ("getSetupStatus", "get_setup_status", &[], "SetupStatus"),
     ("grantConsent", "grant_consent", &["action"], "ConsentState"),
@@ -149,6 +155,7 @@ const NOT_RUN: &str = "restart_app";
 /// arguments.
 const MAY_FAIL: &[&str] = &[
     "anki_model_field_names",
+    "suggest_field_mapping",
     "launch_anki_desktop",
     "download_and_install_anki",
     "auto_provision_ankiconnect",
@@ -325,6 +332,20 @@ fn custom_mapping() -> FieldMapping {
         ],
         audio_field: None,
     }
+}
+
+/// The fields of the user's AppleStyleFinalV3 note type, which the default
+/// mapping does not fit.
+fn apple_style_final_v3() -> Vec<String> {
+    [
+        "Front",
+        "Back",
+        "English Sentence",
+        "German Sentence",
+        "Audio",
+    ]
+    .map(String::from)
+    .to_vec()
 }
 
 fn custom_config() -> AppConfig {
@@ -552,6 +573,21 @@ fn shapes() -> Map<String, Value> {
             ],
         ),
         (
+            "AutoMatch",
+            vec![
+                json_of(FieldMapping::auto_match(
+                    &apple_style_final_v3(),
+                    "en",
+                    "de",
+                )),
+                json_of(FieldMapping::auto_match(
+                    &["Q".into(), "A".into(), "Add Reverse".into()],
+                    "en",
+                    "de",
+                )),
+            ],
+        ),
+        (
             "HotkeyProfile",
             vec![json_of(chinese_profile()), json_of(french_profile())],
         ),
@@ -627,6 +663,7 @@ fn conforms(returns: &str, value: &Value) -> Result<(), String> {
         "ConsentState" => exactly::<ConsentState>(value),
         "StoredCapture" => exactly::<StoredCapture>(value),
         "SyncReport" => exactly::<SyncReport>(value),
+        "AutoMatch" => exactly::<AutoMatch>(value),
         "CaptureErrorPayload" => exactly::<CaptureErrorPayload>(value),
         other => Err(format!("no Rust type is known for {other}")),
     }
@@ -676,6 +713,10 @@ fn run_every_command() -> (Results, Harness) {
     call("discard_pending_payload", json!({}));
     call("anki_status", json!({}));
     call("anki_model_field_names", json!({ "model": "Basic" }));
+    call(
+        "suggest_field_mapping",
+        json!({ "model": "Basic", "sourceLang": "en", "targetLang": "de" }),
+    );
     call("launch_anki_desktop", json!({}));
     call("get_setup_status", json!({}));
     // Before any consent: both install commands refuse at once (the hard

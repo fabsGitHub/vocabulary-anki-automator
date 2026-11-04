@@ -56,6 +56,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::capture::capture_text,
             commands::anki::anki_status,
             commands::anki::anki_model_field_names,
+            commands::anki::suggest_field_mapping,
             commands::anki::launch_anki_desktop,
             commands::setup::get_setup_status,
             commands::setup::grant_consent,

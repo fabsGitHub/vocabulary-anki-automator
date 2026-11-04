@@ -513,3 +513,58 @@ fn model_field_names_come_from_anki_connect() {
     let err = harness.call_err("anki_model_field_names", json!({ "model": "Nope" }));
     assert_eq!(err, "AnkiConnect error: model was not found: Nope");
 }
+
+/// "Match by field name" on the user's note type: the default mapping drops
+/// its example and audio, the matched one fills every field.
+#[test]
+fn suggest_field_mapping_matches_the_note_type_s_field_names() {
+    let server = start();
+    answer_exactly(
+        &server,
+        json!({
+            "action": "modelFieldNames",
+            "version": 6,
+            "params": { "modelName": "AppleStyleFinalV3" }
+        }),
+        ok(json!([
+            "Front",
+            "Back",
+            "English Sentence",
+            "German Sentence",
+            "Audio"
+        ])),
+    );
+    let harness = Harness::with_anki(&server.uri());
+
+    let matched = harness.call(
+        "suggest_field_mapping",
+        json!({ "model": "AppleStyleFinalV3", "sourceLang": "en", "targetLang": "de" }),
+    );
+
+    assert_eq!(
+        matched,
+        json!({
+            "mapping": {
+                "fields": [
+                    { "anki_field": "Front", "source": "front" },
+                    { "anki_field": "Back", "source": "back" },
+                    { "anki_field": "English Sentence", "source": "example_in_source_lang" },
+                    { "anki_field": "German Sentence", "source": "example_in_target_lang" }
+                ],
+                "audio_field": "Audio"
+            },
+            "guessed": [],
+            "unmatched": []
+        })
+    );
+    answer(
+        &server,
+        "modelFieldNames",
+        anki_error("model was not found: Nope"),
+    );
+    let err = harness.call_err(
+        "suggest_field_mapping",
+        json!({ "model": "Nope", "sourceLang": "en", "targetLang": "de" }),
+    );
+    assert_eq!(err, "AnkiConnect error: model was not found: Nope");
+}

@@ -2,7 +2,7 @@
 /**
  * The "Anki connection" tab: what is missing for Anki to receive cards, the
  * consent-gated ways to fix it (Milestone E), and where cards go: deck, note
- * type and field mapping (Milestones H and J5).
+ * type, field mapping and reverse card (Milestones H and J5).
  *
  * Deck and note type stay editable while Anki is offline, as free text; the
  * lists Anki reports replace the text fields once it is online.
@@ -16,6 +16,7 @@ import FieldMappingEditor from '../components/FieldMappingEditor.vue'
 import { useAnkiConnectionContext } from '../composables/useAnkiConnection'
 import { useConfigStore } from '../composables/useConfig'
 import { useIssueText } from '../composables/useIssueText'
+import { needsChineseNoteType } from '../domain/fieldMapping'
 
 const { t } = useI18n()
 const store = useConfigStore()
@@ -40,6 +41,7 @@ const modelOptions = computed(() => {
   const current = config.value.anki.model_name
   return current && !models.value.includes(current) ? [...models.value, current] : models.value
 })
+const chineseWarning = computed(() => needsChineseNoteType(config.value))
 
 const modelFields = ref<string[] | null>(null)
 const fieldsLoading = ref(false)
@@ -251,10 +253,36 @@ watch([online, () => config.value.anki.model_name], () => void loadModelFields()
 
     <section class="pane-layout">
       <FieldMappingEditor
+        v-model:mapping="config.anki.field_mapping"
+        :model-name="config.anki.model_name"
         :model-fields="modelFields"
         :fields-loading="fieldsLoading"
         :fields-error="fieldsError"
-      />
+        :source-lang="config.translation.source_lang"
+        :target-lang="config.translation.target_lang"
+        :issue="issueText('anki.field_mapping')"
+      >
+        <template #notices>
+          <div
+            v-if="chineseWarning"
+            class="notice warning"
+            role="alert"
+            data-test="chinese-warning"
+          >
+            {{ t('mapping.chineseWarning') }}
+          </div>
+        </template>
+        <template #options>
+          <label class="checkbox-row">
+            <input
+              v-model="config.anki.create_reverse"
+              type="checkbox"
+              data-test="create-reverse"
+            />
+            <span>{{ t('mapping.createReverse') }}</span>
+          </label>
+        </template>
+      </FieldMappingEditor>
     </section>
 
     <ConsentDialog
