@@ -8,6 +8,10 @@
 //! and installed copies ask the updater endpoint for their updates. Renaming
 //! any of them would leave an updated app without its settings, history or
 //! updates, so these tests pin them next to the new name.
+//!
+//! The log file in that folder is named after the product, though, so it is
+//! now `Polywort.log`. An install from before keeps its old
+//! `Vocabulary Automator.log` beside it, and that file is no longer rotated.
 
 use std::path::PathBuf;
 

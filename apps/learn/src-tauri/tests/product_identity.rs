@@ -6,6 +6,10 @@
 //! Learn shares the history with Polywort in a `VocabularyAutomator`
 //! folder. Renaming either would leave an updated app without its data, so
 //! these tests pin them next to the new name.
+//!
+//! The log file in the log folder is named after the product, though, so it
+//! is now `Polywort Learn.log`. An install from before keeps its old
+//! `Vocabulary Learn.log` beside it, and that file is no longer rotated.
 
 use std::path::PathBuf;
 

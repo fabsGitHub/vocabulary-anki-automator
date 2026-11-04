@@ -27,9 +27,14 @@ scripts/                   bootstrap, run-all-checks, git hooks
 **Product names.** Users see the Automator as **Polywort** and Learn as **Polywort
 Learn** (`productName` and the window titles in each `tauri.conf.json`, the
 `<title>` of each `index.html`, `app.title` in each app's i18n, the log lines that
-greet and say goodbye). Until 2026-11 they were Vocabulary Automator and Vocabulary
-Learn. These kept the old names, because installs and their data depend on them, and
-`tests/product_identity.rs` in both apps pins the first three:
+greet and say goodbye). Until 2026-11 they were Vocabulary
+Automator and Vocabulary Learn. The log file follows `productName` too:
+tauri-plugin-log names it after the product, so in the log folder below it is now
+`Polywort.log` or `Polywort Learn.log`, and an install from before keeps its old
+`Vocabulary Automator.log` or `Vocabulary Learn.log` beside it, no longer rotated.
+These kept the old names, because installs and their data depend on them.
+`tests/product_identity.rs` pins the bundle identifier and the history path in both
+apps, and the updater endpoint in the Automator's:
 
 - the bundle identifiers `com.ankiautomator.app` and `com.ankiautomator.learn`, from
   which Tauri derives the settings folder (`config.json`) and the log folder;

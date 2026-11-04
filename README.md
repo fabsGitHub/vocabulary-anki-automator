@@ -14,7 +14,9 @@ Until 2026-11 they were called Vocabulary Automator and Vocabulary Learn. What
 installs and their data depend on keeps the old name: the bundle identifiers (and
 with them the settings and log folders), the `VocabularyAutomator` history folder,
 the crate and package names, the updater endpoint and this repository,
-`vocabulary-anki-automator`. `tests/product_identity.rs` in both apps pins them.
+`vocabulary-anki-automator`. `tests/product_identity.rs` in both apps pins the
+bundle identifiers and the history path, and Polywort's also pins the updater
+endpoint.
 
 Both desktop apps keep their data in the same SQLite file: Learn builds its
 lessons from Automator's captures, and a captured HSK word joins the review
