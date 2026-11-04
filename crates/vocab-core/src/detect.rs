@@ -467,6 +467,26 @@ mod tests {
     }
 
     #[test]
+    fn the_tie_break_margin_is_exclusive() {
+        let at = |top: f64, bottom: f64| {
+            let guesser = FakeGuesser::new(&[("fr", top), ("en", bottom)]);
+            run("message", &["en", "fr"], Some("en"), &guesser)
+        };
+        assert_eq!(TIE_BREAK_MARGIN, 0.25);
+        // 0.625 - 0.375 is exactly 0.25 in binary: not within the margin.
+        let exactly = at(0.625, 0.375);
+        assert_eq!(
+            (exactly.lang.as_str(), exactly.method, exactly.confident),
+            ("fr", DetectionMethod::Statistical, false)
+        );
+        let inside = at(0.62, 0.38);
+        assert_eq!(
+            (inside.lang.as_str(), inside.method, inside.confident),
+            ("en", DetectionMethod::TieBreak, false)
+        );
+    }
+
+    #[test]
     fn an_unsure_top_without_history_is_used_but_unsure() {
         let guesser = FakeGuesser::new(&[("en", 0.39), ("fr", 0.61)]);
         let found = run("message", &["en", "fr"], None, &guesser);
