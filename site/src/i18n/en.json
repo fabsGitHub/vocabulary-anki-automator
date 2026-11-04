@@ -72,13 +72,13 @@
     },
     "s4": {
       "title": "It lands in Anki",
-      "body": "The card is saved to the local history and sent through AnkiConnect to the deck of its language, with a reverse card if you want one. If Anki is closed, the card waits in the history until you sync it."
+      "body": "The card is saved to the local history and sent through AnkiConnect to the deck of its language, with a reverse card (on by default except for Chinese; it can be switched off per language). If Anki is closed, the card waits in the history until you sync it."
     }
   },
   "features": {
     "title": "What it does",
     "f1": {
-      "title": "Works in every app",
+      "title": "Works in any app you can copy from",
       "body": "One global hotkey, wherever you read. Close the settings window and the app keeps running in the menu bar, with the hotkey still active."
     },
     "f2": {
@@ -121,7 +121,7 @@
     },
     "f8": {
       "title": "Rare words flagged",
-      "body": "A single English word that is rare gets a note with a more common synonym."
+      "body": "A single English word that is rare gets a note saying so, with a more common synonym when Datamuse knows one."
     },
     "f9": {
       "title": "More hotkeys, more language pairs",
@@ -165,18 +165,18 @@
       "when": "Single English words, for the rarity check and a synonym"
     },
     "r6": {
-      "what": "The example sentence",
+      "what": "The example sentence and the language pair, plus your contact e-mail if you entered one",
       "to_html": "<a href=\"{mymemoryUrl}\">MyMemory</a> <code>api.mymemory.translated.net</code>",
       "when": "When a card has an example sentence, for its translation"
     },
     "r7": {
       "what": "A request for the newest version number, with no captured text",
-      "to_html": "GitHub <code>github.com</code>",
+      "to_html": "GitHub <code>github.com</code> and its download server",
       "when": "About 10 seconds after the settings window opens"
     },
     "r8": {
       "what": "Download requests for Anki or AnkiConnect",
-      "to_html": "GitHub <code>github.com</code> <code>raw.githubusercontent.com</code>",
+      "to_html": "GitHub <code>github.com</code>, its download server and <code>raw.githubusercontent.com</code>",
       "when": "Only when you install them from the app and agree"
     },
     "n1": {
@@ -193,7 +193,7 @@
     },
     "n4": {
       "title": "Where your data lives:",
-      "body_html": "the history is in <code>~/Library/Application Support/VocabularyAutomator/vocab.sqlite3</code>, and the settings are in <code>~/Library/Application Support/com.ankiautomator.app/config.json</code>."
+      "body_html": "the history is in <code>~/Library/Application Support/VocabularyAutomator/vocab.sqlite3</code>, the settings are in <code>~/Library/Application Support/com.ankiautomator.app/config.json</code>, and the app’s log is in <code>~/Library/Logs/com.ankiautomator.app</code>."
     }
   },
   "req": {
@@ -246,22 +246,22 @@
     },
     "s3": {
       "title": "Let the hotkey copy text",
-      "body_html": "The hotkey copies your selection with a simulated <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span>, which macOS allows only with the Accessibility permission. The app does not ask for it by itself. Open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, click <strong>+</strong>, choose Vocabulary Automator in Applications and turn its switch on. Without the permission, the first capture shows a message that points you here. If a capture still copies nothing, quit the app (menu bar icon > Quit) and open it again."
+      "body_html": "The hotkey copies your selection with a simulated <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span>, which macOS allows only with the Accessibility permission. The app does not ask for it by itself. Open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, click <strong>+</strong>, choose Vocabulary Automator in Applications and turn its switch on. If the settings window is open, it shows a short message that points here. If the hotkey seems to do nothing, check this permission first. If a capture still copies nothing, quit the app (menu bar icon > Quit) and open it again."
     },
     "s4": {
       "title": "Connect Anki",
-      "body_html": "Open <a href=\"{ankiUrl}\">Anki</a>. In Vocabulary Automator, the <strong>“Anki connection”</strong> tab shows what is missing and installs Anki or AnkiConnect for you if you agree. After installing AnkiConnect, restart Anki. Then choose the deck and the note type for your cards there. A deck that does not exist yet is created with the first card."
+      "body_html": "In Vocabulary Automator, open the <strong>“Anki connection”</strong> tab. It shows what is missing and, if you agree, installs <a href=\"{ankiUrl}\">Anki</a> or AnkiConnect for you. After installing AnkiConnect, restart Anki, and keep it open while you capture. The app’s language (English or German) is set at the top right of the settings window."
     },
     "s5": {
       "title": "Add your languages",
-      "body_html": "On <strong>“My languages”</strong>, add the languages you learn. Your own language, the one cards are translated into, is set on <strong>“Capture &amp; Language”</strong>."
+      "body_html": "On <strong>“My languages”</strong>, add each language you learn and choose its deck and note type. A deck that does not exist yet is created with the first card. Your own language, the one cards are translated into, is set on <strong>“Capture &amp; Language”</strong>."
     },
     "s6": {
       "title": "Try it",
       "body_html": "Select a word anywhere and press <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Shift-Command-C</span>. Or type a word under <strong>“Try a capture”</strong> on the “Capture &amp; Language” tab."
     },
     "updateTitle": "Updating the preview",
-    "updateBody_html": "The preview does not update itself. To update, download the new version from this page, quit Vocabulary Automator (menu bar icon > Quit) and replace the app in Applications. Your settings and history are kept. macOS may show the warning from step 2 again. macOS also treats each new preview build as a different app, so open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, remove the old Vocabulary Automator entry with <strong>−</strong> and add the new one with <strong>+</strong>. If the app tells you about a new version, get that version from this page too.",
+    "updateBody_html": "The preview does not update itself. To update, download the new version from this page, quit Vocabulary Automator (menu bar icon > Quit) and replace the app in Applications. Your settings and history are kept. macOS may show the warning from step 2 again. macOS also treats each new preview build as a different app, so open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, remove the old Vocabulary Automator entry with <strong>−</strong> and add the new one with <strong>+</strong>. If the app shows “Version … is available – restart to update”, its button cannot install the preview: download the new version from this page instead.",
     "knowTitle": "Good to know before you install",
     "k1": "Example sentences exist for English so far. Chinese cards get a simple template sentence, and French, German, Spanish and Italian cards get none yet.",
     "k2": "Translations come from a free translation service. Check them before you approve.",
@@ -289,7 +289,7 @@
     },
     "q5": {
       "q": "Does it work without an internet connection?",
-      "a_html": "Partly. Language recognition, pinyin and the HSK level work offline. Translation, pronunciation and example sentences need the internet. Without a connection, those fields stay empty, a warning says so, and you can type the values in yourself."
+      "a_html": "Partly. Language recognition, pinyin and the HSK level work offline. Without a connection, the translation, the example’s translation and the pronunciation stay empty (English and Chinese cards still get a template example sentence), a warning says so, and you can type the values in yourself."
     },
     "q6": {
       "q": "Which languages are supported?",
@@ -309,7 +309,7 @@
     },
     "q10": {
       "q": "How do I uninstall it?",
-      "a_html": "Quit the app (menu bar icon > Quit) and move it from Applications to the Trash. Remove its entry under System Settings > Privacy &amp; Security > Accessibility. To delete your history and settings as well, delete the folders <code>VocabularyAutomator</code> and <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code>. Cards already in Anki stay there."
+      "a_html": "Quit the app (menu bar icon > Quit) and move it from Applications to the Trash. Remove its entry under System Settings > Privacy &amp; Security > Accessibility. To delete your history, settings and log as well, delete the folders <code>VocabularyAutomator</code> and <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code> and the folder <code>~/Library/Logs/com.ankiautomator.app</code>. Cards already in Anki stay there."
     }
   },
   "footer": {

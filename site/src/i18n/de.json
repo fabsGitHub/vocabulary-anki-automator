@@ -72,13 +72,13 @@
     },
     "s4": {
       "title": "Die Karte landet in Anki",
-      "body": "Sie wird im Verlauf gespeichert und über AnkiConnect in den Stapel ihrer Sprache übertragen, auf Wunsch mit umgekehrter Karte. Ist Anki geschlossen, wartet sie im Verlauf, bis Sie sie übertragen."
+      "body": "Sie wird im Verlauf gespeichert und über AnkiConnect in den Stapel ihrer Sprache übertragen, mit umgekehrter Karte (standardmäßig an, außer bei Chinesisch; pro Sprache abschaltbar). Ist Anki geschlossen, wartet sie im Verlauf, bis Sie sie übertragen."
     }
   },
   "features": {
     "title": "Was die App kann",
     "f1": {
-      "title": "Funktioniert in jeder App",
+      "title": "Funktioniert in jeder App, aus der Sie kopieren können",
       "body": "Ein globaler Hotkey, wo immer Sie lesen. Schließen Sie das Einstellungsfenster, läuft die App in der Menüleiste weiter, und der Hotkey bleibt aktiv."
     },
     "f2": {
@@ -121,7 +121,7 @@
     },
     "f8": {
       "title": "Seltene Wörter erkannt",
-      "body": "Ein einzelnes englisches Wort, das selten ist, bekommt eine Notiz mit einem gebräuchlicheren Synonym."
+      "body": "Ein einzelnes englisches Wort, das selten ist, bekommt eine Notiz, die darauf hinweist, mit einem gebräuchlicheren Synonym, wenn Datamuse eines kennt."
     },
     "f9": {
       "title": "Mehr Hotkeys, mehr Sprachpaare",
@@ -165,18 +165,18 @@
       "when": "Bei einzelnen englischen Wörtern, für die Seltenheitsprüfung und ein Synonym"
     },
     "r6": {
-      "what": "Der Beispielsatz",
+      "what": "Der Beispielsatz und das Sprachpaar, dazu Ihre Kontakt-E-Mail, falls Sie eine eingetragen haben",
       "to_html": "<a href=\"{mymemoryUrl}\">MyMemory</a> <code>api.mymemory.translated.net</code>",
       "when": "Wenn eine Karte einen Beispielsatz hat, für seine Übersetzung"
     },
     "r7": {
       "what": "Eine Anfrage nach der neuesten Versionsnummer, ohne erfassten Text",
-      "to_html": "GitHub <code>github.com</code>",
+      "to_html": "GitHub <code>github.com</code> und sein Download-Server",
       "when": "Etwa 10 Sekunden nach dem Öffnen des Einstellungsfensters"
     },
     "r8": {
       "what": "Download-Anfragen für Anki oder AnkiConnect",
-      "to_html": "GitHub <code>github.com</code> <code>raw.githubusercontent.com</code>",
+      "to_html": "GitHub <code>github.com</code>, sein Download-Server und <code>raw.githubusercontent.com</code>",
       "when": "Nur wenn Sie sie aus der App installieren und zustimmen"
     },
     "n1": {
@@ -193,7 +193,7 @@
     },
     "n4": {
       "title": "Wo Ihre Daten liegen:",
-      "body_html": "der Verlauf in <code>~/Library/Application Support/VocabularyAutomator/vocab.sqlite3</code>, die Einstellungen in <code>~/Library/Application Support/com.ankiautomator.app/config.json</code>."
+      "body_html": "der Verlauf in <code>~/Library/Application Support/VocabularyAutomator/vocab.sqlite3</code>, die Einstellungen in <code>~/Library/Application Support/com.ankiautomator.app/config.json</code> und das Protokoll der App in <code>~/Library/Logs/com.ankiautomator.app</code>."
     }
   },
   "req": {
@@ -246,22 +246,22 @@
     },
     "s3": {
       "title": "Dem Hotkey das Kopieren erlauben",
-      "body_html": "Der Hotkey kopiert Ihre Markierung mit einem simulierten <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span>, und das erlaubt macOS nur mit der Berechtigung „Bedienungshilfen“. Die App fragt nicht selbst danach. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, klicken Sie auf <strong>„+“</strong>, wählen Sie Vocabulary Automator im Ordner „Programme“ und schalten Sie den Schalter ein. Fehlt die Berechtigung, zeigt die erste Erfassung eine Meldung, die hierher verweist. Kopiert eine Erfassung danach immer noch nichts, beenden Sie die App (Symbol in der Menüleiste > „Quit“) und öffnen Sie sie erneut."
+      "body_html": "Der Hotkey kopiert Ihre Markierung mit einem simulierten <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span>, und das erlaubt macOS nur mit der Berechtigung „Bedienungshilfen“. Die App fragt nicht selbst danach. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, klicken Sie auf <strong>„+“</strong>, wählen Sie Vocabulary Automator im Ordner „Programme“ und schalten Sie den Schalter ein. Ist das Einstellungsfenster geöffnet, zeigt es kurz eine Meldung, die hierher verweist. Scheint der Hotkey nichts zu tun, prüfen Sie zuerst diese Berechtigung. Kopiert eine Erfassung danach immer noch nichts, beenden Sie die App (Symbol in der Menüleiste > „Quit“) und öffnen Sie sie erneut."
     },
     "s4": {
       "title": "Anki verbinden",
-      "body_html": "Öffnen Sie <a href=\"{ankiUrl}\">Anki</a>. In Vocabulary Automator zeigt der Tab <strong>„Anki-Verbindung“</strong>, was fehlt, und installiert Anki oder AnkiConnect, wenn Sie zustimmen. Starten Sie Anki nach der Installation von AnkiConnect neu. Wählen Sie danach dort den Stapel und den Notiztyp für Ihre Karten. Ein Stapel, den es noch nicht gibt, wird mit der ersten Karte angelegt."
+      "body_html": "Die App startet zunächst auf Englisch. Oben rechts im Einstellungsfenster stellen Sie die Sprache der App auf „Deutsch“. Öffnen Sie dann den Tab <strong>„Anki-Verbindung“</strong>. Er zeigt, was fehlt, und installiert <a href=\"{ankiUrl}\">Anki</a> oder AnkiConnect, wenn Sie zustimmen. Starten Sie Anki nach der Installation von AnkiConnect neu und lassen Sie es während der Erfassung geöffnet."
     },
     "s5": {
       "title": "Ihre Sprachen eintragen",
-      "body_html": "Tragen Sie unter <strong>„Meine Sprachen“</strong> die Sprachen ein, die Sie lernen. Ihre eigene Sprache, in die übersetzt wird, legen Sie unter <strong>„Erfassung &amp; Sprache“</strong> fest."
+      "body_html": "Tragen Sie unter <strong>„Meine Sprachen“</strong> jede Sprache ein, die Sie lernen, und wählen Sie dafür Stapel und Notiztyp. Ein Stapel, den es noch nicht gibt, wird mit der ersten Karte angelegt. Ihre eigene Sprache, in die übersetzt wird, legen Sie unter <strong>„Erfassung &amp; Sprache“</strong> fest."
     },
     "s6": {
       "title": "Ausprobieren",
       "body_html": "Markieren Sie irgendwo ein Wort und drücken Sie <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Umschalt-Befehl-C</span>. Oder geben Sie auf dem Tab „Erfassung &amp; Sprache“ unter <strong>„Erfassung ausprobieren“</strong> ein Wort ein."
     },
     "updateTitle": "Die Vorschauversion aktualisieren",
-    "updateBody_html": "Die Vorschauversion aktualisiert sich nicht selbst. Laden Sie für ein Update die neue Version von dieser Seite, beenden Sie Vocabulary Automator (Symbol in der Menüleiste > „Quit“) und ersetzen Sie die App in „Programme“. Ihre Einstellungen und Ihr Verlauf bleiben erhalten. macOS zeigt unter Umständen noch einmal die Warnung aus Schritt 2. Außerdem behandelt macOS jede neue Vorschauversion als eigene App. Öffnen Sie deshalb <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, entfernen Sie den alten Eintrag von Vocabulary Automator mit <strong>„−“</strong> und fügen Sie den neuen mit <strong>„+“</strong> hinzu. Meldet die App eine neue Version, laden Sie auch diese von dieser Seite.",
+    "updateBody_html": "Die Vorschauversion aktualisiert sich nicht selbst. Laden Sie für ein Update die neue Version von dieser Seite, beenden Sie Vocabulary Automator (Symbol in der Menüleiste > „Quit“) und ersetzen Sie die App in „Programme“. Ihre Einstellungen und Ihr Verlauf bleiben erhalten. macOS zeigt unter Umständen noch einmal die Warnung aus Schritt 2. Außerdem behandelt macOS jede neue Vorschauversion als eigene App. Öffnen Sie deshalb <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, entfernen Sie den alten Eintrag von Vocabulary Automator mit <strong>„−“</strong> und fügen Sie den neuen mit <strong>„+“</strong> hinzu. Zeigt die App „Version … ist verfügbar – zum Aktualisieren neu starten“, kann sie die Vorschauversion damit nicht aktualisieren: Laden Sie die neue Version stattdessen von dieser Seite herunter.",
     "knowTitle": "Gut zu wissen vor der Installation",
     "k1": "Beispielsätze gibt es bisher für Englisch. Chinesische Karten bekommen einen einfachen Mustersatz, französische, deutsche, spanische und italienische noch keinen.",
     "k2": "Die Übersetzungen kommen von einem kostenlosen Übersetzungsdienst. Prüfen Sie sie vor dem Bestätigen.",
@@ -289,7 +289,7 @@
     },
     "q5": {
       "q": "Funktioniert die App ohne Internet?",
-      "a_html": "Teilweise. Spracherkennung, Pinyin und HSK-Stufe funktionieren offline. Übersetzung, Aussprache und Beispielsätze brauchen das Internet. Ohne Verbindung bleiben diese Felder leer, ein Hinweis sagt das, und Sie können die Werte selbst eintragen."
+      "a_html": "Teilweise. Spracherkennung, Pinyin und HSK-Stufe funktionieren offline. Ohne Verbindung bleiben Übersetzung, Übersetzung des Beispiels und Aussprache leer (englische und chinesische Karten bekommen trotzdem einen Mustersatz als Beispiel), ein Hinweis sagt das, und Sie können die Werte selbst eintragen."
     },
     "q6": {
       "q": "Welche Sprachen werden unterstützt?",
@@ -309,7 +309,7 @@
     },
     "q10": {
       "q": "Wie deinstalliere ich die App?",
-      "a_html": "Beenden Sie die App (Symbol in der Menüleiste > „Quit“) und legen Sie sie aus „Programme“ in den Papierkorb. Entfernen Sie ihren Eintrag unter Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen. Wenn Sie auch Verlauf und Einstellungen löschen möchten, löschen Sie die Ordner <code>VocabularyAutomator</code> und <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code>. Karten, die schon in Anki sind, bleiben dort."
+      "a_html": "Beenden Sie die App (Symbol in der Menüleiste > „Quit“) und legen Sie sie aus „Programme“ in den Papierkorb. Entfernen Sie ihren Eintrag unter Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen. Um auch Verlauf, Einstellungen und Protokoll zu entfernen, löschen Sie die Ordner <code>VocabularyAutomator</code> und <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code> sowie den Ordner <code>~/Library/Logs/com.ankiautomator.app</code>. Karten, die schon in Anki sind, bleiben dort."
     }
   },
   "footer": {
