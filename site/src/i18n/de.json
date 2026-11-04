@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "Vocabulary Automator – Anki-Karten aus jedem Text",
+    "title": "Polywort – Anki-Karten aus jedem Text",
     "description": "Wort in einer beliebigen App markieren, Hotkey drücken, Karte prüfen und zu Anki hinzufügen. Mit Übersetzung, Aussprache und Spracherkennung. Für macOS.",
-    "ogTitle": "Vocabulary Automator",
+    "ogTitle": "Polywort",
     "ogDescription": "Wort irgendwo markieren, Hotkey drücken, Karte bestätigen. Sie landet in Anki.",
-    "ogImageAlt": "Das Bestätigungsfenster von Vocabulary Automator mit einer Karte für das Wort „reluctant“"
+    "ogImageAlt": "Das Bestätigungsfenster von Polywort mit einer Karte für das Wort „reluctant“"
   },
   "nav": {
     "skip": "Zum Inhalt springen",
@@ -24,7 +24,7 @@
   "hero": {
     "eyebrow": "Desktop-App für Anki",
     "title": "Vom markierten Wort zur fertigen Anki-Karte.",
-    "subline_html": "Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie <kbd>⇧⌘C</kbd> (Umschalt-Befehl-C). Vocabulary Automator ermittelt Übersetzung und Aussprache und zeigt Ihnen die fertige Karte. Ein Druck auf <kbd>Enter</kbd>, und sie ist in Ihrem Stapel.",
+    "subline_html": "Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie <kbd>⇧⌘C</kbd> (Umschalt-Befehl-C). Polywort ermittelt Übersetzung und Aussprache und zeigt Ihnen die fertige Karte. Ein Druck auf <kbd>Enter</kbd>, und sie ist in Ihrem Stapel.",
     "cta": "Für macOS herunterladen",
     "meta": "Version\u00a0{version}\u00a0· Vorschauversion\u00a0· Apple Silicon und Intel",
     "ctaFallback": "GitHub Releases",
@@ -32,17 +32,17 @@
     "secondary": "So funktioniert es",
     "source": "Quellcode auf GitHub",
     "note": "Windows und Linux folgen mit dem ersten offiziellen Release.",
-    "mobileNote": "Vocabulary Automator ist eine Desktop-App. Öffnen Sie diese Seite auf Ihrem Mac, um sie herunterzuladen."
+    "mobileNote": "Polywort ist eine Desktop-App. Öffnen Sie diese Seite auf Ihrem Mac, um sie herunterzuladen."
   },
   "mock": {
     "label": "Darstellung des Bestätigungsfensters",
-    "description": "Das Bestätigungsfenster mit einer Karte für das englische Wort „reluctant“: die Sprachchips „Englisch“ (ausgewählt) und „Französisch“, „→ Deutsch“, der Stapel „Englisch“, der Notiztyp „Vokabeln“, die Rückseite „widerwillig“, ein Beispielsatz mit deutscher Übersetzung, eine Schaltfläche zum Abspielen der Aussprache und die Schaltflächen „Verwerfen“ und „Zu Anki hinzufügen“.",
+    "description": "Das Bestätigungsfenster mit einer Karte für das englische Wort „reluctant“: die Sprachchips „Englisch“ (ausgewählt) und „Französisch“, „→ Deutsch“, der Stapel „Englisch“, der Notiztyp „Polywort“, die Rückseite „widerwillig“, ein Beispielsatz mit deutscher Übersetzung, eine Schaltfläche zum Abspielen der Aussprache und die Schaltflächen „Verwerfen“ und „Zu Anki hinzufügen“.",
     "title": "Neue Karte",
     "langActive": "Englisch",
     "langOther": "Französisch",
     "target": "→ Deutsch",
     "deck": "Stapel: Englisch",
-    "model": "Notiztyp: Vokabeln",
+    "model": "Notiztyp: Polywort",
     "front": "Vorderseite (Wort)",
     "frontValue": "reluctant",
     "back": "Rückseite (Übersetzung)",
@@ -134,7 +134,7 @@
   },
   "data": {
     "title": "Was mit Ihren Daten passiert",
-    "intro": "Vocabulary Automator hat kein Konto und keinen eigenen Server. Ihre Karten, Ihr Verlauf und Ihre Einstellungen bleiben auf Ihrem Mac. Um eine Karte zu füllen, schickt die App den erfassten Text an die Dienste in dieser Tabelle. Außer diesen Anfragen verlässt nichts Ihren Mac.",
+    "intro": "Polywort hat kein Konto und keinen eigenen Server. Ihre Karten, Ihr Verlauf und Ihre Einstellungen bleiben auf Ihrem Mac. Um eine Karte zu füllen, schickt die App den erfassten Text an die Dienste in dieser Tabelle. Außer diesen Anfragen verlässt nichts Ihren Mac.",
     "caption": "Anfragen der App und wann sie gesendet werden",
     "colWhat": "Was gesendet wird",
     "colTo": "An wen",
@@ -200,7 +200,7 @@
     "title": "Was Sie brauchen",
     "i1": {
       "title": "Einen Mac",
-      "body": "Mit Apple Silicon oder Intel. Vocabulary Automator wird unter macOS\u00a026\u00a0Tahoe entwickelt. Ältere macOS-Versionen sind noch nicht getestet."
+      "body": "Mit Apple Silicon oder Intel. Polywort wird unter macOS\u00a026\u00a0Tahoe entwickelt. Ältere macOS-Versionen sind noch nicht getestet."
     },
     "i2": {
       "title_html": "<a href=\"{ankiUrl}\">Anki Desktop</a>",
@@ -218,7 +218,7 @@
   "download": {
     "title": "Download & Installation",
     "yourSystem": "Ihr System",
-    "macTitle": "Vocabulary Automator {version} für macOS",
+    "macTitle": "Polywort {version} für macOS",
     "macMeta": "Disk-Image (.dmg)\u00a0· Apple Silicon und Intel",
     "macButton": "Disk-Image herunterladen",
     "macFallback": "Der Download für macOS ist noch nicht verfügbar.",
@@ -236,17 +236,17 @@
     "stepsTitle": "Installieren und einrichten",
     "s1": {
       "title": "Installieren",
-      "body": "Öffnen Sie die heruntergeladene .dmg-Datei und ziehen Sie Vocabulary Automator in den Ordner „Programme“."
+      "body": "Öffnen Sie die heruntergeladene .dmg-Datei und ziehen Sie Polywort in den Ordner „Programme“."
     },
     "s2": {
       "title": "Zum ersten Mal öffnen",
-      "sequoia_html": "<em>macOS\u00a015\u00a0Sequoia und neuer:</em> Doppelklicken Sie in „Programme“ auf Vocabulary Automator. macOS meldet, dass die App nicht überprüft werden konnte. Klicken Sie auf <strong>„Fertig“</strong>. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit</strong>, scrollen Sie zum Abschnitt <strong>„Sicherheit“</strong> und klicken Sie neben dem Hinweis zu Vocabulary Automator auf <strong>„Dennoch öffnen“</strong>. Bestätigen Sie mit <strong>„Dennoch öffnen“</strong> und Ihrem Passwort oder Touch\u00a0ID.",
-      "sonoma_html": "<em>macOS\u00a014\u00a0Sonoma und älter:</em> Klicken Sie in „Programme“ bei gedrückter ctrl-Taste auf Vocabulary Automator, wählen Sie <strong>„Öffnen“</strong> und klicken Sie im Dialog noch einmal auf <strong>„Öffnen“</strong>.",
+      "sequoia_html": "<em>macOS\u00a015\u00a0Sequoia und neuer:</em> Doppelklicken Sie in „Programme“ auf Polywort. macOS meldet, dass die App nicht überprüft werden konnte. Klicken Sie auf <strong>„Fertig“</strong>. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit</strong>, scrollen Sie zum Abschnitt <strong>„Sicherheit“</strong> und klicken Sie neben dem Hinweis zu Polywort auf <strong>„Dennoch öffnen“</strong>. Bestätigen Sie mit <strong>„Dennoch öffnen“</strong> und Ihrem Passwort oder Touch\u00a0ID.",
+      "sonoma_html": "<em>macOS\u00a014\u00a0Sonoma und älter:</em> Klicken Sie in „Programme“ bei gedrückter ctrl-Taste auf Polywort, wählen Sie <strong>„Öffnen“</strong> und klicken Sie im Dialog noch einmal auf <strong>„Öffnen“</strong>.",
       "once": "Das ist pro Version nur einmal nötig."
     },
     "s3": {
       "title": "Dem Hotkey das Kopieren erlauben",
-      "body_html": "Der Hotkey kopiert Ihre Markierung mit einem simulierten <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span>, und das erlaubt macOS nur mit der Berechtigung „Bedienungshilfen“. Die App fragt nicht selbst danach. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, klicken Sie auf <strong>„+“</strong>, wählen Sie Vocabulary Automator im Ordner „Programme“ und aktivieren Sie den Schalter daneben. Ist das Einstellungsfenster geöffnet, zeigt es kurz eine Meldung, die hierher verweist. Scheint der Hotkey nichts zu tun, prüfen Sie zuerst diese Berechtigung. Kopiert eine Erfassung danach immer noch nichts, beenden Sie die App (Symbol in der Menüleiste > „Quit“) und öffnen Sie sie erneut."
+      "body_html": "Der Hotkey kopiert Ihre Markierung mit einem simulierten <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span>, und das erlaubt macOS nur mit der Berechtigung „Bedienungshilfen“. Die App fragt nicht selbst danach. Öffnen Sie <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, klicken Sie auf <strong>„+“</strong>, wählen Sie Polywort im Ordner „Programme“ und aktivieren Sie den Schalter daneben. Ist das Einstellungsfenster geöffnet, zeigt es kurz eine Meldung, die hierher verweist. Scheint der Hotkey nichts zu tun, prüfen Sie zuerst diese Berechtigung. Kopiert eine Erfassung danach immer noch nichts, beenden Sie die App (Symbol in der Menüleiste > „Quit“) und öffnen Sie sie erneut."
     },
     "s4": {
       "title": "Anki verbinden",
@@ -261,7 +261,7 @@
       "body_html": "Markieren Sie irgendwo ein Wort und drücken Sie <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Umschalt-Befehl-C</span>. Oder geben Sie auf dem Tab „Erfassung &amp; Sprache“ unter <strong>„Erfassung ausprobieren“</strong> ein Wort ein."
     },
     "updateTitle": "Die Vorschauversion aktualisieren",
-    "updateBody_html": "Die Vorschauversion aktualisiert sich nicht selbst. Laden Sie für ein Update die neue Version von dieser Seite herunter, beenden Sie Vocabulary Automator (Symbol in der Menüleiste > „Quit“) und ersetzen Sie die App in „Programme“. Ihre Einstellungen und Ihr Verlauf bleiben erhalten. macOS zeigt unter Umständen noch einmal die Warnung aus Schritt 2. Außerdem behandelt macOS jede neue Vorschauversion als eigene App. Öffnen Sie deshalb <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, entfernen Sie den alten Eintrag von Vocabulary Automator mit <strong>„−“</strong> und fügen Sie den neuen mit <strong>„+“</strong> hinzu. Zeigt die App „Version … ist verfügbar – zum Aktualisieren neu starten“, kann sie die Vorschauversion damit nicht aktualisieren: Laden Sie die neue Version stattdessen von dieser Seite herunter.",
+    "updateBody_html": "Die Vorschauversion aktualisiert sich nicht selbst. Laden Sie für ein Update die neue Version von dieser Seite herunter, beenden Sie Polywort (Symbol in der Menüleiste > „Quit“) und ersetzen Sie die App in „Programme“. Ihre Einstellungen und Ihr Verlauf bleiben erhalten. macOS zeigt unter Umständen noch einmal die Warnung aus Schritt 2. Außerdem behandelt macOS jede neue Vorschauversion als eigene App. Öffnen Sie deshalb <strong>Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen</strong>, entfernen Sie den alten Eintrag von Polywort mit <strong>„−“</strong> und fügen Sie den neuen mit <strong>„+“</strong> hinzu. Zeigt die App „Version … ist verfügbar – zum Aktualisieren neu starten“, kann sie die Vorschauversion damit nicht aktualisieren: Laden Sie die neue Version stattdessen von dieser Seite herunter.",
     "knowTitle": "Gut zu wissen vor der Installation",
     "k1": "Beispielsätze gibt es bisher für Englisch. Chinesische Karten bekommen einen einfachen Mustersatz, französische, deutsche, spanische und italienische noch keinen.",
     "k2": "Die Übersetzungen kommen von einem kostenlosen Übersetzungsdienst. Prüfen Sie sie vor dem Bestätigen.",
@@ -277,7 +277,7 @@
     },
     "q2": {
       "q": "Was ist Anki?",
-      "a_html": "<a href=\"{ankiUrl}\">Anki</a> ist ein kostenloses Karteikartenprogramm, das jede Karte kurz vor dem Vergessen wieder zeigt. Vocabulary Automator legt die Karten an, gelernt wird in Anki."
+      "a_html": "<a href=\"{ankiUrl}\">Anki</a> ist ein kostenloses Karteikartenprogramm, das jede Karte kurz vor dem Vergessen wieder zeigt. Polywort legt die Karten an, gelernt wird in Anki."
     },
     "q3": {
       "q": "Brauche ich ein Konto oder einen API-Schlüssel?",
@@ -289,7 +289,7 @@
     },
     "q5": {
       "q": "Warum braucht die App die Berechtigung „Bedienungshilfen“?",
-      "a_html": "Um Ihre Markierung zu kopieren, schickt der Hotkey <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span> an die App, in der Sie gerade lesen, und das erlaubt macOS nur mit dieser Berechtigung. Vocabulary Automator nutzt sie für nichts anderes."
+      "a_html": "Um Ihre Markierung zu kopieren, schickt der Hotkey <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Befehl-C</span> an die App, in der Sie gerade lesen, und das erlaubt macOS nur mit dieser Berechtigung. Polywort nutzt sie für nichts anderes."
     },
     "q6": {
       "q": "Was passiert, wenn Anki geschlossen ist?",
@@ -318,13 +318,17 @@
     "q12": {
       "q": "Wie deinstalliere ich die App?",
       "a_html": "Beenden Sie die App (Symbol in der Menüleiste > „Quit“) und legen Sie sie aus „Programme“ in den Papierkorb. Entfernen Sie ihren Eintrag unter Systemeinstellungen > Datenschutz &amp; Sicherheit > Bedienungshilfen. Um auch Verlauf, Einstellungen und Protokoll zu entfernen, löschen Sie die Ordner <code>VocabularyAutomator</code> und <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code> sowie den Ordner <code>~/Library/Logs/com.ankiautomator.app</code>. Der Finder blendet <code>~/Library</code> aus: Wählen Sie „Gehe zu“ > „Gehe zum Ordner“ und geben Sie den Pfad ein. Karten, die schon in Anki sind, bleiben dort."
+    },
+    "q13": {
+      "q": "Woher kommt der Name?",
+      "a_html": "Polywort verbindet das griechische <em>poly</em> („viel“) mit dem deutschen <em>Wort</em>: viele Wörter. Früher hieß die App Vocabulary Automator. Deshalb heißt der Ordner mit Ihrem Verlauf noch <code>VocabularyAutomator</code>."
     }
   },
   "footer": {
-    "line": "Vocabulary Automator\u00a0· Version\u00a0{version} (Vorschauversion)",
+    "line": "Polywort\u00a0· Version\u00a0{version} (Vorschauversion)",
     "source": "Quellcode auf GitHub",
     "releases": "GitHub Releases",
-    "independence": "Vocabulary Automator ist ein unabhängiges Projekt. Es steht in keiner Verbindung zu Anki, AnkiWeb oder dem Add-on AnkiConnect und wird von ihnen weder unterstützt noch empfohlen.",
+    "independence": "Polywort ist ein unabhängiges Projekt. Es steht in keiner Verbindung zu Anki, AnkiWeb oder dem Add-on AnkiConnect und wird von ihnen weder unterstützt noch empfohlen.",
     "credits": "Für Chinesisch enthält die App Daten aus CC-CEDICT (CC BY-SA 4.0) und zwei HSK-Wortlisten (MIT-Lizenz). Die vollständigen Angaben stehen im Hilfedialog der App.",
     "siteNote": "Diese Website setzt keine Cookies, verwendet keine Analysedienste und lädt nichts von fremden Servern."
   },

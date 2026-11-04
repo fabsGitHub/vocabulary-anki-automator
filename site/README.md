@@ -1,10 +1,10 @@
 # Product website
 
-The public page for Vocabulary Automator: what the app does, what it sends where, and the
-macOS download with install steps. English at `/`, German at `/de/`, plus a 404 page. It is
-plain static HTML with one stylesheet and one small script. It loads nothing from other
-servers, sets no cookies and has no analytics. Expected production URL:
-<https://vocabulary-automator.vercel.app>.
+The public page for Polywort (formerly Vocabulary Automator): what the app does, what it
+sends where, and the macOS download with install steps. English at `/`, German at `/de/`, plus
+a 404 page. It is plain static HTML with one stylesheet and one small script. It loads nothing
+from other servers, sets no cookies and has no analytics. Production URL:
+<https://polywort.vercel.app> (Vercel project `polywort`).
 
 ## Layout
 
@@ -19,6 +19,7 @@ servers, sets no cookies and has no analytics. Expected production URL:
 | `src/i18n/en.json`, `…` | All page copy; both files must have the same keys                        |
 | `src/styles.css`        | The stylesheet (light and dark), including the drawing of the app window |
 | `src/main.js`           | Optional enhancements: OS hint, checksum copy button, closing the menu   |
+| `src/partials/mark.svg` | The header mark: `branding/glyph.svg`, coloured by the stylesheet        |
 | `src/assets/`           | Favicon, touch icon and the social preview images                        |
 | `og/render.mjs`         | Redraws the social preview images and the touch icon                     |
 | `downloads/`            | Input folder (git-ignored) for the `.dmg` to publish                     |
@@ -32,7 +33,7 @@ npm run site:test       # builds into temporary folders and checks the output
 ```
 
 `SITE_URL` sets the absolute URLs (canonical, hreflang, Open Graph, sitemap); it defaults to
-`https://vocabulary-automator.vercel.app` and must be an origin without a path, because every
+`https://polywort.vercel.app` and must be an origin without a path, because every
 link in the page is root-relative. `node site/build.mjs --out <dir> --downloads <dir>` builds
 somewhere else. The version comes from `src-tauri/tauri.conf.json`. The build renders
 everything before it empties the output folder, so a failed build leaves the previous one in
@@ -40,12 +41,16 @@ place.
 
 ## Publishing a macOS build
 
-The page describes one disk image: the universal build (Apple Silicon and Intel) of the version
-in `src-tauri/tauri.conf.json`, ad-hoc signed and not notarized, built from the app code the
-copy describes. The copy describes language recognition, “My languages”, field matching and the
-macOS 26 copy fix, which `main` gets only when `claude/auto-language` is merged. Build from
-this branch (its app code is that of `claude/auto-language`) or from a later `main`, never from
-an older one.
+The page describes one disk image: the universal build (Apple Silicon and Intel) of Polywort in
+the version of `src-tauri/tauri.conf.json`, ad-hoc signed and not notarized, built from the app
+code the copy describes. The copy describes language recognition, “My languages”, field
+matching and the macOS 26 copy fix, which `main` gets only when `claude/auto-language` is
+merged, and it calls the app Polywort: in Finder, the Dock, the menu bar and the Accessibility
+list. Build from app code that has both, that is, whose `productName` in
+`src-tauri/tauri.conf.json` is `Polywort`. Code with the old `productName` builds
+`Vocabulary Automator.app` in `Vocabulary Automator_<version>_universal.dmg`, and the build
+refuses that image. The identifier (`com.ankiautomator.app`) and the data folders keep their
+old names, so the paths on the page stay right.
 
 1. Build the disk image from the repository root (the two Rust targets are needed once):
 
@@ -62,21 +67,23 @@ an older one.
 2. Check the app before you publish it:
 
    ```bash
-   APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/Vocabulary Automator.app"
+   APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/Polywort.app"
    codesign -dv "$APP" 2>&1 | grep Signature   # Signature=adhoc
    lipo -archs "$APP"/Contents/MacOS/*         # x86_64 arm64
    ```
 
-3. Copy `src-tauri/target/universal-apple-darwin/release/bundle/dmg/Vocabulary Automator_<version>_universal.dmg`
-   into `site/downloads/` and run `npm run site:build`.
+3. Copy `src-tauri/target/universal-apple-darwin/release/bundle/dmg/Polywort_<version>_universal.dmg`
+   into `site/downloads/`, remove older images from there, and run `npm run site:build`.
 
 The build copies the newest `.dmg` in `site/downloads/` to `dist/downloads/` under a name
 without spaces, and writes its size and SHA-256 into the page. It stops with an error unless
-that file name ends in `_<version>_universal.dmg`, Tauri's name for the universal build of the
-version in `tauri.conf.json`: a per-architecture image or one of another version would be
-published with a false label. `--allow-version-mismatch` lets another version through with a
-warning, but the page still shows the version from `tauri.conf.json`. Without a `.dmg`, the
-macOS buttons link to GitHub Releases and the page says that the download is not available yet.
+that file name is `Polywort_<version>_universal.dmg`, Tauri's name for the universal build of
+Polywort in the version of `tauri.conf.json`: a per-architecture image, an image of the app
+under its old name or one of another version would be published with a false label.
+`--allow-version-mismatch` lets another version through with a warning, but the page still
+shows the version from `tauri.conf.json`; nothing lets another app name through. Without a
+`.dmg`, the macOS buttons link to GitHub Releases and the page says that the download is not
+available yet.
 
 ## Deploying
 
@@ -86,14 +93,16 @@ build keeps when it empties `site/dist`:
 
 ```bash
 npm run site:build
-vercel link --cwd site/dist --project vocabulary-automator   # once, and again if site/dist/.vercel is gone
+vercel link --cwd site/dist --project polywort   # once, and again if site/dist/.vercel is gone
 vercel deploy --cwd site/dist --prod
 ```
 
 Before you confirm `vercel link` or `vercel deploy`, check that the project the CLI names is
-`vocabulary-automator`. If it offers to set up a new project (for example one called `dist`) or
-names any other project, cancel and run `vercel link` again with `--project`. Never deploy from
-the repository root or `site/`: neither is the site.
+`polywort`. If it offers to set up a new project (for example one called `dist`) or names any
+other project, `vocabulary-automator` (the name before the rename) included, cancel, delete
+`site/dist/.vercel` and run `vercel link` again with `--project`. The
+production URL is <https://polywort.vercel.app>, the build's default `SITE_URL`. Never deploy
+from the repository root or `site/`: neither is the site.
 
 ## Changing the copy
 

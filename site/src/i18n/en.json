@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "Vocabulary Automator – Anki cards from any text",
+    "title": "Polywort – Anki cards from any text",
     "description": "Select a word in any app, press a hotkey, check the card and add it to Anki. With translation, pronunciation and language recognition. For macOS.",
-    "ogTitle": "Vocabulary Automator",
+    "ogTitle": "Polywort",
     "ogDescription": "Select a word anywhere, press your hotkey, approve the card. It lands in Anki.",
-    "ogImageAlt": "The Vocabulary Automator approval window with a card for the word “reluctant”"
+    "ogImageAlt": "The Polywort approval window with a card for the word “reluctant”"
   },
   "nav": {
     "skip": "Skip to content",
@@ -24,7 +24,7 @@
   "hero": {
     "eyebrow": "Desktop app for Anki",
     "title": "Turn the words you read into Anki cards.",
-    "subline_html": "Select a word or phrase in any app and press <kbd>⇧⌘C</kbd> (Shift-Command-C). Vocabulary Automator looks up the translation and the pronunciation and shows you the finished card. Press <kbd>Enter</kbd>, and it is in your deck.",
+    "subline_html": "Select a word or phrase in any app and press <kbd>⇧⌘C</kbd> (Shift-Command-C). Polywort looks up the translation and the pronunciation and shows you the finished card. Press <kbd>Enter</kbd>, and it is in your deck.",
     "cta": "Download for macOS",
     "meta": "Version\u00a0{version}\u00a0· Preview\u00a0· Apple Silicon and Intel",
     "ctaFallback": "GitHub Releases",
@@ -32,17 +32,17 @@
     "secondary": "How it works",
     "source": "Source code on GitHub",
     "note": "Windows and Linux follow with the first official release.",
-    "mobileNote": "Vocabulary Automator is a desktop app. Open this page on your Mac to download it."
+    "mobileNote": "Polywort is a desktop app. Open this page on your Mac to download it."
   },
   "mock": {
     "label": "Illustration of the approval window",
-    "description": "The approval window with a card for the English word “reluctant”: the language chips “English” (selected) and “French”, “→ German”, the deck “English”, the note type “Vocabulary”, the back “widerwillig”, an example sentence with its German translation, a button that plays the pronunciation and the buttons “Discard” and “Add to Anki”.",
+    "description": "The approval window with a card for the English word “reluctant”: the language chips “English” (selected) and “French”, “→ German”, the deck “English”, the note type “Polywort”, the back “widerwillig”, an example sentence with its German translation, a button that plays the pronunciation and the buttons “Discard” and “Add to Anki”.",
     "title": "New card",
     "langActive": "English",
     "langOther": "French",
     "target": "→ German",
     "deck": "Deck: English",
-    "model": "Note type: Vocabulary",
+    "model": "Note type: Polywort",
     "front": "Front (word)",
     "frontValue": "reluctant",
     "back": "Back (translation)",
@@ -134,7 +134,7 @@
   },
   "data": {
     "title": "What happens to your data",
-    "intro": "Vocabulary Automator has no account and no server of its own. Your cards, your history and your settings stay on your Mac. To fill in a card, the app sends the captured text to the services in this table. Apart from these requests, nothing leaves your Mac.",
+    "intro": "Polywort has no account and no server of its own. Your cards, your history and your settings stay on your Mac. To fill in a card, the app sends the captured text to the services in this table. Apart from these requests, nothing leaves your Mac.",
     "caption": "Requests the app sends, and when",
     "colWhat": "What is sent",
     "colTo": "To",
@@ -200,7 +200,7 @@
     "title": "What you need",
     "i1": {
       "title": "A Mac",
-      "body": "With Apple Silicon or Intel. Vocabulary Automator is developed on macOS\u00a026\u00a0Tahoe. Older macOS versions have not been tested yet."
+      "body": "With Apple Silicon or Intel. Polywort is developed on macOS\u00a026\u00a0Tahoe. Older macOS versions have not been tested yet."
     },
     "i2": {
       "title_html": "<a href=\"{ankiUrl}\">Anki Desktop</a>",
@@ -218,7 +218,7 @@
   "download": {
     "title": "Download & install",
     "yourSystem": "Your system",
-    "macTitle": "Vocabulary Automator {version} for macOS",
+    "macTitle": "Polywort {version} for macOS",
     "macMeta": "Disk image (.dmg)\u00a0· Apple Silicon and Intel",
     "macButton": "Download .dmg",
     "macFallback": "The macOS download is not available yet.",
@@ -236,21 +236,21 @@
     "stepsTitle": "Install and set up",
     "s1": {
       "title": "Install",
-      "body": "Open the downloaded .dmg and drag Vocabulary Automator into the Applications folder."
+      "body": "Open the downloaded .dmg and drag Polywort into the Applications folder."
     },
     "s2": {
       "title": "Open it for the first time",
-      "sequoia_html": "<em>macOS\u00a015\u00a0Sequoia and later:</em> Double-click Vocabulary Automator in Applications. macOS says it could not verify the app. Click <strong>Done</strong>. Open <strong>System Settings > Privacy &amp; Security</strong>, scroll down to <strong>Security</strong> and click <strong>Open Anyway</strong> next to the message about Vocabulary Automator. Confirm with <strong>Open Anyway</strong> and your password or Touch\u00a0ID.",
-      "sonoma_html": "<em>macOS\u00a014\u00a0Sonoma and earlier:</em> Control-click Vocabulary Automator in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> in the dialog.",
+      "sequoia_html": "<em>macOS\u00a015\u00a0Sequoia and later:</em> Double-click Polywort in Applications. macOS says it could not verify the app. Click <strong>Done</strong>. Open <strong>System Settings > Privacy &amp; Security</strong>, scroll down to <strong>Security</strong> and click <strong>Open Anyway</strong> next to the message about Polywort. Confirm with <strong>Open Anyway</strong> and your password or Touch\u00a0ID.",
+      "sonoma_html": "<em>macOS\u00a014\u00a0Sonoma and earlier:</em> Control-click Polywort in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> in the dialog.",
       "once": "You need to do this only once per version."
     },
     "s3": {
       "title": "Let the hotkey copy text",
-      "body_html": "The hotkey copies your selection with a simulated <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span>, which macOS allows only with the Accessibility permission. The app does not ask for it by itself. Open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, click <strong>+</strong>, choose Vocabulary Automator in Applications and turn its switch on. If the settings window is open, it shows a short message that points here. If the hotkey seems to do nothing, check this permission first. If a capture still copies nothing, quit the app (menu bar icon > Quit) and open it again."
+      "body_html": "The hotkey copies your selection with a simulated <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span>, which macOS allows only with the Accessibility permission. The app does not ask for it by itself. Open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, click <strong>+</strong>, choose Polywort in Applications and turn its switch on. If the settings window is open, it shows a short message that points here. If the hotkey seems to do nothing, check this permission first. If a capture still copies nothing, quit the app (menu bar icon > Quit) and open it again."
     },
     "s4": {
       "title": "Connect Anki",
-      "body_html": "In Vocabulary Automator, open the <strong>“Anki connection”</strong> tab. It shows what is missing and, if you agree, installs <a href=\"{ankiUrl}\">Anki</a> or AnkiConnect for you. After installing AnkiConnect, restart Anki, and keep it open while you capture. The app’s language (English or German) is set at the top right of the settings window."
+      "body_html": "In Polywort, open the <strong>“Anki connection”</strong> tab. It shows what is missing and, if you agree, installs <a href=\"{ankiUrl}\">Anki</a> or AnkiConnect for you. After installing AnkiConnect, restart Anki, and keep it open while you capture. The app’s language (English or German) is set at the top right of the settings window."
     },
     "s5": {
       "title": "Add your languages",
@@ -261,7 +261,7 @@
       "body_html": "Select a word anywhere and press <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Shift-Command-C</span>. Or type a word under <strong>“Try a capture”</strong> on the “Capture &amp; Language” tab."
     },
     "updateTitle": "Updating the preview",
-    "updateBody_html": "The preview does not update itself. To update, download the new version from this page, quit Vocabulary Automator (menu bar icon > Quit) and replace the app in Applications. Your settings and history are kept. macOS may show the warning from step 2 again. macOS also treats each new preview build as a different app, so open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, remove the old Vocabulary Automator entry with <strong>−</strong> and add the new one with <strong>+</strong>. If the app shows “Version … is available – restart to update”, its button cannot install the preview: download the new version from this page instead.",
+    "updateBody_html": "The preview does not update itself. To update, download the new version from this page, quit Polywort (menu bar icon > Quit) and replace the app in Applications. Your settings and history are kept. macOS may show the warning from step 2 again. macOS also treats each new preview build as a different app, so open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, remove the old Polywort entry with <strong>−</strong> and add the new one with <strong>+</strong>. If the app shows “Version … is available – restart to update”, its button cannot install the preview: download the new version from this page instead.",
     "knowTitle": "Good to know before you install",
     "k1": "Example sentences exist for English so far. Chinese cards get a simple template sentence, and French, German, Spanish and Italian cards get none yet.",
     "k2": "Translations come from a free translation service. Check them before you approve.",
@@ -277,7 +277,7 @@
     },
     "q2": {
       "q": "What is Anki?",
-      "a_html": "<a href=\"{ankiUrl}\">Anki</a> is a free flashcard program that shows each card again shortly before you would forget it. Vocabulary Automator adds the cards; you review them in Anki."
+      "a_html": "<a href=\"{ankiUrl}\">Anki</a> is a free flashcard program that shows each card again shortly before you would forget it. Polywort adds the cards; you review them in Anki."
     },
     "q3": {
       "q": "Do I need an account or an API key?",
@@ -289,7 +289,7 @@
     },
     "q5": {
       "q": "Why does the app need the Accessibility permission?",
-      "a_html": "To copy your selection, the hotkey sends <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span> to the app you are reading in, and macOS allows that only with the Accessibility permission. Vocabulary Automator uses it for nothing else."
+      "a_html": "To copy your selection, the hotkey sends <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span> to the app you are reading in, and macOS allows that only with the Accessibility permission. Polywort uses it for nothing else."
     },
     "q6": {
       "q": "What happens if Anki is closed?",
@@ -318,13 +318,17 @@
     "q12": {
       "q": "How do I uninstall it?",
       "a_html": "Quit the app (menu bar icon > Quit) and move it from Applications to the Trash. Remove its entry under System Settings > Privacy &amp; Security > Accessibility. To delete your history, settings and log as well, delete the folders <code>VocabularyAutomator</code> and <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code> and the folder <code>~/Library/Logs/com.ankiautomator.app</code>. Finder hides <code>~/Library</code>: choose Go > Go to Folder and enter the path. Cards already in Anki stay there."
+    },
+    "q13": {
+      "q": "Where does the name come from?",
+      "a_html": "Polywort joins the Greek <em>poly</em> (“many”) and the German <em>Wort</em> (“word”): many words. The app used to be called Vocabulary Automator, which is why the folder with your history is still called <code>VocabularyAutomator</code>."
     }
   },
   "footer": {
-    "line": "Vocabulary Automator\u00a0· Version\u00a0{version} (preview)",
+    "line": "Polywort\u00a0· Version\u00a0{version} (preview)",
     "source": "Source code on GitHub",
     "releases": "GitHub Releases",
-    "independence": "Vocabulary Automator is an independent project. It is not affiliated with or endorsed by Anki, AnkiWeb or the AnkiConnect add-on.",
+    "independence": "Polywort is an independent project. It is not affiliated with or endorsed by Anki, AnkiWeb or the AnkiConnect add-on.",
     "credits": "For Chinese, the app bundles data from CC-CEDICT (CC BY-SA 4.0) and two HSK word lists (MIT License). The full credits are in the app’s help dialog.",
     "siteNote": "This website sets no cookies, uses no analytics and loads nothing from other servers."
   },

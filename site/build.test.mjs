@@ -27,6 +27,7 @@ import { promisify } from 'node:util'
 import {
   ANKI_URL,
   MYMEMORY_URL,
+  PRODUCT_NAME,
   RELEASES_URL,
   REPO_URL,
   SITE_DIR,
@@ -44,11 +45,14 @@ import {
   sourcePattern,
 } from './build.mjs'
 
-const SITE_URL = 'https://vocabulary-automator.vercel.app'
+const SITE_URL = 'https://polywort.vercel.app'
 /** The version the build reads, so a release PR's version bump keeps these tests green. */
 const VERSION = await readVersion()
-const DMG_NAME = `Vocabulary Automator_${VERSION}_universal.dmg`
-const DMG_PUBLISHED = `Vocabulary-Automator_${VERSION}_universal.dmg`
+/** Tauri's name for the universal disk image; it has no space to replace. */
+const DMG_NAME = `Polywort_${VERSION}_universal.dmg`
+const DMG_PUBLISHED = DMG_NAME
+/** What Tauri named the image before the app was called Polywort. */
+const OLD_DMG_NAME = `Vocabulary Automator_${VERSION}_universal.dmg`
 const DMG_BYTES = 2_456_789
 
 /** The only external URLs a built page may contain, besides its own site URL. */
@@ -105,6 +109,20 @@ describe('copy', () => {
       for (const [key, value] of await loadCopy(lang)) {
         assert.notEqual(value.trim(), '', `${lang}: ${key} is empty`)
       }
+    }
+  })
+
+  test('calls the app Polywort and names the old name only to explain it', async () => {
+    assert.equal(PRODUCT_NAME, 'Polywort')
+    for (const lang of ['en', 'de']) {
+      const copy = await loadCopy(lang)
+      for (const [key, value] of copy) {
+        if (key === 'faq.q13.a_html') continue
+        assert.ok(!value.includes('Vocabulary Automator'), `${lang}: ${key} uses the old name`)
+      }
+      assert.match(copy.get('faq.q13.a_html'), /Polywort.*Vocabulary Automator/s)
+      assert.match(copy.get('meta.title'), /^Polywort – /)
+      assert.match(copy.get('mock.model'), /: Polywort$/)
     }
   })
 
@@ -174,19 +192,31 @@ describe('helpers', () => {
     assert.ok(!formatMegabytes(DMG_BYTES, 'en-US').includes(' '), 'no breakable space')
   })
 
-  test('accepts only the universal disk image of the app version', () => {
+  test('accepts only the universal Polywort disk image of the app version', () => {
     assert.equal(checkDmgName(DMG_NAME, VERSION), null)
     assert.equal(checkDmgName(DMG_NAME.toUpperCase(), VERSION), null)
     assert.throws(
-      () => checkDmgName(`Vocabulary Automator_${VERSION}_aarch64.dmg`, VERSION),
+      () => checkDmgName(`Polywort_${VERSION}_aarch64.dmg`, VERSION),
       /not the universal disk image/,
     )
-    assert.throws(() => checkDmgName('Vocabulary Automator.dmg', VERSION), /universal/)
-    // "1" + version contains the version, but it is another version.
+    assert.throws(() => checkDmgName('Polywort.dmg', VERSION), /universal/)
+    // An image built before the rename holds "Vocabulary Automator.app", not
+    // the Polywort the install steps name, whatever its version.
     for (const other of [
-      'Vocabulary Automator_9.9.9_universal.dmg',
-      `x_1${VERSION}_universal.dmg`,
+      OLD_DMG_NAME,
+      `x_${VERSION}_universal.dmg`,
+      `Polywortx_${VERSION}_universal.dmg`,
     ]) {
+      for (const allowVersionMismatch of [false, true]) {
+        assert.throws(
+          () => checkDmgName(other, VERSION, { allowVersionMismatch }),
+          /is not a disk image of Polywort/,
+          other,
+        )
+      }
+    }
+    // "1" + version contains the version, but it is another version.
+    for (const other of ['Polywort_9.9.9_universal.dmg', `Polywort_1${VERSION}_universal.dmg`]) {
       assert.throws(() => checkDmgName(other, VERSION), /does not carry the app version/, other)
       assert.match(
         checkDmgName(other, VERSION, { allowVersionMismatch: true }),
@@ -197,6 +227,7 @@ describe('helpers', () => {
 
   test('publishes the disk image under a name without spaces', () => {
     assert.equal(publishedDmgName(DMG_NAME), DMG_PUBLISHED)
+    assert.equal(publishedDmgName(OLD_DMG_NAME), `Vocabulary-Automator_${VERSION}_universal.dmg`)
     assert.equal(publishedDmgName('a b  (c).dmg'), 'a-b-c-.dmg')
   })
 
@@ -229,6 +260,17 @@ function checkCommonOutput(label, getOut) {
         assert.ok(!html.includes('{{'), `${page} contains {{`)
         assert.ok(!html.includes('}}'), `${page} contains }}`)
         assert.ok(!/\{[a-z][A-Za-z0-9]*\}/.test(html), `${page} contains an unfilled {token}`)
+      }
+    })
+
+    test('names the app Polywort in the title, the header and Open Graph', () => {
+      for (const [page, html] of Object.entries(pages)) {
+        assert.match(html, /<title>[^<]*Polywort[^<]*<\/title>/, `${page} title`)
+        assert.ok(html.includes('<span class="brand-name">Polywort</span>'), `${page} wordmark`)
+        assert.ok(!html.includes('Vocabulary Automator</'), `${page} shows the old name`)
+      }
+      for (const page of ['index.html', 'de/index.html']) {
+        assert.ok(pages[page].includes('<meta property="og:site_name" content="Polywort" />'))
       }
     })
 
@@ -384,7 +426,7 @@ describe('build with a disk image', () => {
   before(async () => {
     const downloads = await tempDir('downloads')
     // An older image that must lose against the newest one.
-    const older = 'Vocabulary Automator_0.0.0_universal.dmg'
+    const older = 'Polywort_0.0.0_universal.dmg'
     await fakeDmg(downloads, older, 1_000, 1)
     const old = new Date('2026-01-01T00:00:00Z')
     await utimes(path.join(downloads, older), old, old)
@@ -518,9 +560,22 @@ describe('build options', () => {
     assert.ok((await readFile(path.join(outDir, 'index.html'), 'utf8')).includes('id="main"'))
   })
 
+  test('refuses a disk image built before the rename, and leaves the output folder alone', async () => {
+    const downloads = await tempDir('downloads')
+    await fakeDmg(downloads, OLD_DMG_NAME, 10)
+    const outDir = path.join(await tempDir('out'), 'dist')
+    for (const allowVersionMismatch of [false, true]) {
+      await assert.rejects(
+        build({ outDir, downloadsDir: downloads, siteUrl: SITE_URL, allowVersionMismatch }),
+        /is not a disk image of Polywort/,
+      )
+    }
+    await assert.rejects(stat(outDir), { code: 'ENOENT' })
+  })
+
   test('refuses a disk image of another version unless told to publish it', async () => {
     const downloads = await tempDir('downloads')
-    await fakeDmg(downloads, 'Vocabulary Automator_9.9.9_universal.dmg', 10)
+    await fakeDmg(downloads, 'Polywort_9.9.9_universal.dmg', 10)
     const outDir = path.join(await tempDir('out'), 'dist')
     await assert.rejects(
       build({ outDir, downloadsDir: downloads, siteUrl: SITE_URL }),
@@ -534,7 +589,7 @@ describe('build options', () => {
       allowVersionMismatch: true,
     })
     assert.equal(result.warnings.length, 1)
-    assert.equal(result.dmg.file, 'Vocabulary-Automator_9.9.9_universal.dmg')
+    assert.equal(result.dmg.file, 'Polywort_9.9.9_universal.dmg')
   })
 
   test('builds when the script is run through a symlink', async (t) => {

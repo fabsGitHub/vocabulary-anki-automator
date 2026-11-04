@@ -7,10 +7,11 @@
 //   node site/build.mjs [--out <dir>] [--downloads <dir>] [--allow-version-mismatch]
 //   SITE_URL=https://example.org node site/build.mjs
 //
-// The disk image must be the universal build of the app version in
-// src-tauri/tauri.conf.json ("…_<version>_universal.dmg", Tauri's own name),
-// because the page labels it with that version and "Apple Silicon and Intel".
-// --allow-version-mismatch lets another version through, with a warning.
+// The disk image must be the universal build of Polywort in the app version
+// of src-tauri/tauri.conf.json ("Polywort_<version>_universal.dmg", Tauri's
+// own name), because the page labels it with that name, that version and
+// "Apple Silicon and Intel". --allow-version-mismatch lets another version
+// through, with a warning; nothing lets another app name through.
 //
 // Everything is rendered in memory first, so a failing build leaves the
 // output folder as it was.
@@ -35,7 +36,9 @@ export const SITE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(SITE_DIR, '..')
 const SRC_DIR = path.join(SITE_DIR, 'src')
 
-export const DEFAULT_SITE_URL = 'https://vocabulary-automator.vercel.app'
+/** The app's name, as the page spells it and Tauri names the disk image. */
+export const PRODUCT_NAME = 'Polywort'
+export const DEFAULT_SITE_URL = 'https://polywort.vercel.app'
 export const REPO_URL = 'https://github.com/fabsGitHub/vocabulary-anki-automator'
 export const RELEASES_URL = `${REPO_URL}/releases`
 export const ANKI_URL = 'https://apps.ankiweb.net/'
@@ -183,9 +186,9 @@ export async function findNewestDmg(dir) {
 }
 
 /**
- * The file name the disk image is published under: Tauri names it
- * "Vocabulary Automator_0.1.0_universal.dmg", and a space would need quoting in
- * the `shasum` command the page shows and escaping in the URL.
+ * The file name the disk image is published under: anything but letters,
+ * digits, dots, dashes and underscores becomes a dash, because a space would
+ * need quoting in the `shasum` command the page shows and escaping in the URL.
  */
 export function publishedDmgName(name) {
   return name.replace(/[^A-Za-z0-9._-]+/g, '-')
@@ -193,22 +196,29 @@ export function publishedDmgName(name) {
 
 /**
  * Checks that a disk image's file name says what the page says about it:
- * Tauri names a universal build "<product>_<version>_universal.dmg". A
- * per-architecture image, or one of another version, would be published with
- * a false label, so it fails the build. With `allowVersionMismatch`, another
- * version passes and the warning is returned instead; the page then still
- * shows `version`.
+ * Tauri names a universal build "<productName>_<version>_universal.dmg". A
+ * per-architecture image, an image of an app with another name (such as one
+ * built before the app was called Polywort) or one of another version would
+ * be published with a false label, so it fails the build. With
+ * `allowVersionMismatch`, another version passes and the warning is returned
+ * instead; the page then still shows `version`.
  */
 export function checkDmgName(name, version, { allowVersionMismatch = false } = {}) {
-  const expected = `_${version}_universal.dmg`
+  const expected = `${PRODUCT_NAME}_${version}_universal.dmg`
   if (!/_universal\.dmg$/i.test(name)) {
     throw new Error(
       `${name} is not the universal disk image (Apple Silicon and Intel) the page describes: ` +
-        `expected a name ending in ${expected} (see site/README.md)`,
+        `expected ${expected} (see site/README.md)`,
     )
   }
-  if (name.toLowerCase().endsWith(expected.toLowerCase())) return null
-  const message = `${name} does not carry the app version ${version} from src-tauri/tauri.conf.json (expected a name ending in ${expected})`
+  if (!name.toLowerCase().startsWith(`${PRODUCT_NAME}_`.toLowerCase())) {
+    throw new Error(
+      `${name} is not a disk image of ${PRODUCT_NAME}, the app the page tells people to install: ` +
+        `expected ${expected}. Build it from app code whose productName is ${PRODUCT_NAME} (see site/README.md)`,
+    )
+  }
+  if (name.toLowerCase() === expected.toLowerCase()) return null
+  const message = `${name} does not carry the app version ${version} from src-tauri/tauri.conf.json (expected ${expected})`
   if (!allowVersionMismatch) {
     throw new Error(`${message}; pass --allow-version-mismatch to publish it anyway`)
   }
