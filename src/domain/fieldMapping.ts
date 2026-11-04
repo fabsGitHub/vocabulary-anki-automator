@@ -2,8 +2,9 @@
  * Field-mapping helpers for the settings editor (Milestones H and J5).
  *
  * The mapping itself is applied in `anki-bridge` (docs/architecture.md § 9);
- * this module only edits the `anki.field_mapping` value the backend reads and
- * mirrors the two rules the editor has to show truthfully: the first binding
+ * this module only edits the mapping values the backend reads
+ * (`anki.field_mapping` and a learned language's saved mapping) and mirrors
+ * the two rules the editor has to show truthfully: the first binding
  * for an Anki field wins (field names compared case-insensitively, as
  * AnkiConnect compares them), and `missing_fields` flags what a note type
  * would silently drop. The presets are copies of
@@ -140,9 +141,12 @@ export function missingFields(mapping: FieldMapping, modelFields: string[]): str
 /**
  * Milestone J5: Chinese captures carry pinyin and an HSK level that only a
  * Chinese note type can hold. True when the default hotkey or any profile
- * captures from Chinese but nothing in the mapping receives the pinyin.
+ * captures from Chinese but nothing in the global mapping receives the
+ * pinyin. With Chinese under "My languages" every Chinese capture is filed
+ * through that entry, which the languages tab checks on its own.
  */
 export function needsChineseNoteType(config: AppConfig): boolean {
+  if (config.learning.languages.some((entry) => isChinese(entry.lang))) return false
   const capturesChinese =
     isChinese(config.translation.source_lang) ||
     config.hotkey_profiles.some((profile) => isChinese(profile.source_lang))

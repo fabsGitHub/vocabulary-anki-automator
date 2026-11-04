@@ -1,12 +1,13 @@
 <script setup lang="ts">
 /**
- * The main window: settings in three tabs plus the history, the help dialog,
+ * The main window: settings in four tabs plus the history, the help dialog,
  * the UI-language switch and the update banner.
  *
- * It owns the two shared states, the settings store and the Anki connection,
- * and provides them to the tabs; the header badge and the Anki tab must show
- * the same connection. Startup only checks Anki (§ 8.4): nothing is installed
- * or launched without a click.
+ * It owns the shared states, the settings store, the Anki connection and the
+ * note types' fields, and provides them to the tabs; the header badge and the
+ * Anki tab must show the same connection, and the Anki and "My languages"
+ * tabs read the same note types. Startup only checks Anki (§ 8.4): nothing is
+ * installed or launched without a click.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,15 +15,17 @@ import { useI18n } from 'vue-i18n'
 import { onCaptureError, type UnlistenFn } from '../api'
 import HelpModal from '../components/HelpModal.vue'
 import HotkeyProfilesEditor from '../components/HotkeyProfilesEditor.vue'
+import LearnedLanguagesEditor from '../components/LearnedLanguagesEditor.vue'
 import UpdateBanner from '../components/UpdateBanner.vue'
 import { provideAnkiConnection, useAnkiConnection } from '../composables/useAnkiConnection'
 import { provideConfigStore, useConfig } from '../composables/useConfig'
+import { createModelFields, provideModelFields } from '../composables/useModelFields'
 import { UI_LANGS, setLocale, toUiLang, type MessageKey, type UiLang } from '../i18n'
 import AnkiConnectionView from './AnkiConnectionView.vue'
 import CaptureSettings from './CaptureSettings.vue'
 import HistoryView from './HistoryView.vue'
 
-type TabId = 'capture' | 'profiles' | 'anki' | 'history'
+type TabId = 'capture' | 'learning' | 'profiles' | 'anki' | 'history'
 
 interface Tab {
   id: TabId
@@ -33,6 +36,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: 'capture', label: 'tabs.capture', paths: ['translation', 'hotkeys'] },
+  { id: 'learning', label: 'tabs.learning', paths: ['learning'] },
   { id: 'profiles', label: 'tabs.profiles', paths: ['hotkey_profiles'] },
   { id: 'anki', label: 'tabs.anki', paths: ['anki'] },
   { id: 'history', label: 'tabs.history', paths: [] },
@@ -51,6 +55,7 @@ provideAnkiConnection(anki)
 
 const { config, loaded, loading, loadError, saving, saveError, uiLangError, dirty, isValid } = store
 const { state: ankiState, decks } = anki
+provideModelFields(createModelFields(() => ankiState.value === 'online'))
 
 const activeTab = ref<TabId>('capture')
 const showHelp = ref(false)
@@ -220,6 +225,9 @@ onBeforeUnmount(() => {
       <HistoryView v-if="activeTab === 'history'" />
       <template v-else-if="loaded">
         <CaptureSettings v-if="activeTab === 'capture'" />
+        <section v-else-if="activeTab === 'learning'" class="pane-layout">
+          <LearnedLanguagesEditor />
+        </section>
         <section v-else-if="activeTab === 'profiles'" class="pane-layout">
           <HotkeyProfilesEditor :decks="decks" />
         </section>

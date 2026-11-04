@@ -68,6 +68,7 @@ describe('MainWindow', () => {
     expect(wrapper?.find('[data-test="anki-badge"]').text()).toContain('Anki connected')
     expect(wrapper?.findAll('[role="tab"]').map((t) => t.text())).toEqual([
       'Capture & Language',
+      'My languages',
       'Hotkey profiles',
       'Anki connection',
       'History',
@@ -116,6 +117,69 @@ describe('MainWindow', () => {
     await flushPromises()
     expect(callsTo('apply_settings')).toHaveLength(0)
     expect(wrapper?.text()).toContain('Fix the highlighted settings before saving.')
+  })
+
+  it('edits "My languages" in the second tab and marks it when an entry needs fixing', async () => {
+    onCommand('suggest_field_mapping', {
+      mapping: { fields: [{ anki_field: 'Front', source: 'front' }], audio_field: null },
+      guessed: [],
+      unmatched: [],
+    })
+    await mountMain()
+    expect(wrapper?.findAll('[role="tab"]')[1].attributes('data-test')).toBe('tab-learning')
+    await tab('learning')?.trigger('click')
+    expect(tab('learning')?.attributes('aria-selected')).toBe('true')
+    await wrapper?.find('[data-test="add-language"]').trigger('click')
+    expect(tab('learning')?.find('.tab-issue-dot').exists()).toBe(false)
+
+    await wrapper?.find('[data-test="learned-deck"]').setValue(' ')
+    expect(tab('learning')?.find('.tab-issue-dot').exists()).toBe(true)
+    expect(tab('capture')?.find('.tab-issue-dot').exists()).toBe(false)
+    expect(tab('anki')?.find('.tab-issue-dot').exists()).toBe(false)
+
+    await wrapper?.find('[data-test="learned-deck"]').setValue('english')
+    await wrapper?.find('[data-test="save"]').trigger('click')
+    await flushPromises()
+    expect(sentConfigs().map((config) => config.learning.languages)).toEqual([
+      [
+        {
+          lang: 'en',
+          deck_name: 'english',
+          model_name: 'AppleStyleFinalV3',
+          field_mapping: null,
+          create_reverse: true,
+        },
+      ],
+    ])
+  })
+
+  it('reads a note type once for the Anki and "My languages" tabs', async () => {
+    onCommand(
+      'get_current_settings',
+      settings((config) =>
+        config.learning.languages.push({
+          lang: 'fr',
+          deck_name: 'french',
+          model_name: 'AppleStyleFinalV3',
+          field_mapping: config.anki.field_mapping,
+          create_reverse: true,
+        }),
+      ),
+    )
+    await mountMain()
+    await tab('anki')?.trigger('click')
+    await flushPromises()
+    await tab('learning')?.trigger('click')
+    await flushPromises()
+    await tab('anki')?.trigger('click')
+    await flushPromises()
+    expect(callsTo('anki_model_field_names').map((call) => call.args)).toEqual([
+      { model: 'AppleStyleFinalV3' },
+    ])
+
+    await wrapper?.find('[data-test="rescan"]').trigger('click')
+    await flushPromises()
+    expect(callsTo('anki_model_field_names')).toHaveLength(2)
   })
 
   it('shows the backend error when saving fails', async () => {

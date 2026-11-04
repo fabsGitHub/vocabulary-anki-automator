@@ -26,6 +26,7 @@ export const en = {
   },
   tabs: {
     capture: 'Capture & Language',
+    learning: 'My languages',
     profiles: 'Hotkey profiles',
     anki: 'Anki connection',
     history: 'History',
@@ -52,6 +53,8 @@ export const en = {
   capture: {
     languagesTitle: 'Languages',
     sourceLang: 'Source language',
+    sourceFallbackHint:
+      'Your default hotkey recognizes the languages listed under “My languages”. This source language is used only for text that matches none of them.',
     targetLang: 'Target language',
     languagesHint:
       'Text with Chinese characters is always captured as Chinese, whatever the source language says.',
@@ -79,10 +82,35 @@ export const en = {
     trySent: 'Sent. The approval window opens when the card is ready.',
     tryFailed: 'The capture could not start: {error}',
   },
+  learning: {
+    title: 'Languages I am learning',
+    intro:
+      'List the languages you learn. The default hotkey then recognizes which of them the selected text is in and files the card in that language’s deck and note type. Chinese text is recognized by its characters; between languages written in the Latin alphabet the app compares the words statistically, offline. For a short word that exists in several of your languages (“message” in English and French), the approval window shows the best guess, and one click switches it.',
+    native: 'Your language: {lang}. Cards are translated into it (set on “Capture & Language”).',
+    empty:
+      'No languages yet. Until you add one, the default hotkey captures from the source language on “Capture & Language”, as before.',
+    add: 'Add language',
+    allAdded: 'Every supported language is listed.',
+    remove: 'Remove',
+    language: 'Language',
+    deck: 'Deck',
+    deckPlaceholder: 'e.g. {deck}',
+    model: 'Note type',
+    mapping: 'Field mapping',
+    mappingAuto: 'Matched by field name',
+    mappingCustom: 'Customized',
+    mappingAutoHint:
+      'Each field of “{model}” is filled according to its name: “Audio” gets the pronunciation, “English Sentence” the English example, and so on. Nothing is saved until you customize it.',
+    mappingOffline: 'Connect to Anki to see how the fields of “{model}” are matched.',
+    customize: 'Customize',
+    rematch: 'Match by field name again',
+    audioTo: 'Pronunciation → {field}',
+    noAudio: 'No field for the pronunciation',
+  },
   profiles: {
     title: 'Hotkey profiles',
     intro:
-      'Each profile adds a shortcut that captures straight into its own language pair and, optionally, its own deck. The default hotkey on the first tab keeps using the main languages and deck.',
+      'Each profile adds a shortcut that captures straight into its own language pair and, optionally, its own deck. The default hotkey uses the languages under “My languages”, or the main language pair and deck when none are listed.',
     empty: 'No profiles yet.',
     add: 'Add profile',
     remove: 'Remove',
@@ -340,7 +368,7 @@ export const en = {
       'The app talks to Anki through AnkiConnect on this computer. Cards approved while Anki is closed stay in the history and can be synced later.',
     step3Title: '3. Capture',
     step3Body:
-      'Select a word or phrase in any app and press your hotkey. Check the card in the approval window, then press Enter to add it or Esc to discard it.',
+      'Select a word or phrase in any app and press your hotkey. Check the card in the approval window, then press Enter to add it or Esc to discard it. With languages listed under “My languages”, the hotkey recognizes the language of the text by itself.',
     step4Title: '4. Chinese',
     step4Body:
       'Text with Chinese characters gets pinyin and, for HSK words, the HSK level. Use a note type with Hanzi, Pinyin, Meaning and Audio fields together with the Chinese mapping preset.',

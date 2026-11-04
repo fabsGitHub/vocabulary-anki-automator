@@ -195,6 +195,22 @@ describe('needsChineseNoteType (J5)', () => {
     expect(needsChineseNoteType(custom)).toBe(false)
   })
 
+  it('leaves Chinese to a Chinese entry under "My languages", which files every Chinese capture', () => {
+    const learned = config((c) => {
+      c.translation.source_lang = 'zh-CN'
+      c.learning.languages.push({
+        lang: 'zh-CN',
+        deck_name: 'chinese',
+        model_name: 'Chinese',
+        field_mapping: null,
+        create_reverse: false,
+      })
+    })
+    expect(needsChineseNoteType(learned)).toBe(false)
+    learned.learning.languages[0].lang = 'fr'
+    expect(needsChineseNoteType(learned)).toBe(true)
+  })
+
   it('does not count a pinyin binding that an earlier binding shadows', () => {
     const shadowed = config((c) => {
       c.translation.source_lang = 'zh-CN'

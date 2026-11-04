@@ -7,15 +7,15 @@
  * Deck and note type stay editable while Anki is offline, as free text; the
  * lists Anki reports replace the text fields once it is online.
  */
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { ankiModelFieldNames, errorMessage } from '../api'
 import ConsentDialog from '../components/ConsentDialog.vue'
 import FieldMappingEditor from '../components/FieldMappingEditor.vue'
 import { useAnkiConnectionContext } from '../composables/useAnkiConnection'
 import { useConfigStore } from '../composables/useConfig'
 import { useIssueText } from '../composables/useIssueText'
+import { useModelFields } from '../composables/useModelFields'
 import { needsChineseNoteType } from '../domain/fieldMapping'
 
 const { t } = useI18n()
@@ -43,46 +43,8 @@ const modelOptions = computed(() => {
 })
 const chineseWarning = computed(() => needsChineseNoteType(config.value))
 
-const modelFields = ref<string[] | null>(null)
-const fieldsLoading = ref(false)
-const fieldsError = ref<string | null>(null)
-/** Note type -> its fields, for as long as Anki stays online. */
-const fieldCache = new Map<string, string[]>()
-let fieldsRequest = 0
-
-async function loadModelFields(): Promise<void> {
-  const request = ++fieldsRequest
-  const model = config.value.anki.model_name.trim()
-  fieldsError.value = null
-  if (!online.value) fieldCache.clear()
-  if (!online.value || !model) {
-    modelFields.value = null
-    fieldsLoading.value = false
-    return
-  }
-  const cached = fieldCache.get(model)
-  if (cached) {
-    modelFields.value = cached
-    fieldsLoading.value = false
-    return
-  }
-  modelFields.value = null
-  fieldsLoading.value = true
-  try {
-    const fields = await ankiModelFieldNames(model)
-    if (request !== fieldsRequest) return
-    fieldCache.set(model, fields)
-    modelFields.value = fields
-  } catch (err) {
-    if (request === fieldsRequest) fieldsError.value = errorMessage(err)
-  } finally {
-    if (request === fieldsRequest) fieldsLoading.value = false
-  }
-}
-
-watch([online, () => config.value.anki.model_name], () => void loadModelFields(), {
-  immediate: true,
-})
+const modelFields = useModelFields(() => [config.value.anki.model_name])
+const fields = computed(() => modelFields.state(config.value.anki.model_name))
 </script>
 
 <template>
@@ -255,9 +217,9 @@ watch([online, () => config.value.anki.model_name], () => void loadModelFields()
       <FieldMappingEditor
         v-model:mapping="config.anki.field_mapping"
         :model-name="config.anki.model_name"
-        :model-fields="modelFields"
-        :fields-loading="fieldsLoading"
-        :fields-error="fieldsError"
+        :model-fields="fields.fields"
+        :fields-loading="fields.loading"
+        :fields-error="fields.error"
         :source-lang="config.translation.source_lang"
         :target-lang="config.translation.target_lang"
         :issue="issueText('anki.field_mapping')"

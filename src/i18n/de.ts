@@ -21,6 +21,7 @@ export const de: MessageSchema = {
   },
   tabs: {
     capture: 'Erfassung & Sprache',
+    learning: 'Meine Sprachen',
     profiles: 'Hotkey-Profile',
     anki: 'Anki-Verbindung',
     history: 'Verlauf',
@@ -47,6 +48,8 @@ export const de: MessageSchema = {
   capture: {
     languagesTitle: 'Sprachen',
     sourceLang: 'Ausgangssprache',
+    sourceFallbackHint:
+      'Ihr Standard-Hotkey erkennt die unter „Meine Sprachen“ aufgeführten Sprachen. Diese Ausgangssprache wird nur für Text verwendet, der zu keiner davon passt.',
     targetLang: 'Zielsprache',
     languagesHint:
       'Text mit chinesischen Schriftzeichen wird immer als Chinesisch erfasst, unabhängig von der Ausgangssprache.',
@@ -74,10 +77,37 @@ export const de: MessageSchema = {
     trySent: 'Gesendet. Das Bestätigungsfenster öffnet sich, sobald die Karte fertig ist.',
     tryFailed: 'Die Erfassung konnte nicht starten: {error}',
   },
+  learning: {
+    title: 'Sprachen, die ich lerne',
+    intro:
+      'Führen Sie die Sprachen auf, die Sie lernen. Der Standard-Hotkey erkennt dann, in welcher davon der markierte Text ist, und legt die Karte im Stapel und Notiztyp dieser Sprache ab. Chinesischen Text erkennt er an den Schriftzeichen; zwischen Sprachen mit lateinischer Schrift vergleicht er die Wörter statistisch und ohne Internet. Bei einem kurzen Wort, das es in mehreren Ihrer Sprachen gibt (etwa „message“ im Englischen und Französischen), zeigt das Bestätigungsfenster die beste Vermutung, und ein Klick wechselt sie.',
+    native:
+      'Ihre Sprache: {lang}. In sie werden die Karten übersetzt (einstellbar unter „Erfassung & Sprache“).',
+    empty:
+      'Noch keine Sprachen. Solange keine eingetragen ist, erfasst der Standard-Hotkey wie bisher aus der Ausgangssprache unter „Erfassung & Sprache“.',
+    add: 'Sprache hinzufügen',
+    allAdded: 'Alle unterstützten Sprachen sind aufgeführt.',
+    remove: 'Entfernen',
+    language: 'Sprache',
+    deck: 'Stapel',
+    deckPlaceholder: 'z. B. {deck}',
+    model: 'Notiztyp',
+    mapping: 'Feldzuordnung',
+    mappingAuto: 'Nach Feldnamen zugeordnet',
+    mappingCustom: 'Angepasst',
+    mappingAutoHint:
+      'Jedes Feld von „{model}“ wird nach seinem Namen gefüllt: „Audio“ bekommt die Aussprache, „English Sentence“ das englische Beispiel und so weiter. Gespeichert wird nichts, bis Sie die Zuordnung anpassen.',
+    mappingOffline:
+      'Verbinden Sie Anki, um zu sehen, wie die Felder von „{model}“ zugeordnet werden.',
+    customize: 'Anpassen',
+    rematch: 'Wieder nach Feldnamen zuordnen',
+    audioTo: 'Aussprache → {field}',
+    noAudio: 'Kein Feld für die Aussprache',
+  },
   profiles: {
     title: 'Hotkey-Profile',
     intro:
-      'Jedes Profil fügt eine Tastenkombination hinzu, die direkt in ein eigenes Sprachpaar und optional in einen eigenen Stapel erfasst. Der Standard-Hotkey auf dem ersten Tab nutzt weiterhin die Hauptsprachen und den Hauptstapel.',
+      'Jedes Profil fügt eine Tastenkombination hinzu, die direkt in ein eigenes Sprachpaar und optional in einen eigenen Stapel erfasst. Der Standard-Hotkey nutzt die Sprachen unter „Meine Sprachen“, oder das Hauptsprachpaar und den Hauptstapel, wenn keine eingetragen sind.',
     empty: 'Noch keine Profile.',
     add: 'Profil hinzufügen',
     remove: 'Entfernen',
@@ -340,7 +370,7 @@ export const de: MessageSchema = {
       'Die App spricht über AnkiConnect auf diesem Computer mit Anki. Karten, die Sie bestätigen, während Anki geschlossen ist, bleiben im Verlauf und lassen sich später übertragen.',
     step3Title: '3. Erfassen',
     step3Body:
-      'Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie Ihren Hotkey. Prüfen Sie die Karte im Bestätigungsfenster und drücken Sie Enter zum Hinzufügen oder Esc zum Verwerfen.',
+      'Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie Ihren Hotkey. Prüfen Sie die Karte im Bestätigungsfenster und drücken Sie Enter zum Hinzufügen oder Esc zum Verwerfen. Sind unter „Meine Sprachen“ Sprachen eingetragen, erkennt der Hotkey die Sprache des Textes selbst.',
     step4Title: '4. Chinesisch',
     step4Body:
       'Text mit chinesischen Schriftzeichen bekommt Pinyin und bei HSK-Wörtern die HSK-Stufe. Verwenden Sie einen Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio zusammen mit der chinesischen Vorlage.',

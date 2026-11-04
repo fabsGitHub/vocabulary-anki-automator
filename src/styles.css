@@ -822,7 +822,8 @@ textarea[readonly] {
   max-width: 40%;
 }
 
-.profiles-editor {
+.profiles-editor,
+.learned-editor {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -846,6 +847,28 @@ textarea[readonly] {
 
 .profile-deck {
   flex: 1;
+}
+
+.learned-mapping summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.learned-mapping summary .badge {
+  margin-left: 8px;
+}
+
+.learned-mapping-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.learned-footer {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .mapping-editor {

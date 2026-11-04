@@ -32,7 +32,7 @@ export function learnedEntry(config: AppConfig, lang: string): LearnedLanguage |
  * The supported languages entry `index` may choose: neither the user's own
  * language nor one another entry has. Its current value stays in the list.
  */
-export function availableLanguages(config: AppConfig, index: number): string[] {
+export function availableLanguages(config: AppConfig, index: number): LanguageCode[] {
   const native = normalizeLang(config.translation.target_lang)
   const current = normalizeLang(config.learning.languages[index]?.lang ?? '')
   const taken = new Set(
