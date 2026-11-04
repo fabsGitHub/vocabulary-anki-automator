@@ -711,6 +711,7 @@ language pair in capture order.
 | `anki_status`                 | —                                                       | `AnkiStatus`                                                                                            |
 | `anki_model_field_names`      | `model: string`                                         | `string[]`                                                                                              |
 | `suggest_field_mapping`       | `model: string, sourceLang: string, targetLang: string` | `AutoMatch` (`modelFieldNames`, then `FieldMapping::auto_match`; saves nothing)                         |
+| `check_pending_fields`        | —                                                       | `FieldCheck \| null` (what a push of the pending card would drop; `null` when nothing is pending)       |
 | `launch_anki_desktop`         | —                                                       | `string`                                                                                                |
 | `get_setup_status`            | —                                                       | `SetupStatus`                                                                                           |
 | `grant_consent`               | `action: "anki_install" \| "ankiconnect_provision"`     | `ConsentState`                                                                                          |
@@ -767,6 +768,16 @@ Further rules both sides rely on:
   show; the push decides again with the config of that moment.
 - `launch_anki_desktop` waits for `open -a Anki` on macOS and reports a missing
   Anki instead of "Starting Anki…".
+- `check_pending_fields` files the pending card with `AppConfig::filing` (its profile
+  and the card's `source_lang`), reads the note type's fields once
+  (`modelFieldNames`, 3 s timeout) and compares them with the mapping that push
+  would use (`FieldMapping::lost_values`, § 9): `unchecked` when Anki is
+  unreachable, `failed` with the error otherwise (e.g. the note type does not
+  exist), else `checked` with `lost` (empty when everything arrives) and whether
+  the mapping was matched by field name. It reads from Anki only and works for
+  every config; the approval window calls it after showing a capture, so a slow
+  Anki never delays the capture, and shows the result as a warning that does not
+  block approving.
 - `suggest_field_mapping` only reads from Anki and writes no config: the Anki tab's
   "Match by field name" replaces the form's mapping and audio field with the result
   (a user edit, so the form becomes dirty) and lists its `guessed` and `unmatched`
@@ -1178,6 +1189,14 @@ interface AutoMatch {
   guessed: string[] // fields bound only by position
   unmatched: string[] // fields left empty (the audio field excluded)
 }
+type LostValue =
+  | { kind: 'missing_field'; anki_field: string; source: CardField }
+  | { kind: 'unmapped'; source: CardField }
+  | { kind: 'audio'; audio_field: string | null }
+type FieldCheck =
+  | { status: 'unchecked' } // Anki unreachable
+  | { status: 'failed'; model: string; error: string }
+  | { status: 'checked'; model: string; auto_matched: boolean; lost: LostValue[] }
 interface LearnedLanguage {
   lang: string
   deck_name: string

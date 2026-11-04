@@ -10,7 +10,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { getCurrentSettings, type AppConfig, type PendingCapture } from '../api'
+import { getCurrentSettings, type AppConfig, type CardField, type PendingCapture } from '../api'
 import { useApproval } from '../composables/useApproval'
 import { isSupportedLang } from '../domain/language'
 import { formatWarning } from '../domain/warnings'
@@ -18,7 +18,8 @@ import { LANGUAGE_NAME_KEYS, setLocale } from '../i18n'
 
 const { t, te } = useI18n()
 const approval = useApproval()
-const { pending, draft, phase, result, error, captureError, chinese, frontEdited } = approval
+const { pending, draft, phase, result, error, captureError, fieldCheck, chinese, frontEdited } =
+  approval
 
 const settings = ref<AppConfig | null>(null)
 const backInput = ref<HTMLInputElement | null>(null)
@@ -52,6 +53,37 @@ const profile = computed(() => {
   const id = pending.value?.profile_id
   return id ? (settings.value?.hotkey_profiles.find((p) => p.id === id) ?? null) : null
 })
+
+function valueName(source: CardField): string {
+  return t(`mapping.sources.${source}`)
+}
+
+/** One sentence per value the pending card's note type would drop. */
+const lostValues = computed(() => {
+  const check = fieldCheck.value
+  if (check?.status !== 'checked') return []
+  const model = check.model
+  return check.lost.map((lost) => {
+    switch (lost.kind) {
+      case 'missing_field':
+        return t('approval.lostMissingField', {
+          value: valueName(lost.source),
+          model,
+          field: lost.anki_field,
+        })
+      case 'unmapped':
+        return t('approval.lostUnmapped', { value: valueName(lost.source), model })
+      case 'audio':
+        return lost.audio_field
+          ? t('approval.lostAudio', { model, field: lost.audio_field })
+          : t('approval.lostAudioUnset', { model })
+    }
+  })
+})
+
+const fieldCheckError = computed(() =>
+  fieldCheck.value?.status === 'failed' ? fieldCheck.value.error : null,
+)
 
 const hskLabel = computed(() => {
   const level = chinese.value?.hsk_level ?? null
@@ -247,6 +279,26 @@ onBeforeUnmount(() => {
           data-test="notes"
           :readonly="!editable"
         />
+      </div>
+
+      <div
+        v-if="lostValues.length > 0 || fieldCheckError"
+        class="notice warning"
+        role="status"
+        data-test="fields-lost"
+      >
+        <p v-if="fieldCheckError">
+          {{ t('approval.fieldCheckFailed', { error: fieldCheckError }) }}
+        </p>
+        <template v-else>
+          <strong>{{ t('approval.lostTitle') }}</strong>
+          <ul class="notice-list">
+            <li v-for="(line, index) in lostValues" :key="index" data-test="lost-value">
+              {{ line }}
+            </li>
+          </ul>
+          <p class="notice-detail">{{ t('approval.lostHint') }}</p>
+        </template>
       </div>
 
       <div v-if="phase === 'saved'" class="notice warning" role="status" data-test="saved-offline">

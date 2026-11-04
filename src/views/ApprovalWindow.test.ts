@@ -1,7 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AppConfig, Card, PendingCapture, SubmitResult } from '../api'
+import type { AppConfig, Card, FieldCheck, PendingCapture, SubmitResult } from '../api'
 import { defaultConfig } from '../composables/useConfig'
 import { i18n, setLocale } from '../i18n'
 import {
@@ -107,6 +107,8 @@ beforeEach(() => {
   resetTauri()
   windowState.label = 'preview'
   onCommand('get_current_settings', settings())
+  // Unknown commands reject; every shown capture is checked in the background.
+  onCommand('check_pending_fields', null)
   setLocale('en')
 })
 
@@ -564,5 +566,101 @@ describe('what the window shows', () => {
     })
     await flushPromises()
     expect(wrapper?.find('[data-test="capture-error"]').text()).toContain('limited to 100')
+  })
+})
+
+describe('the field check', () => {
+  const LOST: FieldCheck = {
+    status: 'checked',
+    model: 'AppleStyleFinalV3',
+    auto_matched: false,
+    lost: [
+      { kind: 'missing_field', anki_field: 'Context Sentence', source: 'example' },
+      { kind: 'unmapped', source: 'pinyin' },
+      { kind: 'audio', audio_field: 'Front Audio' },
+      { kind: 'audio', audio_field: null },
+    ],
+  }
+
+  const lostLines = () =>
+    wrapper?.findAll('[data-test="lost-value"]').map((item) => item.text()) ?? []
+
+  it('lists what the note type would drop, and approving stays possible', async () => {
+    onCommand('check_pending_fields', LOST)
+    await mountWindow(capture())
+
+    const notice = wrapper?.find('[data-test="fields-lost"]')
+    expect(notice?.attributes('role')).toBe('status')
+    expect(notice?.text()).toContain('Not everything would reach Anki:')
+    expect(lostLines()).toEqual([
+      'Example and translation (two lines): the note type “AppleStyleFinalV3” has no field “Context Sentence”.',
+      'Pinyin: no field of “AppleStyleFinalV3” is filled with it.',
+      'Pronunciation: the note type “AppleStyleFinalV3” has no field “Front Audio”.',
+      'Pronunciation: no field of “AppleStyleFinalV3” is chosen for the audio.',
+    ])
+    expect(notice?.text()).toContain('under “My languages” or “Anki connection”')
+    expect(wrapper?.find('[data-test="approve"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('says nothing when everything arrives, Anki is away or nothing was checked', async () => {
+    for (const check of [
+      { status: 'checked', model: 'AppleStyleFinalV3', auto_matched: true, lost: [] },
+      { status: 'unchecked' },
+      null,
+    ] satisfies (FieldCheck | null)[]) {
+      onCommand('check_pending_fields', check)
+      await mountWindow(capture())
+      expect(wrapper?.find('[data-test="fields-lost"]').exists(), JSON.stringify(check)).toBe(false)
+      wrapper?.unmount()
+    }
+    wrapper = null
+  })
+
+  it('names the error when the note type could not be checked', async () => {
+    onCommand('check_pending_fields', {
+      status: 'failed',
+      model: 'Nope',
+      error: 'model was not found: Nope',
+    } satisfies FieldCheck)
+    await mountWindow(capture())
+    expect(wrapper?.find('[data-test="fields-lost"]').text()).toBe(
+      'The note type could not be checked: model was not found: Nope',
+    )
+  })
+
+  it('shows no warning when the check itself fails', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    onCommand('check_pending_fields', () => {
+      throw 'command check_pending_fields not found'
+    })
+    await mountWindow(capture())
+    expect(wrapper?.find('[data-test="approval-card"]').exists()).toBe(true)
+    expect(wrapper?.find('[data-test="fields-lost"]').exists()).toBe(false)
+  })
+
+  it('checks each shown capture once, not its re-deliveries', async () => {
+    await mountWindow(capture())
+    expect(callsTo('check_pending_fields')).toHaveLength(1)
+    emitEvent('translation-payload', capture())
+    await flushPromises()
+    expect(callsTo('check_pending_fields')).toHaveLength(1)
+    emitEvent('translation-payload', capture({}, { front: 'house', back: 'Haus' }))
+    await flushPromises()
+    expect(callsTo('check_pending_fields')).toHaveLength(2)
+  })
+
+  it('drops the answer for a capture that was replaced meanwhile', async () => {
+    const slow = deferred<FieldCheck | null>()
+    onCommand('check_pending_fields', () => slow.promise)
+    await mountWindow(capture())
+    onCommand('check_pending_fields', null)
+    emitEvent('translation-payload', capture({}, { front: 'house', back: 'Haus' }))
+    await flushPromises()
+
+    slow.resolve(LOST)
+    await flushPromises()
+
+    expect(field('front').value).toBe('house')
+    expect(wrapper?.find('[data-test="fields-lost"]').exists()).toBe(false)
   })
 })

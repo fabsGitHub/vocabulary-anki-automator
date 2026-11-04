@@ -12,6 +12,11 @@
  * Every shown capture gets a sequence number. A save that resolves after a
  * newer capture arrived must not hide the window or clear the form, since
  * both belong to the new card by then.
+ *
+ * Each shown capture's note type is then checked with `check_pending_fields`,
+ * in the background: AnkiConnect drops values whose field the note type lacks
+ * without an error, and this is the last chance to say so. A check that
+ * answers for an older capture is dropped, like a late save.
  */
 
 import {
@@ -25,6 +30,7 @@ import {
 } from 'vue'
 
 import {
+  checkPendingFields,
   discardPendingPayload,
   errorMessage,
   executeCardGeneration,
@@ -33,6 +39,7 @@ import {
   onCaptureError,
   onTranslationPayload,
   type Card,
+  type FieldCheck,
   type PendingCapture,
   type ScriptMetadata,
   type SubmitResult,
@@ -70,6 +77,8 @@ export interface Approval {
   error: Ref<ApprovalError | null>
   /** The last `capture-error` message, until the next capture arrives. */
   captureError: Ref<string | null>
+  /** What a push of the shown capture would drop; `null` until checked or with nothing shown. */
+  fieldCheck: Ref<FieldCheck | null>
   /** Pinyin and HSK level when the capture is Chinese. */
   chinese: ComputedRef<Extract<ScriptMetadata, { kind: 'chinese' }> | null>
   /** The front differs from the captured one, so its TTS audio is stale. */
@@ -102,6 +111,7 @@ export function useApproval(): Approval {
   const result = ref<SubmitResult | null>(null)
   const error = ref<ApprovalError | null>(null)
   const captureError = ref<string | null>(null)
+  const fieldCheck = ref<FieldCheck | null>(null)
 
   const chinese = computed(() => {
     const metadata = pending.value?.card.script_metadata
@@ -122,6 +132,7 @@ export function useApproval(): Approval {
     pending.value = capture
     result.value = null
     error.value = null
+    fieldCheck.value = null
     if (capture) {
       captureError.value = null
       Object.assign(draft, {
@@ -132,10 +143,22 @@ export function useApproval(): Approval {
         notes: capture.card.notes,
       })
       phase.value = 'editing'
+      void checkFields(sequence)
     } else {
       Object.assign(draft, emptyDraft())
       phase.value = 'waiting'
     }
+  }
+
+  /** Fetches the field check for the capture shown as `mine`; a failure only means no warning. */
+  async function checkFields(mine: number): Promise<void> {
+    let check: FieldCheck | null = null
+    try {
+      check = await checkPendingFields()
+    } catch (err) {
+      console.warn('[approval] could not check the fields of the note type:', err)
+    }
+    if (mine === sequence) fieldCheck.value = check
   }
 
   /** A re-delivery of the capture on screen keeps the user's edits (and a finished save). */
@@ -254,6 +277,7 @@ export function useApproval(): Approval {
     result,
     error,
     captureError,
+    fieldCheck,
     chinese,
     frontEdited,
     start,

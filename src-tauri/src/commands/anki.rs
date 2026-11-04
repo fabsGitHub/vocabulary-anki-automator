@@ -1,5 +1,5 @@
 //! `anki_status`, `anki_model_field_names`, `suggest_field_mapping`,
-//! `launch_anki_desktop`.
+//! `check_pending_fields`, `launch_anki_desktop`.
 //!
 //! The frontend used to call AnkiConnect itself, which is why AnkiConnect had
 //! to accept every web origin. These commands ask through `anki-bridge`
@@ -12,10 +12,15 @@ use anki_bridge::{AnkiClient, AutoMatch, FieldMapping};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::{setup::os_args, state::AppState};
+use crate::{
+    filing::{check_fields, FieldCheck},
+    setup::os_args,
+    state::AppState,
+};
 
-/// How long the status probe waits for Anki: the settings window polls it,
-/// and a closed Anki should show up as offline quickly.
+/// How long the status probe and the approval window's field check wait for
+/// Anki: the settings window polls the one, the approval window waits for the
+/// other, and a closed Anki should show up as offline quickly.
 const STATUS_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// What `anki_status` reports.
@@ -103,6 +108,23 @@ pub async fn suggest_field_mapping(
         &source_lang,
         &target_lang,
     ))
+}
+
+/// What a push of the pending card would drop: its note type's fields
+/// against the mapping its filing uses (`filing::check_fields`). `None` when
+/// nothing is pending. Reads from Anki only; the approval window shows the
+/// result as a warning, and approving stays possible.
+#[tauri::command]
+pub async fn check_pending_fields(
+    state: State<'_, AppState>,
+) -> Result<Option<FieldCheck>, String> {
+    let Some(pending) = state.pending().get() else {
+        return Ok(None);
+    };
+    let config = state.config();
+    let filing = config.filing(pending.profile_id.as_deref(), &pending.card.source_lang);
+    let client = AnkiClient::new(config.anki.connect_url).with_timeout(STATUS_TIMEOUT);
+    Ok(Some(check_fields(&client, &filing, &pending.card).await))
 }
 
 /// Starts the Anki desktop app.

@@ -10,7 +10,7 @@
 //! | `config`    | B2, H      | `config.json`: shape, legacy migration, validation          |
 //! | `state`     | B3, F, N4  | runtime state and the injected services                     |
 //! | `capture`   | B3, D, H   | hotkey -> clipboard -> pipeline -> approval window          |
-//! | `filing`    | O          | the field mapping a card is pushed with                     |
+//! | `filing`    | O          | the mapping a card is pushed with, and what it would drop   |
 //! | `shortcuts` | H          | the default hotkey plus one per hotkey profile              |
 //! | `push`      | B3, F, J5  | save-then-push of approved cards, retry of unsynced ones     |
 //! | `setup`     | E          | consent-gated, pinned and verified Anki/AnkiConnect install |
@@ -59,6 +59,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::anki::anki_status,
             commands::anki::anki_model_field_names,
             commands::anki::suggest_field_mapping,
+            commands::anki::check_pending_fields,
             commands::anki::launch_anki_desktop,
             commands::setup::get_setup_status,
             commands::setup::grant_consent,

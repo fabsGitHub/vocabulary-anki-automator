@@ -101,6 +101,21 @@ fn capture_text_produces_a_pending_capture_and_opens_the_preview() {
     assert_eq!(harness.call("capture_in_progress", json!({})), json!(true));
 }
 
+/// The approval window's field check needs Anki; without it there is
+/// nothing to report, and nothing pending means nothing to check.
+#[test]
+fn check_pending_fields_is_null_without_a_capture_and_unchecked_while_anki_is_away() {
+    let harness = Harness::new();
+    assert_eq!(harness.call("check_pending_fields", json!({})), Value::Null);
+
+    capture(&harness, "serendipity", None);
+
+    assert_eq!(
+        harness.call("check_pending_fields", json!({})),
+        json!({ "status": "unchecked" })
+    );
+}
+
 #[test]
 fn a_second_capture_reuses_the_preview_and_sends_it_the_payload() {
     let harness = Harness::new();

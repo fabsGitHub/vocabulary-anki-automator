@@ -152,6 +152,21 @@ const autoMatch = object({
   guessed: array(string),
   unmatched: array(string),
 })
+const lostValue = union(
+  object({ kind: literal('missing_field'), anki_field: string, source: cardField }),
+  object({ kind: literal('unmapped'), source: cardField }),
+  object({ kind: literal('audio'), audio_field: nullable(string) }),
+)
+const fieldCheck = union(
+  object({ status: literal('unchecked') }),
+  object({ status: literal('failed'), model: string, error: string }),
+  object({
+    status: literal('checked'),
+    model: string,
+    auto_matched: boolean,
+    lost: array(lostValue),
+  }),
+)
 const hotkeyProfile = object({
   id: string,
   label: string,
@@ -215,6 +230,8 @@ const SCHEMAS = {
   FieldBinding: fieldBinding,
   FieldMapping: fieldMapping,
   AutoMatch: autoMatch,
+  LostValue: lostValue,
+  FieldCheck: fieldCheck,
   HotkeyProfile: hotkeyProfile,
   LearnedLanguage: learnedLanguage,
   LearningConfig: learningConfig,
@@ -247,6 +264,8 @@ interface Types {
   FieldBinding: T.FieldBinding
   FieldMapping: T.FieldMapping
   AutoMatch: T.AutoMatch
+  LostValue: T.LostValue
+  FieldCheck: T.FieldCheck
   HotkeyProfile: T.HotkeyProfile
   LearnedLanguage: T.LearnedLanguage
   LearningConfig: T.LearningConfig
@@ -286,6 +305,7 @@ interface Results {
   'StoredCapture[]': T.StoredCapture[]
   SyncReport: T.SyncReport
   AutoMatch: T.AutoMatch
+  'FieldCheck | null': T.FieldCheck | null
   never: never
 }
 
@@ -299,6 +319,7 @@ const RETURNS = {
   ankiStatus: 'AnkiStatus',
   ankiModelFieldNames: 'string[]',
   suggestFieldMapping: 'AutoMatch',
+  checkPendingFields: 'FieldCheck | null',
   launchAnkiDesktop: 'string',
   getSetupStatus: 'SetupStatus',
   grantConsent: 'ConsentState',
@@ -334,6 +355,7 @@ const CALLS: Record<Wrapper, () => Promise<unknown>> = {
   ankiStatus: () => commands.ankiStatus(),
   ankiModelFieldNames: () => commands.ankiModelFieldNames('Basic'),
   suggestFieldMapping: () => commands.suggestFieldMapping('Basic', 'en', 'de'),
+  checkPendingFields: () => commands.checkPendingFields(),
   launchAnkiDesktop: () => commands.launchAnkiDesktop(),
   getSetupStatus: () => commands.getSetupStatus(),
   grantConsent: () => commands.grantConsent('anki_install'),
@@ -416,6 +438,12 @@ describe('the Rust shapes of the Automator', () => {
       new Set(['network', 'quota_exceeded', 'http', 'malformed', 'not_found', 'unsupported']),
     )
     expect(new Set(samples.CardField)).toEqual(new Set(CARD_FIELDS))
+    expect(new Set(samples.LostValue.map((value) => (value as T.LostValue).kind))).toEqual(
+      new Set(['missing_field', 'unmapped', 'audio']),
+    )
+    expect(new Set(samples.FieldCheck.map((value) => (value as T.FieldCheck).status))).toEqual(
+      new Set(['unchecked', 'failed', 'checked']),
+    )
   })
 })
 

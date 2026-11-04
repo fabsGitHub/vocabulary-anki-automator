@@ -267,6 +267,14 @@ export const de: MessageSchema = {
     close: 'Schließen',
     submitFailed: 'Die Karte konnte nicht gespeichert werden: {error}',
     discardFailed: 'Verwerfen fehlgeschlagen: {error}',
+    lostTitle: 'Nicht alles käme in Anki an:',
+    lostMissingField: '{value}: Der Notiztyp „{model}“ hat kein Feld „{field}“.',
+    lostUnmapped: '{value}: Kein Feld von „{model}“ wird damit gefüllt.',
+    lostAudio: 'Aussprache: Der Notiztyp „{model}“ hat kein Feld „{field}“.',
+    lostAudioUnset: 'Aussprache: Für das Audio ist kein Feld von „{model}“ gewählt.',
+    lostHint:
+      'Korrigieren Sie die Feldzuordnung in den Einstellungen unter „Meine Sprachen“ oder „Anki-Verbindung“, oder fügen Sie die Karte ohne diese Werte hinzu.',
+    fieldCheckFailed: 'Der Notiztyp konnte nicht geprüft werden: {error}',
   },
   warnings: {
     title: 'Einige Angaben konnten nicht abgerufen werden',

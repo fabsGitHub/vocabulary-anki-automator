@@ -16,6 +16,7 @@ import type {
   Card,
   ConsentAction,
   ConsentState,
+  FieldCheck,
   PendingCapture,
   SetupStatus,
   StoredCapture,
@@ -66,6 +67,11 @@ export function suggestFieldMapping(
   targetLang: string,
 ): Promise<AutoMatch> {
   return invoke<AutoMatch>('suggest_field_mapping', { model, sourceLang, targetLang })
+}
+
+/** What a push of the pending card would drop; `null` when nothing is pending. Reads from Anki only. */
+export function checkPendingFields(): Promise<FieldCheck | null> {
+  return invoke<FieldCheck | null>('check_pending_fields')
 }
 
 export function launchAnkiDesktop(): Promise<string> {

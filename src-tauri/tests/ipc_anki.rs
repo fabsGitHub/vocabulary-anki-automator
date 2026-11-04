@@ -837,3 +837,68 @@ fn the_retry_files_each_capture_by_its_language() {
         .unwrap()
         .is_empty());
 }
+
+/// The approval window's warning for the user's note type: the default
+/// mapping drops the example and the audio, a learned language matched by
+/// field name drops nothing, and a missing note type is reported.
+#[test]
+fn check_pending_fields_reports_what_a_push_would_drop() {
+    let server = start();
+    answer(&server, "modelFieldNames", ok(apple_style_final_v3()));
+    let harness = Harness::with_anki(&server.uri());
+    capture(&harness, "serendipity", None);
+
+    let check = harness.call("check_pending_fields", json!({}));
+
+    assert_eq!(
+        check,
+        json!({
+            "status": "checked",
+            "model": "AppleStyleFinalV3",
+            "auto_matched": false,
+            "lost": [
+                { "kind": "missing_field", "anki_field": "Context Sentence", "source": "example" },
+                { "kind": "audio", "audio_field": "Front Audio" }
+            ]
+        })
+    );
+    assert_eq!(sent(&server), [model_field_names("AppleStyleFinalV3")]);
+
+    let mut options = Options::default();
+    options.config.anki.connect_url = server.uri();
+    options.config.learning.languages = vec![learned("en", "english")];
+    let harness = Harness::with(options);
+    capture(&harness, "serendipity", None);
+    assert_eq!(
+        harness.call("check_pending_fields", json!({})),
+        json!({
+            "status": "checked",
+            "model": "AppleStyleFinalV3",
+            "auto_matched": true,
+            "lost": []
+        })
+    );
+}
+
+#[test]
+fn check_pending_fields_reports_a_missing_note_type() {
+    let server = start();
+    answer(
+        &server,
+        "modelFieldNames",
+        anki_error("model was not found: AppleStyleFinalV3"),
+    );
+    let harness = Harness::with_anki(&server.uri());
+    capture(&harness, "serendipity", None);
+
+    let check = harness.call("check_pending_fields", json!({}));
+
+    assert_eq!(
+        check,
+        json!({
+            "status": "failed",
+            "model": "AppleStyleFinalV3",
+            "error": "model was not found: AppleStyleFinalV3"
+        })
+    );
+}

@@ -70,6 +70,12 @@
     },
     {
       "args": [],
+      "command": "check_pending_fields",
+      "function": "checkPendingFields",
+      "returns": "FieldCheck | null"
+    },
+    {
+      "args": [],
       "command": "launch_anki_desktop",
       "function": "launchAnkiDesktop",
       "returns": "string"
@@ -509,6 +515,43 @@
         "source": "example"
       }
     ],
+    "FieldCheck": [
+      {
+        "status": "unchecked"
+      },
+      {
+        "error": "model was not found: Nope",
+        "model": "Nope",
+        "status": "failed"
+      },
+      {
+        "auto_matched": false,
+        "lost": [
+          {
+            "anki_field": "Context Sentence",
+            "kind": "missing_field",
+            "source": "example"
+          },
+          {
+            "anki_field": "Notes",
+            "kind": "missing_field",
+            "source": "notes"
+          },
+          {
+            "audio_field": "Front Audio",
+            "kind": "audio"
+          }
+        ],
+        "model": "AppleStyleFinalV3",
+        "status": "checked"
+      },
+      {
+        "auto_matched": true,
+        "lost": [],
+        "model": "AppleStyleFinalV3",
+        "status": "checked"
+      }
+    ],
     "FieldMapping": [
       {
         "audio_field": "Front Audio",
@@ -665,6 +708,25 @@
             "model_name": "Chinese (HSK)"
           }
         ]
+      }
+    ],
+    "LostValue": [
+      {
+        "anki_field": "Context Sentence",
+        "kind": "missing_field",
+        "source": "example"
+      },
+      {
+        "kind": "unmapped",
+        "source": "pinyin"
+      },
+      {
+        "audio_field": "Front Audio",
+        "kind": "audio"
+      },
+      {
+        "audio_field": null,
+        "kind": "audio"
       }
     ],
     "PendingCapture": [

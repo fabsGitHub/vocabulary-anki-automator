@@ -268,6 +268,14 @@ export const en = {
     close: 'Close',
     submitFailed: 'The card could not be saved: {error}',
     discardFailed: 'Discarding failed: {error}',
+    lostTitle: 'Not everything would reach Anki:',
+    lostMissingField: '{value}: the note type “{model}” has no field “{field}”.',
+    lostUnmapped: '{value}: no field of “{model}” is filled with it.',
+    lostAudio: 'Pronunciation: the note type “{model}” has no field “{field}”.',
+    lostAudioUnset: 'Pronunciation: no field of “{model}” is chosen for the audio.',
+    lostHint:
+      'Fix the field mapping in the settings under “My languages” or “Anki connection”, or add the card without these values.',
+    fieldCheckFailed: 'The note type could not be checked: {error}',
   },
   warnings: {
     title: 'Some details could not be fetched',

@@ -176,6 +176,24 @@ export interface AutoMatch {
   unmatched: string[]
 }
 
+/** A card value a push would not deliver (`anki_bridge::LostValue`). */
+export type LostValue =
+  /** The mapping names a field the note type lacks, and the card has a value for it. */
+  | { kind: 'missing_field'; anki_field: string; source: CardField }
+  /** A non-empty value no field of the note type receives. */
+  | { kind: 'unmapped'; source: CardField }
+  /** Pronunciation audio without a field (`null`) or with one the note type lacks. */
+  | { kind: 'audio'; audio_field: string | null }
+
+/** What `check_pending_fields` found out about the pending card's note type. */
+export type FieldCheck =
+  /** Anki could not be reached. */
+  | { status: 'unchecked' }
+  /** Anki answered with an error, e.g. the note type does not exist. */
+  | { status: 'failed'; model: string; error: string }
+  /** `lost` lists what a push would drop; `auto_matched`: the mapping was matched by field name. */
+  | { status: 'checked'; model: string; auto_matched: boolean; lost: LostValue[] }
+
 /** An extra capture shortcut with its own language pair and optional deck (Milestone H). */
 export interface HotkeyProfile {
   id: string
