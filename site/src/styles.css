@@ -97,7 +97,8 @@
     --text-muted: #a7abb8;
     --text-subtle: #8b90a0;
     --accent: #5b57e8;
-    --accent-hover: #6b67f0;
+    /* Darker than --accent, as in light mode: white text keeps 6.2:1 (AA) on hover. */
+    --accent-hover: #4f4bdc;
     --accent-text: #a5b4fc;
     --accent-soft: rgb(99 102 241 / 0.16);
     --accent-border: rgb(129 140 248 / 0.4);
@@ -646,7 +647,9 @@ kbd {
 
 .hero-meta {
   margin-top: var(--space-4);
-  color: var(--text-subtle);
+  /* Not --text-subtle: on phones the line ends sit in the hero glow, where
+     13px subtle text drops below 4.5:1. */
+  color: var(--text-muted);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
@@ -657,7 +660,7 @@ kbd {
 
 .hero-note {
   margin-top: var(--space-2);
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-size: var(--text-xs);
 }
 
@@ -1404,6 +1407,9 @@ kbd {
 
   .data-table td::before {
     content: attr(data-label);
+    /* Visual only: screen readers already announce the column header through
+       the table roles. Browsers without alt text keep the line above. */
+    content: attr(data-label) / '';
     display: block;
     margin-bottom: 2px;
     color: var(--text-subtle);
