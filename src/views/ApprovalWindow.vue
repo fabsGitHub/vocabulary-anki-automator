@@ -112,13 +112,16 @@ const languageHint = computed(() => {
 
 /**
  * Captures the card again as `code`; afterwards focus goes to the new active
- * chip, unless the back is empty (then the back field has it).
+ * chip, unless the back is empty (then the back field has it). After a failed
+ * switch it goes back to the chip that was clicked, which lost it while disabled.
  */
 async function switchTo(code: string): Promise<void> {
   const shown = await approval.switchLanguage(code, languageName(code))
-  if (!shown || !pending.value?.card.back.trim()) return
+  if (shown && !pending.value?.card.back.trim()) return
   await nextTick()
-  chipGroup.value?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus()
+  if (!shown && document.activeElement && document.activeElement !== document.body) return
+  const selector = shown ? 'button[aria-pressed="true"]' : `button[data-test="language-${code}"]`
+  chipGroup.value?.querySelector<HTMLButtonElement>(selector)?.focus()
 }
 
 const profile = computed(() => {

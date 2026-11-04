@@ -826,6 +826,7 @@ describe('switching the language', () => {
     expect(field('front').value).toBe('message')
     expect(chip('fr')?.text()).toBe('French?')
     expect(wrapper?.find('[data-test="approve"]').attributes('disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(chip('en')?.element)
   })
 
   it('does not fetch the card again for the language it already is in', async () => {
