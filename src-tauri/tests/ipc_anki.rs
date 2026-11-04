@@ -880,6 +880,38 @@ fn check_pending_fields_reports_what_a_push_would_drop() {
     );
 }
 
+/// The window checks the card as the user edited it: a note typed in that
+/// the note type has no field for is reported, an example cleared is not.
+#[test]
+fn check_pending_fields_checks_the_edited_card() {
+    let server = start();
+    answer(&server, "modelFieldNames", ok(apple_style_final_v3()));
+    let harness = Harness::with_anki(&server.uri());
+    let mut draft = capture(&harness, "serendipity", None);
+    for (field, value) in [
+        ("notes", "Rare word."),
+        ("example_source", ""),
+        ("example_target", ""),
+    ] {
+        draft = common::with_field(draft, field, json!(value));
+    }
+
+    let check = harness.call("check_pending_fields", json!({ "card": draft }));
+
+    assert_eq!(
+        check["lost"],
+        json!([
+            { "kind": "missing_field", "anki_field": "Notes", "source": "notes" },
+            { "kind": "audio", "audio_field": "Front Audio" }
+        ])
+    );
+    assert_eq!(
+        harness.call("check_pending_fields", json!({ "card": null }))["lost"][0]["source"],
+        "example",
+        "without a draft the pending card is checked"
+    );
+}
+
 #[test]
 fn check_pending_fields_reports_a_missing_note_type() {
     let server = start();

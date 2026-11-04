@@ -916,6 +916,48 @@ describe('the field check', () => {
     expect(callsTo('check_pending_fields')).toHaveLength(2)
   })
 
+  it('checks the card as edited again once an empty value is filled in', async () => {
+    onCommand('check_pending_fields', ({ card }: { card: Card }) => ({
+      status: 'checked',
+      model: 'AppleStyleFinalV3',
+      auto_matched: true,
+      lost: card.example_source ? [{ kind: 'unmapped', source: 'example_source' }] : [],
+    }))
+    await mountWindow(capture({}, { example_source: '' }))
+    expect(callsTo('check_pending_fields')).toHaveLength(1)
+    expect(wrapper?.find('[data-test="fields-lost"]').exists()).toBe(false)
+
+    await wrapper?.find('[data-test="example-source"]').setValue('C’est un message.')
+    await flushPromises()
+
+    const calls = callsTo('check_pending_fields')
+    expect(calls).toHaveLength(2)
+    expect((calls[1].args?.card as Card).example_source).toBe('C’est un message.')
+    expect(lostLines()).toEqual([
+      'Example in the front’s language: no field of “AppleStyleFinalV3” is filled with it.',
+    ])
+
+    await wrapper?.find('[data-test="example-source"]').setValue('C’est un autre message.')
+    await flushPromises()
+    expect(callsTo('check_pending_fields'), 'typing on asks Anki nothing new').toHaveLength(2)
+  })
+
+  it('keeps only the newest check of an edited card', async () => {
+    const first = deferred<FieldCheck | null>()
+    onCommand('check_pending_fields', () => first.promise)
+    await mountWindow(capture({}, { notes: '' }))
+    const second = deferred<FieldCheck | null>()
+    onCommand('check_pending_fields', () => second.promise)
+    await wrapper?.find('[data-test="notes"]').setValue('Rare word.')
+    await flushPromises()
+
+    second.resolve({ status: 'checked', model: 'AppleStyleFinalV3', auto_matched: false, lost: [] })
+    first.resolve(LOST)
+    await flushPromises()
+
+    expect(wrapper?.find('[data-test="fields-lost"]').exists()).toBe(false)
+  })
+
   it('drops the answer for a capture that was replaced meanwhile', async () => {
     const slow = deferred<FieldCheck | null>()
     onCommand('check_pending_fields', () => slow.promise)

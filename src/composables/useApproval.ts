@@ -15,8 +15,10 @@
  *
  * Each shown capture's note type is then checked with `check_pending_fields`,
  * in the background: AnkiConnect drops values whose field the note type lacks
- * without an error, and this is the last chance to say so. A check that
- * answers for an older capture is dropped, like a late save.
+ * without an error, and this is the last chance to say so. The check sends the
+ * card as it would be approved, and runs again whenever a value is filled in
+ * or emptied, the only edits that can change its answer. A check that answers
+ * for an older capture, or after a newer check, is dropped, like a late save.
  *
  * A detected language can be switched: `rerun_pending_capture` builds the
  * card again for the chosen language from the current front, for the capture
@@ -32,6 +34,7 @@ import {
   onScopeDispose,
   reactive,
   ref,
+  watch,
   type ComputedRef,
   type Ref,
 } from 'vue'
@@ -139,6 +142,10 @@ export function useApproval(): Approval {
   )
 
   let sequence = 0
+  /** Bumped by every field check, so an answer that a newer check overtook is dropped. */
+  let checkSeq = 0
+  /** {@link filledValues} when the fields were last checked. */
+  let checkedFilled = ''
   let eventSeen = false
   let discarding = false
   let disposed = false
@@ -161,23 +168,53 @@ export function useApproval(): Approval {
         notes: capture.card.notes,
       })
       phase.value = 'editing'
-      void checkFields(sequence)
+      void checkFields()
     } else {
       Object.assign(draft, emptyDraft())
       phase.value = 'waiting'
     }
   }
 
-  /** Fetches the field check for the capture shown as `mine`; a failure only means no warning. */
-  async function checkFields(mine: number): Promise<void> {
+  /** Which draft values are filled in: what a value without a field depends on. */
+  function filledValues(): string {
+    return [draft.front, draft.back, draft.example_source, draft.example_target, draft.notes]
+      .map((value) => (value.trim() === '' ? '0' : '1'))
+      .join('')
+  }
+
+  /** The card as `approve` submits it: `capture`'s card with the edited, trimmed values. */
+  function draftCard(capture: PendingCapture): Card {
+    return {
+      ...capture.card,
+      front: draft.front.trim(),
+      back: draft.back.trim(),
+      example_source: draft.example_source.trim(),
+      example_target: draft.example_target.trim(),
+      notes: draft.notes.trim(),
+    }
+  }
+
+  /** Fetches the field check for the shown capture as edited; a failure only means no warning. */
+  async function checkFields(): Promise<void> {
+    const capture = pending.value
+    if (!capture) return
+    const mine = sequence
+    const run = ++checkSeq
+    checkedFilled = filledValues()
     let check: FieldCheck | null = null
     try {
-      check = await checkPendingFields()
+      check = await checkPendingFields(draftCard(capture))
     } catch (err) {
       console.warn('[approval] could not check the fields of the note type:', err)
     }
-    if (mine === sequence) fieldCheck.value = check
+    if (mine === sequence && run === checkSeq) fieldCheck.value = check
   }
+
+  // Typing on in a filled field changes nothing Anki would drop, so Anki is
+  // asked again only when a value is filled in or emptied.
+  watch(filledValues, (filled) => {
+    if (phase.value === 'editing' && pending.value && filled !== checkedFilled) void checkFields()
+  })
 
   /** A re-delivery of the capture on screen keeps the user's edits (and a finished save). */
   function receive(capture: PendingCapture): void {
@@ -253,22 +290,14 @@ export function useApproval(): Approval {
   async function approve(): Promise<void> {
     const capture = pending.value
     if (phase.value !== 'editing' || !capture) return
-    const front = draft.front.trim()
-    if (!front) {
+    if (!draft.front.trim()) {
       error.value = { key: 'approval.frontRequired' }
       return
     }
     const mine = sequence
     phase.value = 'submitting'
     error.value = null
-    const card: Card = {
-      ...capture.card,
-      front,
-      back: draft.back.trim(),
-      example_source: draft.example_source.trim(),
-      example_target: draft.example_target.trim(),
-      notes: draft.notes.trim(),
-    }
+    const card = draftCard(capture)
 
     let outcome: SubmitResult
     try {

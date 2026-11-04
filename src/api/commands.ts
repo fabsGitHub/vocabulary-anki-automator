@@ -82,9 +82,12 @@ export function suggestFieldMapping(
   return invoke<AutoMatch>('suggest_field_mapping', { model, sourceLang, targetLang })
 }
 
-/** What a push of the pending card would drop; `null` when nothing is pending. Reads from Anki only. */
-export function checkPendingFields(): Promise<FieldCheck | null> {
-  return invoke<FieldCheck | null>('check_pending_fields')
+/**
+ * What a push of the pending card would drop, checked with `card` (the edited
+ * card; the pending one when omitted); `null` when nothing is pending. Reads from Anki only.
+ */
+export function checkPendingFields(card?: Card): Promise<FieldCheck | null> {
+  return invoke<FieldCheck | null>('check_pending_fields', { card: card ?? null })
 }
 
 export function launchAnkiDesktop(): Promise<string> {

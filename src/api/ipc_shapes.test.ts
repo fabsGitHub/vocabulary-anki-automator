@@ -387,7 +387,7 @@ const CALLS: Record<Wrapper, () => Promise<unknown>> = {
   ankiStatus: () => commands.ankiStatus(),
   ankiModelFieldNames: () => commands.ankiModelFieldNames('Basic'),
   suggestFieldMapping: () => commands.suggestFieldMapping('Basic', 'en', 'de'),
-  checkPendingFields: () => commands.checkPendingFields(),
+  checkPendingFields: () => commands.checkPendingFields(sample('Card')),
   launchAnkiDesktop: () => commands.launchAnkiDesktop(),
   getSetupStatus: () => commands.getSetupStatus(),
   grantConsent: () => commands.grantConsent('anki_install'),

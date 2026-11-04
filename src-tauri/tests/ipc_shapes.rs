@@ -120,7 +120,7 @@ const COMMANDS: &[(&str, &str, &[&str], &str)] = &[
     (
         "checkPendingFields",
         "check_pending_fields",
-        &[],
+        &["card"],
         "FieldCheck | null",
     ),
     ("launchAnkiDesktop", "launch_anki_desktop", &[], "string"),
@@ -944,14 +944,15 @@ fn run_every_command() -> (Results, Harness) {
         "capture_text",
         json!({ "text": "serendipity", "profileId": null }),
     );
-    let unchecked = call("check_pending_fields", json!({}));
+    // The approval window checks the card as the user would submit it.
+    let shown = harness.call("get_pending_payload", json!({}));
+    let unchecked = call("check_pending_fields", json!({ "card": shown["card"] }));
     assert_eq!(
         unchecked,
         json!({ "status": "unchecked" }),
         "Anki is offline"
     );
     // The approval window's language switch: from here on the card is French.
-    let shown = harness.call("get_pending_payload", json!({}));
     let switched = call(
         "rerun_pending_capture",
         json!({ "sourceLang": "fr", "text": "serendipity", "generation": shown["generation"] }),

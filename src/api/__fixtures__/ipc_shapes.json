@@ -79,7 +79,9 @@
       "returns": "AutoMatch"
     },
     {
-      "args": [],
+      "args": [
+        "card"
+      ],
       "command": "check_pending_fields",
       "function": "checkPendingFields",
       "returns": "FieldCheck | null"

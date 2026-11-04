@@ -782,7 +782,7 @@ language pair in capture order.
 | `anki_status`                 | —                                                       | `AnkiStatus`                                                                                            |
 | `anki_model_field_names`      | `model: string`                                         | `string[]`                                                                                              |
 | `suggest_field_mapping`       | `model: string, sourceLang: string, targetLang: string` | `AutoMatch` (`modelFieldNames`, then `FieldMapping::auto_match`; saves nothing)                         |
-| `check_pending_fields`        | —                                                       | `FieldCheck \| null` (what a push of the pending card would drop; `null` when nothing is pending)       |
+| `check_pending_fields`        | `card: Card \| null`                                    | `FieldCheck \| null` (what a push of the pending card would drop; `null` when nothing is pending)       |
 | `launch_anki_desktop`         | —                                                       | `string`                                                                                                |
 | `get_setup_status`            | —                                                       | `SetupStatus`                                                                                           |
 | `grant_consent`               | `action: "anki_install" \| "ankiconnect_provision"`     | `ConsentState`                                                                                          |
@@ -847,13 +847,15 @@ Further rules both sides rely on:
 - `check_pending_fields` files the pending card with `AppConfig::filing` (its profile
   and the card's `source_lang`), reads the note type's fields once
   (`modelFieldNames`, 3 s timeout) and compares them with the mapping that push
-  would use (`FieldMapping::lost_values`, § 9): `unchecked` when Anki is
-  unreachable, `failed` with the error otherwise (e.g. the note type does not
-  exist), else `checked` with `lost` (empty when everything arrives) and whether
-  the mapping was matched by field name. It reads from Anki only and works for
-  every config; the approval window calls it after showing a capture, so a slow
-  Anki never delays the capture, and shows the result as a warning that does not
-  block approving.
+  would use (`FieldMapping::lost_values`, § 9), for `card`: the card as the
+  window would submit it, with the user's edits (`null`: the pending card as
+  captured). It returns `unchecked` when Anki is unreachable, `failed` with the
+  error otherwise (e.g. the note type does not exist), else `checked` with `lost`
+  (empty when everything arrives) and whether the mapping was matched by field
+  name. It reads from Anki only and works for every config; the approval window
+  calls it after showing a capture, so a slow Anki never delays the capture, and
+  again whenever the user fills in or empties a value, and shows the result as a
+  warning that does not block approving.
 - `rerun_pending_capture(sourceLang, text, generation)` is the approval window's
   language switch for the capture it shows (`generation`): it runs `text` (the
   window's front) through the pipeline again as `sourceLang`, with the pending

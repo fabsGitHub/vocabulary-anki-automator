@@ -11,6 +11,7 @@ use std::{path::Path, time::Duration};
 use anki_bridge::{AnkiClient, AutoMatch, FieldMapping};
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use vocab_core::Card;
 
 use crate::{
     filing::{check_fields, FieldCheck},
@@ -111,20 +112,27 @@ pub async fn suggest_field_mapping(
 }
 
 /// What a push of the pending card would drop: its note type's fields
-/// against the mapping its filing uses (`filing::check_fields`). `None` when
-/// nothing is pending. Reads from Anki only; the approval window shows the
-/// result as a warning, and approving stays possible.
+/// against the mapping its filing uses (`filing::check_fields`). `card` is
+/// the card as the approval window would submit it, with the user's edits (a
+/// typed-in example the note type has no field for is lost too); without it
+/// the pending card is checked. `None` when nothing is pending. Reads from
+/// Anki only; the approval window shows the result as a warning, and
+/// approving stays possible.
 #[tauri::command]
 pub async fn check_pending_fields(
     state: State<'_, AppState>,
+    card: Option<Card>,
 ) -> Result<Option<FieldCheck>, String> {
     let Some(pending) = state.pending().get() else {
         return Ok(None);
     };
     let config = state.config();
+    // Filing stays keyed on the pending capture (profile and language); the
+    // draft only changes values.
     let filing = config.filing(pending.profile_id.as_deref(), &pending.card.source_lang);
+    let card = card.unwrap_or(pending.card);
     let client = AnkiClient::new(config.anki.connect_url).with_timeout(STATUS_TIMEOUT);
-    Ok(Some(check_fields(&client, &filing, &pending.card).await))
+    Ok(Some(check_fields(&client, &filing, &card).await))
 }
 
 /// Starts the Anki desktop app.
