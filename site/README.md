@@ -44,14 +44,15 @@ place.
 
 The page describes one disk image: the universal build (Apple Silicon and Intel) of Polywort in
 the version of `src-tauri/tauri.conf.json`, ad-hoc signed and not notarized, built from the app
-code the copy describes. The copy describes language recognition, “My languages”, field
-matching and the macOS 26 copy fix, which `main` gets only when `claude/auto-language` is
-merged, and it calls the app Polywort: in Finder, the Dock, the menu bar and the Accessibility
-list. Build from app code that has both, that is, whose `productName` in
-`src-tauri/tauri.conf.json` is `Polywort`. Code with the old `productName` builds
+code the copy describes. The copy describes language recognition, “My languages”, field matching
+by name, the recommended note type “Polywort” and the macOS 26 copy fix, which `main` gets only
+when `claude/product-site` (which includes `claude/auto-language`) is merged, and it calls the
+app Polywort: in Finder, the Dock, the menu bar and the Accessibility list. Build from app code
+that has all of it, that is, whose `productName` in `src-tauri/tauri.conf.json` is `Polywort`
+(`src-tauri/tests/product_identity.rs` pins it). Code with the old `productName` builds
 `Vocabulary Automator.app` in `Vocabulary Automator_<version>_universal.dmg`, and the build
-refuses that image. The identifier (`com.ankiautomator.app`) and the data folders keep their
-old names, so the paths on the page stay right.
+refuses that image. The identifier (`com.ankiautomator.app`) and the data folders keep their old
+names, so the paths on the page stay right.
 
 1. Build the disk image from the repository root (the two Rust targets are needed once):
 

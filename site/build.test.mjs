@@ -66,6 +66,21 @@ const ALLOWED_EXTERNAL = new Set([
 
 const HTML_PAGES = ['index.html', 'de/index.html', '404.html']
 
+const REPO_ROOT = path.resolve(SITE_DIR, '..')
+
+/**
+ * The message `group.key` of an app's i18n source (src/i18n/<lang>.ts), read
+ * as text: a top-level group at two spaces, its keys at four, one quoted line.
+ */
+function appMessage(source, group, key) {
+  const start = source.indexOf(`\n  ${group}: {\n`)
+  assert.notEqual(start, -1, `no group ${group}`)
+  const end = source.indexOf('\n  },', start)
+  const value = new RegExp(`\\n    ${key}:\\s*'([^'\\n]*)',`).exec(source.slice(start, end))?.[1]
+  assert.ok(value, `no message ${group}.${key}`)
+  return value
+}
+
 const temporary = []
 
 async function tempDir(prefix) {
@@ -122,11 +137,34 @@ describe('copy', () => {
       }
       assert.match(copy.get('faq.q13.a_html'), /Polywort.*Vocabulary Automator/s)
       assert.match(copy.get('meta.title'), /^Polywort – /)
-      assert.doesNotMatch(
-        copy.get('mock.model'),
-        /Polywort/,
-        `${lang}: the app has no note type of its own`,
-      )
+    }
+  })
+
+  test('builds the disk image the app config names', async () => {
+    // Tauri names the bundle and the disk image after productName, and
+    // checkDmgName only lets Polywort_<version>_universal.dmg through.
+    const conf = JSON.parse(
+      await readFile(path.join(REPO_ROOT, 'src-tauri/tauri.conf.json'), 'utf8'),
+    )
+    assert.equal(conf.productName, PRODUCT_NAME)
+  })
+
+  test('names the recommended note type and its button as the app does', async () => {
+    const noteType = /export const RECOMMENDED_NOTE_TYPE = '([^']+)'/.exec(
+      await readFile(path.join(REPO_ROOT, 'src/domain/fieldMapping.ts'), 'utf8'),
+    )?.[1]
+    assert.equal(noteType, PRODUCT_NAME)
+    for (const lang of ['en', 'de']) {
+      const copy = await loadCopy(lang)
+      const app = await readFile(path.join(REPO_ROOT, `src/i18n/${lang}.ts`), 'utf8')
+      // The drawing shows the approval window's own note type line.
+      const noteTypeLine = appMessage(app, 'approval', 'model').replace('{model}', noteType)
+      assert.equal(copy.get('mock.model'), noteTypeLine, `${lang}: mock.model`)
+      const button = appMessage(app, 'noteType', 'create')
+      for (const key of ['download.s4.body_html', 'faq.q9.a_html']) {
+        assert.ok(copy.get(key).includes(button), `${lang}: ${key} names the button “${button}”`)
+        assert.ok(copy.get(key).includes(noteType), `${lang}: ${key} names the note type`)
+      }
     }
   })
 

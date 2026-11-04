@@ -36,13 +36,13 @@
   },
   "mock": {
     "label": "Illustration of the approval window",
-    "description": "The approval window with a card for the English word “reluctant”: the language chips “English” (selected) and “French”, “→ German”, the deck “English”, the note type “Vocabulary”, the back “widerwillig”, an example sentence with its German translation, a button that plays the pronunciation and the buttons “Discard” and “Add to Anki”.",
+    "description": "The approval window with a card for the English word “reluctant”: the language chips “English” (selected) and “French”, “→ German”, the deck “English”, the note type “Polywort”, the back “widerwillig”, an example sentence with its German translation, a button that plays the pronunciation and the buttons “Discard” and “Add to Anki”.",
     "title": "New card",
     "langActive": "English",
     "langOther": "French",
     "target": "→ German",
     "deck": "Deck: English",
-    "model": "Note type: Vocabulary",
+    "model": "Note type: Polywort",
     "front": "Front (word)",
     "frontValue": "reluctant",
     "back": "Back (translation)",
@@ -96,7 +96,7 @@
     },
     "f4": {
       "title": "Every language in its own deck",
-      "body": "Each language has its own deck, note type and reverse-card setting. Fields are matched by their names: “Audio” gets the pronunciation, “English Sentence” the English example."
+      "body": "Each language has its own deck, note type and reverse-card setting. Until you assign the fields yourself, they are matched by their names: “Audio” gets the pronunciation, “English Sentence” the English example. If none of your note types fits, one click creates “Polywort”, with a field for everything a card holds."
     },
     "f5": {
       "title": "Warns before anything gets lost",
@@ -250,11 +250,11 @@
     },
     "s4": {
       "title": "Connect Anki",
-      "body_html": "In Polywort, open the <strong>“Anki connection”</strong> tab. It shows what is missing and, if you agree, installs <a href=\"{ankiUrl}\">Anki</a> or AnkiConnect for you. After installing AnkiConnect, restart Anki, and keep it open while you capture. The app’s language (English or German) is set at the top right of the settings window."
+      "body_html": "In Polywort, open the <strong>“Anki connection”</strong> tab. It shows what is missing and, if you agree, installs <a href=\"{ankiUrl}\">Anki</a> or AnkiConnect for you. After installing AnkiConnect, restart Anki, and keep it open while you capture. With Anki running, click <strong>“Create the recommended note type”</strong> under the note type: it adds the note type “Polywort” to Anki, with a field for everything a card holds, and selects it. Then save the settings. The app’s language (English or German) is set at the top right of the settings window."
     },
     "s5": {
       "title": "Add your languages",
-      "body_html": "On <strong>“My languages”</strong>, add each language you learn and choose its deck and note type. A deck that does not exist yet is created with the first card. Your own language, the one cards are translated into, is set on <strong>“Capture &amp; Language”</strong>."
+      "body_html": "On <strong>“My languages”</strong>, add each language you learn and choose its deck and note type. A new language starts with the note type from the “Anki connection” tab, so after step\u00a04 that is “Polywort”. A deck that does not exist yet is created with the first card. Your own language, the one cards are translated into, is set on <strong>“Capture &amp; Language”</strong>."
     },
     "s6": {
       "title": "Try it",
@@ -266,7 +266,7 @@
     "k1": "Example sentences exist for English so far. Chinese cards get a simple template sentence, and French, German, Spanish and Italian cards get none yet.",
     "k2": "Translations come from a free translation service. Check them before you approve.",
     "k3": "Captures are limited to 100\u00a0characters, and you can raise that to 500 in the settings.",
-    "k4": "The app only adds new cards to Anki. It never changes or deletes your existing notes.",
+    "k4": "The app only adds to Anki: new cards, and the note type “Polywort” when you click its button. It never changes or deletes your existing notes or note types.",
     "k5": "The preview is not notarized and does not update itself."
   },
   "faq": {
@@ -305,7 +305,7 @@
     },
     "q9": {
       "q": "Which note type should I use?",
-      "a_html": "Any note type you already have in Anki. You choose one per language, and its fields are matched by their names, or you assign them yourself. The approval window warns you when a value has no field. For Chinese, use a note type with Hanzi, Pinyin, Meaning and Audio fields together with the Chinese preset."
+      "a_html": "The recommended one, unless you already have a note type you like. While Anki is running, click “Create the recommended note type” on the “Anki connection” tab or in a language’s entry under “My languages”. It adds the note type “Polywort” to Anki, with the fields Front, Back, Sentence, Sentence Translation, Audio, Pinyin, HSK Level and Notes, so every value of a card has its place, including the pinyin and HSK level of Chinese words. If Anki already has a note type of that name, the app uses it only if it has all of these fields, and it never changes it. Any other note type works too: its fields are matched by their names until you assign them yourself, and the approval window warns you when a value has no field."
     },
     "q10": {
       "q": "What happens to my clipboard?",

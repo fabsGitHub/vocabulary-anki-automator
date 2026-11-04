@@ -36,13 +36,13 @@
   },
   "mock": {
     "label": "Darstellung des Bestätigungsfensters",
-    "description": "Das Bestätigungsfenster mit einer Karte für das englische Wort „reluctant“: die Sprachchips „Englisch“ (ausgewählt) und „Französisch“, „→ Deutsch“, der Stapel „Englisch“, der Notiztyp „Vokabeln“, die Rückseite „widerwillig“, ein Beispielsatz mit deutscher Übersetzung, eine Schaltfläche zum Abspielen der Aussprache und die Schaltflächen „Verwerfen“ und „Zu Anki hinzufügen“.",
+    "description": "Das Bestätigungsfenster mit einer Karte für das englische Wort „reluctant“: die Sprachchips „Englisch“ (ausgewählt) und „Französisch“, „→ Deutsch“, der Stapel „Englisch“, der Notiztyp „Polywort“, die Rückseite „widerwillig“, ein Beispielsatz mit deutscher Übersetzung, eine Schaltfläche zum Abspielen der Aussprache und die Schaltflächen „Verwerfen“ und „Zu Anki hinzufügen“.",
     "title": "Neue Karte",
     "langActive": "Englisch",
     "langOther": "Französisch",
     "target": "→ Deutsch",
     "deck": "Stapel: Englisch",
-    "model": "Notiztyp: Vokabeln",
+    "model": "Notiztyp: Polywort",
     "front": "Vorderseite (Wort)",
     "frontValue": "reluctant",
     "back": "Rückseite (Übersetzung)",
@@ -96,7 +96,7 @@
     },
     "f4": {
       "title": "Jede Sprache in ihrem eigenen Stapel",
-      "body": "Jede Sprache hat ihren eigenen Stapel, Notiztyp und ihre eigene Einstellung für die umgekehrte Karte. Die Felder werden nach ihren Namen zugeordnet: „Audio“ bekommt die Aussprache, „English Sentence“ das englische Beispiel."
+      "body": "Jede Sprache hat ihren eigenen Stapel, Notiztyp und ihre eigene Einstellung für die umgekehrte Karte. Solange Sie nichts selbst festlegen, ordnet die App die Felder nach ihren Namen zu: „Audio“ bekommt die Aussprache, „English Sentence“ das englische Beispiel. Passt keiner Ihrer Notiztypen, legt ein Klick „Polywort“ an, mit einem Feld für alles, was eine Karte enthält."
     },
     "f5": {
       "title": "Warnt, bevor etwas verloren geht",
@@ -250,11 +250,11 @@
     },
     "s4": {
       "title": "Anki verbinden",
-      "body_html": "Die App startet zunächst auf Englisch. Oben rechts im Einstellungsfenster stellen Sie die Sprache der App auf „Deutsch“. Öffnen Sie dann den Tab <strong>„Anki-Verbindung“</strong>. Er zeigt, was fehlt, und installiert <a href=\"{ankiUrl}\">Anki</a> oder AnkiConnect, wenn Sie zustimmen. Starten Sie Anki nach der Installation von AnkiConnect neu und lassen Sie es während der Erfassung geöffnet."
+      "body_html": "Die App startet zunächst auf Englisch. Oben rechts im Einstellungsfenster stellen Sie die Sprache der App auf „Deutsch“. Öffnen Sie dann den Tab <strong>„Anki-Verbindung“</strong>. Er zeigt, was fehlt, und installiert <a href=\"{ankiUrl}\">Anki</a> oder AnkiConnect, wenn Sie zustimmen. Starten Sie Anki nach der Installation von AnkiConnect neu und lassen Sie es während der Erfassung geöffnet. Klicken Sie dann bei laufendem Anki unter dem Notiztyp auf <strong>„Empfohlenen Notiztyp anlegen“</strong>: Das legt in Anki den Notiztyp „Polywort“ an, mit einem Feld für alles, was eine Karte enthält, und wählt ihn aus. Speichern Sie danach die Einstellungen."
     },
     "s5": {
       "title": "Ihre Sprachen eintragen",
-      "body_html": "Tragen Sie unter <strong>„Meine Sprachen“</strong> jede Sprache ein, die Sie lernen, und wählen Sie dafür Stapel und Notiztyp. Ein Stapel, den es noch nicht gibt, wird mit der ersten Karte angelegt. Ihre eigene Sprache, in die übersetzt wird, legen Sie unter <strong>„Erfassung &amp; Sprache“</strong> fest."
+      "body_html": "Tragen Sie unter <strong>„Meine Sprachen“</strong> jede Sprache ein, die Sie lernen, und wählen Sie dafür Stapel und Notiztyp. Eine neue Sprache übernimmt den Notiztyp vom Tab „Anki-Verbindung“, nach Schritt\u00a04 also „Polywort“. Ein Stapel, den es noch nicht gibt, wird mit der ersten Karte angelegt. Ihre eigene Sprache, in die übersetzt wird, legen Sie unter <strong>„Erfassung &amp; Sprache“</strong> fest."
     },
     "s6": {
       "title": "Ausprobieren",
@@ -266,7 +266,7 @@
     "k1": "Beispielsätze gibt es bisher für Englisch. Chinesische Karten bekommen einen einfachen Mustersatz, französische, deutsche, spanische und italienische noch keinen.",
     "k2": "Die Übersetzungen kommen von einem kostenlosen Übersetzungsdienst. Prüfen Sie sie vor dem Bestätigen.",
     "k3": "Erfassungen sind auf 100\u00a0Zeichen begrenzt. In den Einstellungen lässt sich das auf bis zu 500 erhöhen.",
-    "k4": "Die App fügt Anki nur neue Karten hinzu. Ihre vorhandenen Notizen ändert oder löscht sie nie.",
+    "k4": "Die App fügt Anki nur etwas hinzu: neue Karten und, wenn Sie auf die Schaltfläche dafür klicken, den Notiztyp „Polywort“. Ihre vorhandenen Notizen und Notiztypen ändert oder löscht sie nie.",
     "k5": "Die Vorschauversion ist nicht notarisiert und aktualisiert sich nicht selbst."
   },
   "faq": {
@@ -305,7 +305,7 @@
     },
     "q9": {
       "q": "Welchen Notiztyp soll ich verwenden?",
-      "a_html": "Jeden Notiztyp, den Sie in Anki haben. Sie wählen ihn pro Sprache, und seine Felder werden nach ihren Namen zugeordnet, oder Sie legen die Zuordnung selbst fest. Das Bestätigungsfenster warnt, wenn ein Wert kein Feld hat. Für Chinesisch eignet sich ein Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio zusammen mit der chinesischen Vorlage."
+      "a_html": "Den empfohlenen, wenn Sie nicht schon einen eigenen haben, der Ihnen gefällt. Klicken Sie, während Anki läuft, auf dem Tab „Anki-Verbindung“ oder im Eintrag einer Sprache unter „Meine Sprachen“ auf „Empfohlenen Notiztyp anlegen“. Das legt in Anki den Notiztyp „Polywort“ an, mit den Feldern Front, Back, Sentence, Sentence Translation, Audio, Pinyin, HSK Level und Notes. So hat jeder Wert einer Karte seinen Platz, auch Pinyin und HSK-Stufe chinesischer Wörter. Hat Anki schon einen Notiztyp dieses Namens, verwendet die App ihn nur, wenn er alle diese Felder hat, und verändert ihn nie. Jeder andere Notiztyp funktioniert auch: Seine Felder werden nach ihren Namen zugeordnet, bis Sie sie selbst festlegen, und das Bestätigungsfenster warnt, wenn ein Wert kein Feld hat."
     },
     "q10": {
       "q": "Was passiert mit meiner Zwischenablage?",
