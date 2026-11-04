@@ -9,9 +9,12 @@ import {
   bindingFor,
   bindsSource,
   chineseMapping,
+  copyMapping,
   effectiveBindings,
+  lacksPinyin,
   missingFields,
   needsChineseNoteType,
+  sameMapping,
   withAudioField,
   withBinding,
 } from './fieldMapping'
@@ -150,6 +153,38 @@ describe('missingFields (mirrors FieldMapping::missing_fields)', () => {
         names('front', 'back', 'context sentence', 'notes', 'front audio'),
       ),
     ).toEqual(names('Front Audio'))
+  })
+})
+
+describe('sameMapping and copyMapping', () => {
+  it('compare bindings in order, and the audio field', () => {
+    expect(sameMapping(appleStyleMapping(), appleStyleMapping())).toBe(true)
+    const reordered = appleStyleMapping()
+    reordered.fields.reverse()
+    expect(sameMapping(reordered, appleStyleMapping())).toBe(false)
+    expect(sameMapping(withAudioField(appleStyleMapping(), null), appleStyleMapping())).toBe(false)
+    expect(sameMapping(withBinding(appleStyleMapping(), 'Notes', null), appleStyleMapping())).toBe(
+      false,
+    )
+  })
+
+  it('copy without sharing a binding', () => {
+    const original = chineseMapping()
+    const copy = copyMapping(original)
+    expect(copy).toEqual(original)
+    copy.fields[0].anki_field = 'Edited'
+    expect(original.fields[0].anki_field).toBe('Hanzi')
+  })
+})
+
+describe('lacksPinyin', () => {
+  it('checks the saved mapping, else the preview, and knows nothing without either', () => {
+    const preview = { mapping: appleStyleMapping(), guessed: [], unmatched: [] }
+    expect(lacksPinyin(appleStyleMapping(), null)).toBe(true)
+    expect(lacksPinyin(chineseMapping(), preview)).toBe(false)
+    expect(lacksPinyin(null, preview)).toBe(true)
+    expect(lacksPinyin(null, { ...preview, mapping: chineseMapping() })).toBe(false)
+    expect(lacksPinyin(null, null)).toBe(false)
   })
 })
 

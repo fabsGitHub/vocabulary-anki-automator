@@ -11,7 +11,7 @@
  * `FieldMapping::apple_style_default` and `FieldMapping::chinese_default`.
  */
 
-import type { AppConfig, CardField, FieldBinding, FieldMapping } from '../api'
+import type { AppConfig, AutoMatch, CardField, FieldBinding, FieldMapping } from '../api'
 import { isChinese } from './language'
 
 /** Every card value, in the order the binding selects list them (the examples together). */
@@ -64,6 +64,27 @@ export const MAPPING_PRESETS: Record<MappingPresetId, () => FieldMapping> = {
 
 function sameField(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase()
+}
+
+/** Whether `a` and `b` are the same mapping, binding for binding, in order. */
+export function sameMapping(a: FieldMapping, b: FieldMapping): boolean {
+  return (
+    a.audio_field === b.audio_field &&
+    a.fields.length === b.fields.length &&
+    a.fields.every(
+      (binding, index) =>
+        binding.anki_field === b.fields[index].anki_field &&
+        binding.source === b.fields[index].source,
+    )
+  )
+}
+
+/** A copy that shares no object with `mapping`. */
+export function copyMapping(mapping: FieldMapping): FieldMapping {
+  return {
+    fields: mapping.fields.map((binding) => ({ ...binding })),
+    audio_field: mapping.audio_field,
+  }
 }
 
 /** The bindings that take effect: the first one for each Anki field. */
@@ -152,4 +173,13 @@ export function needsChineseNoteType(config: AppConfig): boolean {
     isChinese(config.translation.source_lang) ||
     config.hotkey_profiles.some((profile) => isChinese(profile.source_lang))
   return capturesChinese && !bindsSource(config.anki.field_mapping, 'pinyin')
+}
+
+/**
+ * Whether the mapping a push would use, `mapping` or, matched by name, the
+ * preview `match`, leaves the pinyin out; `false` when neither is known.
+ */
+export function lacksPinyin(mapping: FieldMapping | null, match: AutoMatch | null): boolean {
+  const used = mapping ?? match?.mapping ?? null
+  return used !== null && !bindsSource(used, 'pinyin')
 }

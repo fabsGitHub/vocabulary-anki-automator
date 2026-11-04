@@ -93,16 +93,6 @@ export const de: MessageSchema = {
     deckPlaceholder: 'z. B. {deck}',
     model: 'Notiztyp',
     mapping: 'Feldzuordnung',
-    mappingAuto: 'Nach Feldnamen zugeordnet',
-    mappingCustom: 'Angepasst',
-    mappingAutoHint:
-      'Jedes Feld von „{model}“ wird nach seinem Namen gefüllt: „Audio“ bekommt die Aussprache, „English Sentence“ das englische Beispiel und so weiter. Gespeichert wird nichts, bis Sie die Zuordnung anpassen.',
-    mappingOffline:
-      'Verbinden Sie Anki, um zu sehen, wie die Felder von „{model}“ zugeordnet werden.',
-    customize: 'Anpassen',
-    rematch: 'Nicht mehr anpassen',
-    audioTo: 'Aussprache → {field}',
-    noAudio: 'Kein Feld für die Aussprache',
   },
   profiles: {
     title: 'Hotkey-Profile',
@@ -202,6 +192,15 @@ export const de: MessageSchema = {
   },
   mapping: {
     title: 'Feldzuordnung',
+    auto: 'Nach Feldnamen zugeordnet',
+    custom: 'Angepasst',
+    autoHint:
+      'Jedes Feld von „{model}“ wird nach seinem Namen gefüllt: „Audio“ bekommt die Aussprache, „English Sentence“ das englische Beispiel und so weiter. Gespeichert wird nichts, bis Sie die Zuordnung anpassen.',
+    autoOffline: 'Verbinden Sie Anki, um zu sehen, wie die Felder von „{model}“ zugeordnet werden.',
+    customize: 'Anpassen',
+    rematch: 'Nicht mehr anpassen',
+    audioTo: 'Aussprache → {field}',
+    noAudioField: 'Kein Feld für die Aussprache',
     intro: 'Legen Sie fest, was in jedes Feld des Notiztyps „{model}“ kommt.',
     presets: 'Vorlagen:',
     matchByName: 'Nach Feldnamen zuordnen',

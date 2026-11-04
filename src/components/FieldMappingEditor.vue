@@ -35,6 +35,7 @@ import {
   bindingFor,
   effectiveBindings,
   missingFields,
+  sameMapping,
   withAudioField,
   withBinding,
   type MappingPresetId,
@@ -104,18 +105,6 @@ const matched = ref<AutoMatch | null>(null)
 const matchError = ref<string | null>(null)
 /** Bumped by every match and every change of note type or pair, so a late answer is dropped. */
 let matchRequest = 0
-
-function sameMapping(a: FieldMapping, b: FieldMapping): boolean {
-  return (
-    a.audio_field === b.audio_field &&
-    a.fields.length === b.fields.length &&
-    a.fields.every(
-      (binding, index) =>
-        binding.anki_field === b.fields[index].anki_field &&
-        binding.source === b.fields[index].source,
-    )
-  )
-}
 
 /** The last match's leftovers, while the mapping is still what it produced. */
 const matchResult = computed(() =>

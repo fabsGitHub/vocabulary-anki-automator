@@ -871,6 +871,7 @@ textarea[readonly] {
   justify-content: flex-end;
 }
 
+.mapping-choice,
 .mapping-editor {
   display: flex;
   flex-direction: column;

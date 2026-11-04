@@ -97,15 +97,6 @@ export const en = {
     deckPlaceholder: 'e.g. {deck}',
     model: 'Note type',
     mapping: 'Field mapping',
-    mappingAuto: 'Matched by field name',
-    mappingCustom: 'Customized',
-    mappingAutoHint:
-      'Each field of “{model}” is filled according to its name: “Audio” gets the pronunciation, “English Sentence” the English example, and so on. Nothing is saved until you customize it.',
-    mappingOffline: 'Connect to Anki to see how the fields of “{model}” are matched.',
-    customize: 'Customize',
-    rematch: 'Stop customizing',
-    audioTo: 'Pronunciation → {field}',
-    noAudio: 'No field for the pronunciation',
   },
   profiles: {
     title: 'Hotkey profiles',
@@ -202,6 +193,15 @@ export const en = {
   },
   mapping: {
     title: 'Field mapping',
+    auto: 'Matched by field name',
+    custom: 'Customized',
+    autoHint:
+      'Each field of “{model}” is filled according to its name: “Audio” gets the pronunciation, “English Sentence” the English example, and so on. Nothing is saved until you customize it.',
+    autoOffline: 'Connect to Anki to see how the fields of “{model}” are matched.',
+    customize: 'Customize',
+    rematch: 'Stop customizing',
+    audioTo: 'Pronunciation → {field}',
+    noAudioField: 'No field for the pronunciation',
     intro: 'Choose what goes into each field of the note type “{model}”.',
     presets: 'Presets:',
     matchByName: 'Match by field name',
