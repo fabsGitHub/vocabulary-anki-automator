@@ -20,18 +20,18 @@ const UI = 3
 
 /** [foreground, background, minimum] by token name, without the leading `--`. */
 const PAIRS = [
-  ...['bg', 'bg-alt', 'surface-2', 'glow-1', 'glow-2', 'text-selection'].map((bg) => [
+  ...['bg', 'bg-alt', 'surface', 'surface-2', 'glow-1', 'glow-2', 'text-selection'].map((bg) => [
     'text',
     bg,
     TEXT,
   ]),
-  ...['bg', 'bg-alt', 'surface'].map((bg) => ['ink', bg, TEXT]),
-  ...['bg', 'bg-alt', 'surface-2', 'accent-soft', 'glow-1', 'glow-2'].map((bg) => [
+  ...['bg', 'bg-alt', 'surface', 'surface-2'].map((bg) => ['ink', bg, TEXT]),
+  ...['bg', 'bg-alt', 'surface', 'surface-2', 'accent-soft', 'glow-1', 'glow-2'].map((bg) => [
     'text-muted',
     bg,
     TEXT,
   ]),
-  ...['bg', 'bg-alt', 'surface-2'].map((bg) => ['text-subtle', bg, TEXT]),
+  ...['bg', 'bg-alt', 'surface', 'surface-2'].map((bg) => ['text-subtle', bg, TEXT]),
   ...['bg', 'bg-alt', 'surface', 'surface-2', 'accent-soft'].map((bg) => ['accent-text', bg, TEXT]),
   ...['accent', 'accent-hover', 'accent-active'].map((bg) => ['on-accent', bg, TEXT]),
   ['warning-text', 'warning-bg', TEXT],
