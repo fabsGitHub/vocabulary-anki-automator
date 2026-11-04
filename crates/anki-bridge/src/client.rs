@@ -10,6 +10,9 @@
 //! Requests never go through a proxy: AnkiConnect is a loopback service, and a
 //! system or environment proxy has no business seeing collection contents, or
 //! turning "Anki is closed" into a proxy's error page.
+//!
+//! Nor does a request ever reuse a connection: AnkiConnect closes each one
+//! after a single response (see [`AnkiClient::new`]).
 
 use std::{collections::BTreeMap, time::Duration};
 
@@ -43,7 +46,7 @@ const USER_AGENT: &str = concat!(
 );
 
 /// A client for one AnkiConnect endpoint. Cloning is cheap: clones share the
-/// connection pool.
+/// underlying HTTP client.
 #[derive(Debug, Clone)]
 pub struct AnkiClient {
     /// `Err` when the HTTP client could not be built (TLS backend
@@ -57,10 +60,22 @@ pub struct AnkiClient {
 impl AnkiClient {
     /// A client for the AnkiConnect endpoint at `url` (normally
     /// [`DEFAULT_URL`]), with the default timeout.
+    ///
+    /// Every request opens a connection of its own. AnkiConnect's web server
+    /// (`web.py` in the add-on) closes the socket as soon as it has written a
+    /// response, yet sends no `Connection: close` header, so a pooling client
+    /// keeps the socket for the next request. When that request goes out
+    /// before the server's FIN has been noticed (`addNote` right after
+    /// `createDeck`, say), it lands on the closed socket and fails with
+    /// "Connection reset by peer"; whether it does is a race. With no idle
+    /// connections kept there is nothing to reuse, and a fresh loopback
+    /// connection per request costs next to nothing (the server closes each
+    /// one anyway). `tests/fresh_connection.rs` pins this.
     pub fn new(url: impl Into<String>) -> Self {
         let http = reqwest::Client::builder()
             .user_agent(USER_AGENT)
             .no_proxy()
+            .pool_max_idle_per_host(0)
             .build()
             .map_err(|err| error_chain(&err));
         Self {

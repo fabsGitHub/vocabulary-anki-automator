@@ -74,6 +74,11 @@ scripts/                   bootstrap, run-all-checks, git hooks
   or a run outside the sandbox; they never touch anything but loopback.
 - **Proxies:** clients that talk to AnkiConnect never use an HTTP proxy (it is always
   local); provider clients honour the system proxy settings.
+- **AnkiConnect connections are never reused:** `AnkiClient` keeps no idle connections
+  (`pool_max_idle_per_host(0)`), so every request opens its own. AnkiConnect closes the
+  socket after each response without sending `Connection: close`; a pooled connection
+  reused before its FIN is noticed fails with "Connection reset by peer" (an `addNote`
+  right after `createDeck` did). `crates/anki-bridge/tests/fresh_connection.rs` pins it.
 
 ## 3. Language codes and script detection (`vocab_core::language`)
 
@@ -1096,7 +1101,8 @@ Semantics:
   second download. The `addNote` payload uses `allowDuplicate: false,
 duplicateScope: "deck"` and the card's tags (Anki splits tags on whitespace).
 - `notes_info` sends 500 ids per request, skips AnkiConnect's `{}` entries for deleted
-  notes, and sends nothing for an empty slice. The client never uses a proxy.
+  notes, and sends nothing for an empty slice. The client never uses a proxy and opens
+  a new connection for every request (§ 2).
 
 ## 10. Learn (`apps/learn`)
 

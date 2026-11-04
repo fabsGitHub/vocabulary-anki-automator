@@ -150,8 +150,8 @@ npx vitest run --config apps/learn/vitest.config.ts # Learn frontend, including 
 ```
 
 No test reaches the network or a real Anki install: HTTP providers and
-AnkiConnect are replaced by `wiremock` servers on `127.0.0.1` (so the tests need
-local port binding), and the install commands run against fakes
+AnkiConnect are replaced by local fakes on `127.0.0.1`, mostly `wiremock` servers
+(so the tests need local port binding), and the install commands run against fakes
 ([docs/test-harness-strategy.md](docs/test-harness-strategy.md)). CI
 (`.github/workflows/ci.yml`) runs the lint on Linux, and the tests and the
 production frontend builds on Linux, macOS and Windows.
