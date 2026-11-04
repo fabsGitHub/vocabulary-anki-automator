@@ -12,7 +12,9 @@
  * every field of the note type by its name for the `sourceLang` ->
  * `targetLang` pair, and replaces the mapping with the result; the fields it
  * could only fill by position, or not at all, are listed for as long as the
- * mapping is the matched one.
+ * mapping is the matched one. Without the fields it is disabled; only when
+ * Anki is offline does it say so, since the loading and error notices already
+ * explain the other two cases.
  *
  * The parent owns what lives around the mapping: the `notices` slot shows
  * under the intro, the `options` slot next to the audio field.
@@ -42,7 +44,10 @@ const props = withDefaults(
   defineProps<{
     /** The note type the mapping is for. */
     modelName: string
-    /** The note type's fields, or `null` while they are unknown (Anki offline). */
+    /**
+     * The note type's fields, or `null` while they are unknown: Anki offline,
+     * loading, or the read failed.
+     */
     modelFields: string[] | null
     fieldsLoading?: boolean
     fieldsError?: string | null
@@ -171,7 +176,9 @@ function sourceLabel(source: CardField): string {
           class="btn btn-secondary btn-mini"
           data-test="match-by-name"
           :disabled="!modelFields || matching"
-          :title="modelFields ? undefined : t('mapping.matchOffline')"
+          :title="
+            modelFields || fieldsLoading || fieldsError ? undefined : t('mapping.matchOffline')
+          "
           @click="matchByName"
         >
           {{ matching ? t('mapping.matching') : t('mapping.matchByName') }}
@@ -206,7 +213,11 @@ function sourceLabel(source: CardField): string {
     <div v-else-if="fieldsError" class="notice error" data-test="fields-error">
       {{ t('mapping.fieldsFailed', { model: modelName, error: fieldsError }) }}
     </div>
-    <p v-if="!modelFields && !fieldsLoading" class="input-hint" data-test="mapping-offline">
+    <p
+      v-if="!modelFields && !fieldsLoading && !fieldsError"
+      class="input-hint"
+      data-test="mapping-offline"
+    >
       {{ t('mapping.offline') }}
     </p>
 

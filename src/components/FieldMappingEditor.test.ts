@@ -32,6 +32,7 @@ interface Props {
   mapping?: FieldMapping
   modelName?: string
   modelFields?: string[] | null
+  fieldsLoading?: boolean
   fieldsError?: string | null
   sourceLang?: string
   targetLang?: string
@@ -262,6 +263,24 @@ describe('match by field name', () => {
     await button.trigger('click')
     expect(callsTo('suggest_field_mapping')).toHaveLength(0)
     expect(mountEditor().find('[data-test="match-by-name"]').attributes('title')).toBeUndefined()
+  })
+
+  it('blames no offline Anki while the fields are being read', () => {
+    const wrapper = mountEditor({ modelFields: null, fieldsLoading: true })
+    const button = wrapper.find('[data-test="match-by-name"]')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.attributes('title')).toBeUndefined()
+    expect(wrapper.text()).toContain('Reading the fields of “AppleStyleFinalV3”…')
+    expect(wrapper.find('[data-test="mapping-offline"]').exists()).toBe(false)
+  })
+
+  it('blames no offline Anki when the fields could not be read', () => {
+    const wrapper = mountEditor({ modelFields: null, fieldsError: 'model was not found' })
+    const button = wrapper.find('[data-test="match-by-name"]')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.attributes('title')).toBeUndefined()
+    expect(wrapper.find('[data-test="fields-error"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="mapping-offline"]').exists()).toBe(false)
   })
 
   it('shows why the fields could not be matched, and keeps the mapping', async () => {
