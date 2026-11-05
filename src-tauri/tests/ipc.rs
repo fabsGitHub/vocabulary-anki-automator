@@ -10,7 +10,8 @@ use std::fs;
 use common::{fake_audio, now, Harness, Options};
 use serde_json::{json, Value};
 use vocab_automator_lib::{
-    config::{load_config_from, AppConfig, HotkeyProfile},
+    config::{load_config_from, AppConfig, HotkeyProfile, LearnedLanguage},
+    push::LAST_SOURCE_LANG_KEY,
     setup::{ankiconnect, AnkiPaths},
 };
 use vocab_core::{
@@ -58,6 +59,28 @@ fn chinese_profile() -> HotkeyProfile {
     }
 }
 
+/// A learned language with its own deck and note type.
+fn learned(lang: &str, deck: &str, model: &str) -> LearnedLanguage {
+    LearnedLanguage {
+        lang: lang.into(),
+        deck_name: deck.into(),
+        model_name: model.into(),
+        field_mapping: None,
+        create_reverse: true,
+    }
+}
+
+/// A user who learns English, French and Chinese, each in a deck of its own.
+fn learner() -> Options {
+    let mut options = Options::default();
+    options.config.learning.languages = vec![
+        learned("en", "english", "AppleStyleFinalV3"),
+        learned("fr", "french", "AppleStyleFinalV3"),
+        learned("zh-CN", "chinese", "Chinese (HSK)"),
+    ];
+    options
+}
+
 #[test]
 fn nothing_is_pending_at_first() {
     let harness = Harness::new();
@@ -87,6 +110,21 @@ fn capture_text_produces_a_pending_capture_and_opens_the_preview() {
     // existing (hidden) one.
     assert!(harness.events("translation-payload").is_empty());
     assert_eq!(harness.call("capture_in_progress", json!({})), json!(true));
+}
+
+/// The approval window's field check needs Anki; without it there is
+/// nothing to report, and nothing pending means nothing to check.
+#[test]
+fn check_pending_fields_is_null_without_a_capture_and_unchecked_while_anki_is_away() {
+    let harness = Harness::new();
+    assert_eq!(harness.call("check_pending_fields", json!({})), Value::Null);
+
+    capture(&harness, "serendipity", None);
+
+    assert_eq!(
+        harness.call("check_pending_fields", json!({})),
+        json!({ "status": "unchecked" })
+    );
 }
 
 #[test]
@@ -127,6 +165,248 @@ fn a_profile_brings_its_language_pair() {
         }
     );
     assert_eq!(card.audio_front, Some(fake_audio("zh-CN", "学习")));
+}
+
+/// The migration guarantee: without learned languages a capture asks the
+/// same providers as before and is filed under the global deck and note
+/// type.
+#[test]
+fn without_learned_languages_a_capture_is_filed_as_before() {
+    let harness = Harness::new();
+
+    capture(&harness, "serendipity", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["detection"], Value::Null, "nothing was detected");
+    assert_eq!(
+        pending["filing"],
+        json!({ "deck": "English::AutomatedVocabulary", "model": "AppleStyleFinalV3" })
+    );
+    assert_eq!(
+        harness.providers.calls(),
+        [
+            "translate en->de serendipity",
+            "rarity serendipity",
+            "example serendipity",
+            "translate en->de An example with serendipity.",
+            "tts en serendipity"
+        ]
+    );
+}
+
+/// The approval window names where the card goes: a profile's own deck,
+/// else its language's deck, and that language's note type.
+#[test]
+fn the_pending_capture_names_its_deck_and_note_type() {
+    let mut options = Options::default();
+    options.config.hotkey_profiles.push(chinese_profile());
+    options.config.hotkey_profiles.push(HotkeyProfile {
+        id: "fr-de".into(),
+        label: "French → German".into(),
+        shortcut: "Alt+F".into(),
+        source_lang: "fr".into(),
+        target_lang: "de".into(),
+        deck_name: None,
+    });
+    options.config.learning.languages = vec![
+        learned("zh-CN", "chinese", "Chinese (HSK)"),
+        learned("fr", "french", "Basic"),
+    ];
+    let harness = Harness::with(options);
+
+    capture(&harness, "学习", Some("zh-de"));
+    assert_eq!(
+        pending(&harness)["filing"],
+        json!({ "deck": "Chinese::HSK", "model": "Chinese (HSK)" })
+    );
+    capture(&harness, "bonjour", Some("fr-de"));
+    assert_eq!(
+        pending(&harness)["filing"],
+        json!({ "deck": "french", "model": "Basic" })
+    );
+    // Read as the configured English, which is not learned: the globals.
+    capture(&harness, "привет", None);
+    assert_eq!(
+        pending(&harness)["filing"],
+        json!({ "deck": "English::AutomatedVocabulary", "model": "AppleStyleFinalV3" }),
+    );
+}
+
+/// The default hotkey recognizes a learned language and files the card in
+/// its deck.
+#[test]
+fn the_default_hotkey_detects_a_learned_language() {
+    let harness = Harness::with(learner());
+
+    capture(&harness, "bonjour", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "fr");
+    assert_eq!(pending["card"]["target_lang"], "de");
+    assert_eq!(pending["detection"]["method"], "statistical");
+    assert_eq!(pending["detection"]["confident"], true);
+    assert_eq!(pending["detection"]["script"], "latin");
+    assert_eq!(pending["detection"]["candidates"], json!(["en", "fr"]));
+    assert_eq!(pending["detection"]["ranked"][0]["lang"], "fr");
+    assert_eq!(
+        pending["filing"],
+        json!({ "deck": "french", "model": "AppleStyleFinalV3" })
+    );
+    assert_eq!(
+        harness.providers.calls(),
+        ["translate fr->de bonjour", "tts fr bonjour"],
+        "French has no rarity or example provider"
+    );
+}
+
+/// A word of several learned languages is a guess the window marks as unsure.
+#[test]
+fn a_homograph_is_an_unsure_guess() {
+    let harness = Harness::with(learner());
+
+    capture(&harness, "message", None);
+
+    let detection = pending(&harness)["detection"].clone();
+    assert_eq!(detection["lang"], "fr");
+    assert_eq!(detection["method"], "statistical");
+    assert_eq!(detection["confident"], false);
+    assert_eq!(detection["candidates"], json!(["en", "fr"]));
+}
+
+#[test]
+fn han_text_is_chinese_by_its_script() {
+    let harness = Harness::with(learner());
+
+    capture(&harness, "学习", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "zh-CN");
+    assert_eq!(
+        pending["detection"],
+        json!({
+            "lang": "zh-CN",
+            "method": "script",
+            "confident": true,
+            "script": "han",
+            "candidates": ["zh-CN"],
+            "ranked": []
+        })
+    );
+    assert_eq!(
+        pending["filing"],
+        json!({ "deck": "chinese", "model": "Chinese (HSK)" })
+    );
+    assert!(harness
+        .providers
+        .calls()
+        .contains(&"annotate 学习".to_string()));
+}
+
+/// Han text for a learner whose own language is Chinese is not detected:
+/// the pipeline reverses the pair instead of translating zh-CN -> zh-CN.
+#[test]
+fn han_text_for_a_chinese_native_learner_is_left_to_the_pipeline() {
+    let mut options = Options::default();
+    options.config.translation.source_lang = "en".into();
+    options.config.translation.target_lang = "zh-CN".into();
+    options.config.learning.languages = vec![
+        learned("en", "english", "AppleStyleFinalV3"),
+        learned("fr", "french", "AppleStyleFinalV3"),
+    ];
+    let harness = Harness::with(options);
+
+    capture(&harness, "学习", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "zh-CN");
+    assert_eq!(pending["card"]["target_lang"], "en");
+    assert_eq!(pending["detection"], Value::Null);
+    assert_eq!(harness.providers.calls()[0], "translate zh-CN->en 学习");
+}
+
+/// Text in none of the learned languages is captured in the configured
+/// source language, and the window is told why.
+#[test]
+fn a_foreign_script_falls_back_to_the_configured_source_language() {
+    let mut options = learner();
+    options.config.translation.source_lang = "fr".into();
+    let harness = Harness::with(options);
+
+    capture(&harness, "привет", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "fr");
+    assert_eq!(pending["detection"]["method"], "fallback");
+    assert_eq!(pending["detection"]["confident"], false);
+    assert_eq!(pending["detection"]["script"], "cyrillic");
+    assert_eq!(
+        pending["detection"]["candidates"],
+        json!(["en", "fr", "zh-CN"])
+    );
+    assert_eq!(pending["filing"]["deck"], "french");
+}
+
+/// A hotkey profile keeps its fixed pair: no detection, its own deck, else
+/// the deck of its language.
+#[test]
+fn hotkey_profiles_do_not_detect() {
+    let mut options = learner();
+    options.config.hotkey_profiles.push(HotkeyProfile {
+        id: "en-de".into(),
+        label: "English → German".into(),
+        shortcut: "Alt+E".into(),
+        source_lang: "en".into(),
+        target_lang: "de".into(),
+        deck_name: None,
+    });
+    options.config.hotkey_profiles.push(HotkeyProfile {
+        id: "en-mined".into(),
+        label: "Mined English".into(),
+        shortcut: "Alt+M".into(),
+        source_lang: "en".into(),
+        target_lang: "de".into(),
+        deck_name: Some("English::Mined".into()),
+    });
+    let harness = Harness::with(options);
+
+    capture(&harness, "bonjour", Some("en-de"));
+    let pending_capture = pending(&harness);
+    assert_eq!(pending_capture["detection"], Value::Null);
+    assert_eq!(pending_capture["card"]["source_lang"], "en");
+    assert_eq!(pending_capture["filing"]["deck"], "english");
+
+    capture(&harness, "bonjour", Some("en-mined"));
+    let pending_capture = pending(&harness);
+    assert_eq!(pending_capture["detection"], Value::Null);
+    assert_eq!(pending_capture["filing"]["deck"], "English::Mined");
+}
+
+/// After an English card, the next homograph is read as English.
+#[test]
+fn the_last_approved_language_breaks_a_close_call() {
+    let harness = Harness::with(learner());
+    capture(&harness, "serendipity", None);
+    assert_eq!(pending_card(&harness)["source_lang"], "en");
+    approve(&harness, pending_card(&harness));
+
+    capture(&harness, "message", None);
+
+    let pending = pending(&harness);
+    assert_eq!(pending["card"]["source_lang"], "en");
+    assert_eq!(pending["detection"]["method"], "tie_break");
+    assert_eq!(pending["detection"]["confident"], false);
+    assert_eq!(pending["filing"]["deck"], "english");
+}
+
+/// Refused captures skip detection and are reported exactly as before.
+#[test]
+fn refused_captures_are_not_detected() {
+    let harness = Harness::with(learner());
+
+    capture(&harness, &"x".repeat(101), None);
+
+    assert_eq!(harness.events("capture-error").len(), 1);
+    assert_eq!(pending(&harness), Value::Null);
 }
 
 /// Milestone H: a phrase is captured and translated; only the single-word
@@ -244,6 +524,37 @@ fn an_offline_anki_is_a_result_not_an_error() {
     );
 }
 
+/// Detection's tie-break needs the language of the last approved card, but
+/// an old config must not write anything new.
+#[test]
+fn the_approved_language_is_remembered_only_with_learned_languages() {
+    let harness = Harness::new();
+    capture(&harness, "serendipity", None);
+    approve(&harness, pending_card(&harness));
+    assert_eq!(
+        harness
+            .open_store()
+            .get_state(LAST_SOURCE_LANG_KEY)
+            .unwrap(),
+        None
+    );
+
+    let mut options = Options::default();
+    options.config.learning.languages = vec![learned("en", "english", "AppleStyleFinalV3")];
+    let harness = Harness::with(options);
+    capture(&harness, "serendipity", None);
+    let result = approve(&harness, pending_card(&harness));
+    assert_eq!(result["synced_to_anki"], false);
+    assert_eq!(
+        harness
+            .open_store()
+            .get_state(LAST_SOURCE_LANG_KEY)
+            .unwrap()
+            .as_deref(),
+        Some("en")
+    );
+}
+
 #[test]
 fn an_edited_front_gets_fresh_audio() {
     let harness = Harness::new();
@@ -353,6 +664,229 @@ fn without_a_database_an_offline_anki_means_the_card_stays_pending() {
     assert!(
         history.starts_with("The capture history is unavailable"),
         "{history}"
+    );
+}
+
+/// The approval window's language switch for the capture it shows, the one
+/// pending (`0` with nothing pending).
+fn rerun(harness: &Harness, source_lang: &str, text: &str) -> Result<Value, Value> {
+    let generation = pending(harness)["generation"].as_u64().unwrap_or(0);
+    rerun_shown(harness, source_lang, text, generation)
+}
+
+/// The language switch of a window that shows capture `generation`.
+fn rerun_shown(
+    harness: &Harness,
+    source_lang: &str,
+    text: &str,
+    generation: u64,
+) -> Result<Value, Value> {
+    harness.invoke(
+        "rerun_pending_capture",
+        json!({ "sourceLang": source_lang, "text": text, "generation": generation }),
+    )
+}
+
+/// A wrong guess is fixed in the approval window: the same capture, built
+/// again for the chosen language and filed in its deck.
+#[test]
+fn a_capture_is_switched_to_the_language_the_user_picks() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+    let before = pending(&harness);
+    assert_eq!(before["card"]["source_lang"], "fr");
+    let calls_before = harness.providers.calls().len();
+
+    let switched = rerun(&harness, "en", "message").expect("the re-run succeeds");
+
+    assert_eq!(switched["card"]["source_lang"], "en");
+    assert_eq!(switched["card"]["target_lang"], "de");
+    assert_eq!(
+        switched["card"]["captured_at"],
+        before["card"]["captured_at"]
+    );
+    assert_eq!(
+        switched["generation"], before["generation"],
+        "the same capture"
+    );
+    assert_eq!(switched["profile_id"], Value::Null);
+    assert_eq!(
+        switched["detection"],
+        json!({
+            "lang": "en",
+            "method": "chosen",
+            "confident": true,
+            "script": "latin",
+            "candidates": ["en", "fr"],
+            "ranked": before["detection"]["ranked"]
+        })
+    );
+    assert_eq!(
+        switched["filing"],
+        json!({ "deck": "english", "model": "AppleStyleFinalV3" })
+    );
+    assert_eq!(
+        harness.events("translation-payload"),
+        std::slice::from_ref(&switched)
+    );
+    assert_eq!(pending(&harness), switched);
+    assert_eq!(
+        harness.providers.calls()[calls_before..],
+        [
+            "translate en->de message",
+            "rarity message",
+            "example message",
+            "translate en->de An example with message.",
+            "tts en message"
+        ]
+    );
+}
+
+/// A switch clicked in a window that still shows an older capture leaves the
+/// newer one alone: the older front is not re-run under its name.
+#[test]
+fn a_re_run_for_a_capture_that_was_replaced_is_refused() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+    let shown = pending(&harness)["generation"].as_u64().unwrap();
+    capture(&harness, "maison", None);
+    let newer = pending(&harness);
+    assert_ne!(newer["generation"], json!(shown));
+    let events = harness.events("translation-payload").len();
+
+    assert_eq!(
+        rerun_shown(&harness, "en", "message", shown),
+        Err(json!("The card was saved or discarded in the meantime."))
+    );
+
+    assert_eq!(pending(&harness), newer);
+    assert_eq!(harness.events("translation-payload").len(), events);
+}
+
+/// The front the user edited is what is captured again.
+#[test]
+fn a_re_run_captures_the_edited_front() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+
+    let switched = rerun(&harness, "en", " messages ").expect("the re-run succeeds");
+
+    assert_eq!(switched["card"]["front"], "messages");
+    assert_eq!(
+        harness.providers.tts_calls().last().map(String::as_str),
+        Some("tts en messages")
+    );
+}
+
+/// Every refusal leaves the pending capture alone and shows nothing new.
+#[test]
+fn a_re_run_is_refused_when_it_cannot_apply() {
+    let mut options = learner();
+    options.config.translation.max_chars = 20;
+    let harness = Harness::with(options);
+    assert_eq!(
+        rerun(&harness, "en", "message"),
+        Err(json!("There is no card to switch."))
+    );
+
+    capture(&harness, "message", None);
+    let before = pending(&harness);
+    for (lang, text, error) in [
+        (
+            "de",
+            "message",
+            "Cards are translated into de; choose another language.",
+        ),
+        ("pt", "message", "\"pt\" is not a supported language."),
+        (
+            "en",
+            "学习",
+            "Text with Chinese characters is always captured as Chinese.",
+        ),
+        (
+            "en",
+            "   ",
+            "Nothing to capture: the selected text is empty.",
+        ),
+        (
+            "en",
+            "a selection that is far too long",
+            "The selection is 32 characters long, but captures are limited to 20 characters. \
+             Select less text or raise the limit in the settings.",
+        ),
+    ] {
+        assert_eq!(
+            rerun(&harness, lang, text),
+            Err(json!(error)),
+            "{lang} {text}"
+        );
+        assert_eq!(pending(&harness), before, "{lang} {text}");
+    }
+    {
+        let state = harness.state();
+        let capturing = state.begin_capture().expect("no capture runs");
+        assert_eq!(
+            rerun(&harness, "en", "message"),
+            Err(json!("A capture is already running."))
+        );
+        drop(capturing);
+        let submitting = state.begin_submit().expect("no submission runs");
+        assert_eq!(
+            rerun(&harness, "en", "message"),
+            Err(json!("The card is being saved."))
+        );
+        drop(submitting);
+    }
+    harness.call("discard_pending_payload", json!({}));
+    assert_eq!(
+        rerun(&harness, "en", "message"),
+        Err(json!("There is no card to switch."))
+    );
+    assert!(harness.events("translation-payload").is_empty());
+    assert!(
+        harness.events("capture-error").is_empty(),
+        "the window shows re-run errors itself"
+    );
+}
+
+/// A re-run holds the submission guard, so an approval meanwhile is refused
+/// rather than saving the card that is being replaced.
+#[test]
+fn approving_while_a_re_run_holds_the_card_is_refused() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+    let state = harness.state();
+    let _rerunning = state.begin_submit().expect("no submission runs");
+
+    let err = harness.call_err(
+        "execute_card_generation",
+        json!({ "card": pending_card(&harness) }),
+    );
+
+    assert_eq!(err, "This card is already being saved.");
+    assert!(!pending(&harness).is_null());
+}
+
+/// The audio of an edited front is recorded in the language switched to.
+#[test]
+fn an_edited_front_after_a_switch_is_spoken_in_the_new_language() {
+    let harness = Harness::with(learner());
+    capture(&harness, "message", None);
+    let switched = rerun(&harness, "en", "message").expect("the re-run succeeds");
+    let card = common::with_field(switched["card"].clone(), "front", json!("messages"));
+
+    approve(&harness, card);
+
+    let row = stored(&harness, 1);
+    assert_eq!(row.card.source_lang, "en");
+    assert_eq!(row.card.audio_front, Some(fake_audio("en", "messages")));
+    assert_eq!(
+        harness
+            .open_store()
+            .get_state(LAST_SOURCE_LANG_KEY)
+            .unwrap()
+            .as_deref(),
+        Some("en")
     );
 }
 

@@ -10,13 +10,13 @@
 
 export const en = {
   app: {
-    title: 'Vocabulary Learn',
+    title: 'Polywort Learn',
     subtitle: 'Review your words, practise them and keep your streak.',
     loading: 'Loading today’s session…',
     loadFailed: 'Today’s session could not be loaded: {error}',
     retry: 'Try again',
     uiLanguage: 'App language',
-    startFailed: 'Learn could not start: {error}',
+    startFailed: 'Polywort Learn could not start: {error}',
     reopenFailed: 'Today’s goal could not be reopened: {error}',
     dismiss: 'Dismiss',
   },
@@ -32,7 +32,7 @@ export const en = {
   credits: {
     title: 'Credits and licenses',
     intro:
-      'Learn ships the HSK 3.0 word list with dictionary data that others made and share under these licenses.',
+      'Polywort Learn ships the HSK 3.0 word list with dictionary data that others made and share under these licenses.',
     close: 'Close',
     fullText: 'Full text',
     ccCedict:
@@ -120,8 +120,9 @@ export const en = {
     empty: 'Learn a few words in Review first: exercises only use words you have learned.',
     card: 'Word',
     kind: 'Exercise',
-    needsTts: 'Needs text-to-speech, which this version of Learn does not have.',
-    needsAudio: 'This word has no recording, and this version of Learn has no text-to-speech.',
+    needsTts: 'Needs text-to-speech, which this version of Polywort Learn does not have.',
+    needsAudio:
+      'This word has no recording, and this version of Polywort Learn has no text-to-speech.',
     start: 'Start exercise',
     next: 'Next exercise',
     skip: 'Skip',
@@ -167,9 +168,9 @@ export const en = {
     loading: 'Loading your lessons…',
     loadFailed: 'Your lessons could not be loaded: {error}',
     empty:
-      'No lessons yet. Capture words in the Automator together with an example sentence and its translation, and they turn into lessons here.',
+      'No lessons yet. Capture words in Polywort together with an example sentence and its translation, and they turn into lessons here.',
     emptyWeb:
-      'No lessons in the web version: lessons are built from the words you capture with the Automator, and those stay in the desktop app.',
+      'No lessons in the web version: lessons are built from the words you capture with Polywort, and those stay in the desktop app.',
     lessonTitle: '{source} → {target} · Lesson {number}',
     cardCount: 'Words: {count}',
     start: 'Start',

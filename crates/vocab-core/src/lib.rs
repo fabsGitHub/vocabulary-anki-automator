@@ -8,6 +8,7 @@
 //! | `model`        | B, J1     | neutral `Card`, `ScriptMetadata`, `CurriculumItem`           |
 //! | `error`        | C         | typed `ProviderError`                                        |
 //! | `language`     | C, J4     | language-code normalization, CJK detection                   |
+//! | `detect`       | O         | which learned language a capture is in (script, then stats)  |
 //! | `providers`    | B, C, J   | provider traits, MyMemory/Datamuse/dictionaryapi/TTS/Chinese |
 //! | `pipeline`     | B, H, J4  | capture -> translate -> rarity -> example -> tts -> `Card`   |
 //! | `curriculum`   | J2        | bundled HSK 3.0 data + in-memory lookup                      |
@@ -20,6 +21,7 @@
 //! | `rng`          | M         | deterministic Mulberry32 PRNG (Rust/TS parity)               |
 
 pub mod curriculum;
+pub mod detect;
 pub mod error;
 pub mod gamification;
 pub mod language;

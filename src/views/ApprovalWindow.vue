@@ -5,12 +5,14 @@
  * (Esc). The capture flow and its race handling live in `useApproval`; this
  * component adds what is about the window itself: keys, audio, focus, and
  * the UI language, re-read per capture because this webview never sees the
- * main window's language switch.
+ * main window's language switch. A detected source language shows as chips,
+ * one per language the text could be in, with a hint when the guess is unsure;
+ * a click on another chip captures the card again in that language.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { getCurrentSettings, type AppConfig, type PendingCapture } from '../api'
+import { getCurrentSettings, type AppConfig, type CardField, type PendingCapture } from '../api'
 import { useApproval } from '../composables/useApproval'
 import { isSupportedLang } from '../domain/language'
 import { formatWarning } from '../domain/warnings'
@@ -18,10 +20,22 @@ import { LANGUAGE_NAME_KEYS, setLocale } from '../i18n'
 
 const { t, te } = useI18n()
 const approval = useApproval()
-const { pending, draft, phase, result, error, captureError, chinese, frontEdited } = approval
+const {
+  pending,
+  draft,
+  phase,
+  result,
+  error,
+  captureError,
+  fieldCheck,
+  switchingTo,
+  chinese,
+  frontEdited,
+} = approval
 
 const settings = ref<AppConfig | null>(null)
 const backInput = ref<HTMLInputElement | null>(null)
+const chipGroup = ref<HTMLElement | null>(null)
 const editable = computed(() => phase.value === 'editing')
 
 const warnings = computed(() =>
@@ -48,12 +62,103 @@ const languagePair = computed(() => {
     : ''
 })
 
+const detection = computed(() => pending.value?.detection ?? null)
+
+interface LanguageChip {
+  code: string
+  active: boolean
+  label: string
+  classes: string
+}
+
+/**
+ * One chip per language the text could be in; none when there is nothing to
+ * switch to. While switching, the chosen language is the active chip.
+ */
+const languageChips = computed<LanguageChip[]>(() => {
+  const found = detection.value
+  if (!found || found.candidates.length < 2) return []
+  const target = switchingTo.value
+  return found.candidates.map((code) => {
+    const name = languageName(code)
+    if (target !== null) {
+      return code === target
+        ? { code, active: true, label: t('approval.switching', { lang: name }), classes: 'badge' }
+        : { code, active: false, label: name, classes: 'badge badge-muted' }
+    }
+    const active = code === found.lang
+    if (!active) return { code, active, label: name, classes: 'badge badge-muted' }
+    return found.confident
+      ? { code, active, label: name, classes: 'badge' }
+      : {
+          code,
+          active,
+          label: t('approval.detectedUnsure', { lang: name }),
+          classes: 'badge badge-warning',
+        }
+  })
+})
+
+/** Why the detected language may be wrong; `null` when it is certain or being switched. */
+const languageHint = computed(() => {
+  const found = detection.value
+  if (!found || found.confident || phase.value === 'switching') return null
+  const lang = languageName(found.lang)
+  if (found.method !== 'fallback') return t('approval.unsureHint', { lang })
+  return found.script === 'latin' || found.script === 'none'
+    ? t('approval.fallbackHint', { lang })
+    : t('approval.foreignScript', { lang })
+})
+
+/**
+ * Captures the card again as `code`; afterwards focus goes to the new active
+ * chip, unless the back is empty (then the back field has it). After a failed
+ * switch it goes back to the chip that was clicked, which lost it while disabled.
+ */
+async function switchTo(code: string): Promise<void> {
+  const shown = await approval.switchLanguage(code, languageName(code))
+  if (shown && !pending.value?.card.back.trim()) return
+  await nextTick()
+  if (!shown && document.activeElement && document.activeElement !== document.body) return
+  const selector = shown ? 'button[aria-pressed="true"]' : `button[data-test="language-${code}"]`
+  chipGroup.value?.querySelector<HTMLButtonElement>(selector)?.focus()
+}
+
 const profile = computed(() => {
   const id = pending.value?.profile_id
   return id ? (settings.value?.hotkey_profiles.find((p) => p.id === id) ?? null) : null
 })
 
-const deck = computed(() => profile.value?.deck_name || settings.value?.anki.deck_name || null)
+function valueName(source: CardField): string {
+  return t(`mapping.sources.${source}`)
+}
+
+/** One sentence per value the pending card's note type would drop. */
+const lostValues = computed(() => {
+  const check = fieldCheck.value
+  if (check?.status !== 'checked') return []
+  const model = check.model
+  return check.lost.map((lost) => {
+    switch (lost.kind) {
+      case 'missing_field':
+        return t('approval.lostMissingField', {
+          value: valueName(lost.source),
+          model,
+          field: lost.anki_field,
+        })
+      case 'unmapped':
+        return t('approval.lostUnmapped', { value: valueName(lost.source), model })
+      case 'audio':
+        return lost.audio_field
+          ? t('approval.lostAudio', { model, field: lost.audio_field })
+          : t('approval.lostAudioUnset', { model })
+    }
+  })
+})
+
+const fieldCheckError = computed(() =>
+  fieldCheck.value?.status === 'failed' ? fieldCheck.value.error : null,
+)
 
 const hskLabel = computed(() => {
   const level = chinese.value?.hsk_level ?? null
@@ -148,13 +253,52 @@ onBeforeUnmount(() => {
       <header class="approval-header">
         <h2>{{ t('approval.windowTitle') }}</h2>
         <div class="approval-meta">
-          <span class="badge badge-muted" data-test="language-pair">{{ languagePair }}</span>
+          <template v-if="languageChips.length > 0 && pending">
+            <div
+              ref="chipGroup"
+              class="language-chips"
+              role="group"
+              :aria-label="t('approval.languageGroup')"
+              data-test="language-chips"
+            >
+              <button
+                v-for="chip in languageChips"
+                :key="chip.code"
+                type="button"
+                :class="chip.classes"
+                :aria-pressed="chip.active ? 'true' : 'false'"
+                :title="t('approval.switchTo', { lang: languageName(chip.code) })"
+                :aria-label="t('approval.switchTo', { lang: languageName(chip.code) })"
+                :data-test="`language-${chip.code}`"
+                :disabled="phase !== 'editing'"
+                @click="switchTo(chip.code)"
+              >
+                {{ chip.label }}
+              </button>
+            </div>
+            <span class="badge badge-muted" data-test="target-lang">{{
+              t('approval.targetLang', { lang: languageName(pending.card.target_lang) })
+            }}</span>
+          </template>
+          <span v-else class="badge badge-muted" data-test="language-pair">{{ languagePair }}</span>
           <span v-if="profile" class="badge badge-muted">{{
             t('approval.profile', { label: profile.label })
           }}</span>
-          <span v-if="deck" class="badge badge-muted">{{ t('approval.deck', { deck }) }}</span>
+          <span v-if="pending?.filing.deck" class="badge badge-muted" data-test="deck">{{
+            t('approval.deck', { deck: pending.filing.deck })
+          }}</span>
+          <span v-if="pending?.filing.model" class="badge badge-muted" data-test="model">{{
+            t('approval.model', { model: pending.filing.model })
+          }}</span>
         </div>
       </header>
+
+      <p v-if="switchingTo" class="input-hint" role="status" data-test="switching">
+        {{ t('approval.switching', { lang: languageName(switchingTo) }) }}
+      </p>
+      <p v-if="languageHint" class="notice warning" role="status" data-test="language-hint">
+        {{ languageHint }}
+      </p>
 
       <div v-if="warnings.length > 0" class="notice warning" data-test="warnings">
         <strong>{{ t('warnings.title') }}</strong>
@@ -246,6 +390,26 @@ onBeforeUnmount(() => {
         />
       </div>
 
+      <div
+        v-if="lostValues.length > 0 || fieldCheckError"
+        class="notice warning"
+        role="status"
+        data-test="fields-lost"
+      >
+        <p v-if="fieldCheckError">
+          {{ t('approval.fieldCheckFailed', { error: fieldCheckError }) }}
+        </p>
+        <template v-else>
+          <strong>{{ t('approval.lostTitle') }}</strong>
+          <ul class="notice-list">
+            <li v-for="(line, index) in lostValues" :key="index" data-test="lost-value">
+              {{ line }}
+            </li>
+          </ul>
+          <p class="notice-detail">{{ t('approval.lostHint') }}</p>
+        </template>
+      </div>
+
       <div v-if="phase === 'saved'" class="notice warning" role="status" data-test="saved-offline">
         <p>{{ t('approval.savedOffline') }}</p>
         <p v-if="result?.anki_error" class="notice-detail">
@@ -272,7 +436,7 @@ onBeforeUnmount(() => {
             type="button"
             class="btn btn-secondary"
             data-test="discard"
-            :disabled="phase === 'submitting'"
+            :disabled="phase === 'submitting' || phase === 'switching'"
             @click="approval.discard()"
           >
             {{ t('approval.discard') }}

@@ -12,12 +12,18 @@
 //! (§ 6.3): Learn may be writing to the same file, and a transaction held
 //! while AnkiConnect or TTS takes ten seconds would make its writes time out.
 //!
-//! A card approved into a profile's deck remembers that deck in the store's
-//! `app_state` table until it is synced, so a retry after a restart still
-//! goes to the right deck instead of the default one. The deck is written in
-//! the same transaction as the card, before Anki is asked: a retry that runs
-//! while the approval is still talking to Anki, or after the app quit in the
-//! middle of it, must already know it.
+//! Where a card goes is [`AppConfig::filing`]'s decision: deck, note type,
+//! field mapping and reverse note, from the card's language and the hotkey
+//! profile it was captured with. A card approved into a profile's deck
+//! remembers that deck in the store's `app_state` table until it is synced,
+//! so a retry after a restart still goes to the right deck instead of the one
+//! the default hotkey would choose. The deck is written in the same
+//! transaction as the card, before Anki is asked: a retry that runs while the
+//! approval is still talking to Anki, or after the app quit in the middle of
+//! it, must already know it. Everything else a retry derives again from the
+//! card's language.
+
+use std::collections::HashMap;
 
 use anki_bridge::{push_card, AnkiClient, AnkiTarget, PushOptions};
 use serde::{Deserialize, Serialize};
@@ -28,7 +34,17 @@ use vocab_core::{
     CaptureOrigin, Card, ScriptMetadata,
 };
 
-use crate::{capture::PendingCapture, config::AppConfig, state::AppState};
+use crate::{
+    capture::PendingCapture,
+    config::AppConfig,
+    filing::{resolve_mapping, resolve_mapping_with},
+    state::AppState,
+};
+
+/// `app_state` key holding the source language of the last approved
+/// capture: detection's tie-break. Written only while learned languages are
+/// configured, so an old config never writes it.
+pub const LAST_SOURCE_LANG_KEY: &str = "automator.last_source_lang";
 
 /// What `execute_card_generation` returns.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -85,11 +101,11 @@ pub async fn submit_card(
         card.audio_front = pending.and_then(|pending| pending.card.audio_front.clone());
     }
     let profile_id = pending.and_then(|pending| pending.profile_id.as_deref());
-    let deck = config
-        .profile(profile_id)
-        .unwrap_or_else(|| config.default_profile())
-        .deck_name;
-    let profile_deck = (deck != config.anki.deck_name).then_some(deck.as_str());
+    let filing = config.filing(profile_id, &card.source_lang);
+    // A retry files by language only, so only a deck it would not choose
+    // needs remembering.
+    let profile_deck = (filing.deck != config.filing(None, &card.source_lang).deck)
+        .then_some(filing.deck.as_str());
 
     // 1. Save first, always, together with a profile deck.
     let capture_id = if state.has_store() {
@@ -105,6 +121,13 @@ pub async fn submit_card(
             })
             .map_err(|err| format!("The card was not saved: {err}"))?;
         log::info!("Saved capture {id}.");
+        if !config.learning.languages.is_empty() {
+            let remembered =
+                state.with_store(|store| store.set_state(LAST_SOURCE_LANG_KEY, &card.source_lang));
+            if let Err(err) = remembered {
+                log::warn!("Could not remember the language of capture {id}: {err}");
+            }
+        }
         Some(id)
     } else {
         None
@@ -139,18 +162,16 @@ pub async fn submit_card(
         }
     }
 
-    // 2. + 3. Map with reverse-side audio, push.
-    let options = push_options(&registry, config, &card).await;
+    // 2. + 3. Map with reverse-side audio, push. A mapping matched by field
+    // name needs the note type's fields first; failing to get them is a
+    // push error like any other.
+    let options = push_options(&registry, filing.create_reverse, &card).await;
     let client = AnkiClient::new(config.anki.connect_url.clone());
-    let target = AnkiTarget::new(deck.clone(), config.anki.model_name.clone());
-    let pushed = push_card(
-        &client,
-        &card,
-        &target,
-        &config.anki.field_mapping,
-        &options,
-    )
-    .await;
+    let target = AnkiTarget::new(filing.deck.clone(), filing.model.clone());
+    let pushed = match resolve_mapping(&client, &filing, &card).await {
+        Ok(mapping) => push_card(&client, &card, &target, &mapping, &options).await,
+        Err(err) => Err(err),
+    };
 
     // 4. Mark synced, or leave the capture (and its deck) for the retry.
     match (pushed, capture_id) {
@@ -192,15 +213,18 @@ pub async fn submit_card(
     }
 }
 
-/// Pushes every unsynced Automator capture, oldest first (§ 8.2). Stops at
-/// the first "Anki unreachable": the rest would fail the same way, each after
-/// its own timeout. Rows Learn created (curriculum items, imports) are left
-/// to Learn's own Anki export.
+/// Pushes every unsynced Automator capture, oldest first (§ 8.2), filed by
+/// its language as the default hotkey would file it, into its remembered
+/// deck if it has one. Stops at the first "Anki unreachable": the rest would
+/// fail the same way, each after its own timeout. A note type matched by
+/// field name is asked for its fields once per run. Rows Learn created
+/// (curriculum items, imports) are left to Learn's own Anki export.
 pub async fn sync_pending(state: &AppState, config: &AppConfig) -> Result<SyncReport, String> {
     let _exclusive = state.sync_lock().lock().await;
     let captures = state.with_store(|store| store.list_unsynced_captures())?;
     let registry = state.providers().registry(config);
     let client = AnkiClient::new(config.anki.connect_url.clone());
+    let mut model_fields = HashMap::new();
     let mut report = SyncReport::default();
     for capture in captures
         .into_iter()
@@ -208,22 +232,20 @@ pub async fn sync_pending(state: &AppState, config: &AppConfig) -> Result<SyncRe
     {
         let id = capture.id;
         report.attempted += 1;
+        let filing = config.filing(None, &capture.card.source_lang);
         let deck = state
             .with_store(|store| store.get_state(&deck_key(id)))
             .ok()
             .flatten()
-            .unwrap_or_else(|| config.anki.deck_name.clone());
-        let options = push_options(&registry, config, &capture.card).await;
-        let target = AnkiTarget::new(deck, config.anki.model_name.clone());
-        match push_card(
-            &client,
-            &capture.card,
-            &target,
-            &config.anki.field_mapping,
-            &options,
-        )
-        .await
-        {
+            .unwrap_or_else(|| filing.deck.clone());
+        let options = push_options(&registry, filing.create_reverse, &capture.card).await;
+        let target = AnkiTarget::new(deck, filing.model.clone());
+        let pushed =
+            match resolve_mapping_with(&client, &filing, &capture.card, &mut model_fields).await {
+                Ok(mapping) => push_card(&client, &capture.card, &target, &mapping, &options).await,
+                Err(err) => Err(err),
+            };
+        match pushed {
             Ok(_) => {
                 let marked = state.with_store(|store| mark_synced(store, id));
                 match marked {
@@ -259,11 +281,14 @@ fn mark_synced(store: &Store, id: i64) -> StoreResult<()> {
     })
 }
 
-/// The reverse note's settings: on when configured, with TTS of the back in
-/// the target language. No audio is synthesized for a blank back, which
-/// gets no reverse note anyway.
-async fn push_options(registry: &ProviderRegistry, config: &AppConfig, card: &Card) -> PushOptions {
-    let create_reverse = config.anki.create_reverse;
+/// The reverse note's settings: on when `create_reverse`, with TTS of the
+/// back in the target language. No audio is synthesized for a blank back,
+/// which gets no reverse note anyway.
+async fn push_options(
+    registry: &ProviderRegistry,
+    create_reverse: bool,
+    card: &Card,
+) -> PushOptions {
     let mut reverse_audio = None;
     if create_reverse && !card.back.trim().is_empty() {
         if let Some(tts) = &registry.resolve(&card.target_lang).tts {
@@ -354,7 +379,8 @@ mod tests {
     }
 
     #[test]
-    fn deck_keys_are_namespaced_per_capture() {
+    fn app_state_keys_are_namespaced() {
         assert_eq!(deck_key(42), "automator.unsynced_deck.42");
+        assert_eq!(LAST_SOURCE_LANG_KEY, "automator.last_source_lang");
     }
 }

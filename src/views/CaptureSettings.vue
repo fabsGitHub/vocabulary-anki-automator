@@ -3,7 +3,9 @@
  * The "Capture & Language" tab: the default hotkey's language pair and
  * shortcut, the capture length limit and the translation service (Milestone
  * C: provider-neutral, with the optional MyMemory contact e-mail), plus a
- * test capture that runs the real pipeline without the OS hotkey.
+ * test capture that runs the real pipeline without the OS hotkey. With
+ * languages under "My languages" the source language is only the fallback
+ * for text that matches none of them.
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -86,6 +88,13 @@ function onTryEnter(event: KeyboardEvent): void {
           />
           <span v-if="issueText('translation.source_lang')" class="field-error">
             {{ issueText('translation.source_lang') }}
+          </span>
+          <span
+            v-else-if="config.learning.languages.length > 0"
+            class="input-hint"
+            data-test="source-fallback-hint"
+          >
+            {{ t('capture.sourceFallbackHint') }}
           </span>
         </div>
         <div class="field-group">

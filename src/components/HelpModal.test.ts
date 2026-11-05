@@ -47,6 +47,14 @@ describe('HelpModal', () => {
     )
   })
 
+  it('points Chinese learners to the recommended note type by its button', () => {
+    expect(mountHelp().text()).toContain(
+      'The recommended note type has a field for each (Pinyin and HSK Level): while Anki runs, click “Create the recommended note type”',
+    )
+    setLocale('de')
+    expect(mountHelp().text()).toContain(`„${i18n.global.t('noteType.create')}“`)
+  })
+
   it('closes with Esc, the close button or a click beside it', async () => {
     const wrapper = mountHelp()
     await wrapper.find('[role="dialog"]').trigger('keydown', { key: 'Escape' })

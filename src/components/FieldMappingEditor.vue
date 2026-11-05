@@ -1,44 +1,73 @@
 <script setup lang="ts">
 /**
- * Edits `anki.field_mapping` and `anki.create_reverse` (Milestones H and J5).
+ * Edits one saved field mapping, bound with `v-model:mapping` (Milestones H
+ * and J5): a customized `anki.field_mapping` or learned language's mapping,
+ * inside `MappingChoiceEditor`.
  *
- * With Anki online it lists every field of the selected note type and binds
- * each to a card value or to nothing; offline it can still edit the bindings
- * already saved. Bindings for fields the note type lacks are kept and
- * flagged, because AnkiConnect drops their values without an error.
+ * With Anki online it lists every field of the note type and binds each to a
+ * card value or to nothing; offline it can still edit the bindings already
+ * saved. Bindings for fields the note type lacks are kept and flagged,
+ * because AnkiConnect drops their values without an error.
+ *
+ * "Match by field name" asks the backend (`suggest_field_mapping`) to bind
+ * every field of the note type by its name for the `sourceLang` ->
+ * `targetLang` pair, and replaces the mapping with the result; the fields it
+ * could only fill by position, or not at all, are listed for as long as the
+ * mapping is the matched one. Without the fields it is disabled; only when
+ * Anki is offline does it say so, since the loading and error notices already
+ * explain the other two cases.
+ *
+ * The parent owns what lives around the mapping: the `notices` slot shows
+ * under the intro, the `options` slot next to the audio field.
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { CardField } from '../api'
-import { useConfigStore } from '../composables/useConfig'
-import { useIssueText } from '../composables/useIssueText'
+import {
+  errorMessage,
+  suggestFieldMapping,
+  type AutoMatch,
+  type CardField,
+  type FieldMapping,
+} from '../api'
 import {
   CARD_FIELDS,
   MAPPING_PRESETS,
+  RECOMMENDED_NOTE_TYPE,
   bindingFor,
   effectiveBindings,
   missingFields,
-  needsChineseNoteType,
+  sameMapping,
   withAudioField,
   withBinding,
   type MappingPresetId,
 } from '../domain/fieldMapping'
 
-const props = defineProps<{
-  /** The note type's fields, or `null` while they are unknown (Anki offline). */
-  modelFields: string[] | null
-  fieldsLoading?: boolean
-  fieldsError?: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** The note type the mapping is for. */
+    modelName: string
+    /**
+     * The note type's fields, or `null` while they are unknown: Anki offline,
+     * loading, or the read failed.
+     */
+    modelFields: string[] | null
+    fieldsLoading?: boolean
+    fieldsError?: string | null
+    /** The language pair "Match by field name" matches for. */
+    sourceLang: string
+    targetLang: string
+    /** The validation message for the mapping, if any. */
+    issue?: string | null
+    /** Prefixes the element ids, so several editors can share a page. */
+    idPrefix?: string
+  }>(),
+  { fieldsLoading: false, fieldsError: null, issue: null, idPrefix: 'mapping' },
+)
+
+const mapping = defineModel<FieldMapping>('mapping', { required: true })
 
 const { t } = useI18n()
-const store = useConfigStore()
-const config = store.config
-const issueText = useIssueText()
-
-const mapping = computed(() => config.value.anki.field_mapping)
-const modelName = computed(() => config.value.anki.model_name)
 
 interface Row {
   field: string
@@ -66,24 +95,61 @@ const rows = computed<Row[]>(() => {
 const missing = computed(() =>
   props.modelFields ? missingFields(mapping.value, props.modelFields) : [],
 )
-const chineseWarning = computed(() => needsChineseNoteType(config.value))
 const audioOptions = computed(() => {
   const fields = props.modelFields ?? []
   const current = mapping.value.audio_field
   return current && !fields.includes(current) ? [...fields, current] : fields
 })
+const audioId = computed(() => `${props.idPrefix}-audio`)
+
+const matching = ref(false)
+const matched = ref<AutoMatch | null>(null)
+const matchError = ref<string | null>(null)
+/** Bumped by every match and every change of note type or pair, so a late answer is dropped. */
+let matchRequest = 0
+
+/** The last match's leftovers, while the mapping is still what it produced. */
+const matchResult = computed(() =>
+  matched.value && sameMapping(matched.value.mapping, mapping.value) ? matched.value : null,
+)
+
+watch(
+  () => [props.modelName, props.sourceLang, props.targetLang],
+  () => {
+    matchRequest++
+    matching.value = false
+    matched.value = null
+    matchError.value = null
+  },
+)
+
+async function matchByName(): Promise<void> {
+  const request = ++matchRequest
+  matching.value = true
+  matchError.value = null
+  try {
+    const result = await suggestFieldMapping(props.modelName, props.sourceLang, props.targetLang)
+    if (request !== matchRequest) return
+    matched.value = result
+    mapping.value = result.mapping
+  } catch (err) {
+    if (request === matchRequest) matchError.value = errorMessage(err)
+  } finally {
+    if (request === matchRequest) matching.value = false
+  }
+}
 
 function setSource(field: string, value: string): void {
   const source = value === '' ? null : (value as CardField)
-  config.value.anki.field_mapping = withBinding(mapping.value, field, source)
+  mapping.value = withBinding(mapping.value, field, source)
 }
 
 function setAudio(value: string): void {
-  config.value.anki.field_mapping = withAudioField(mapping.value, value)
+  mapping.value = withAudioField(mapping.value, value)
 }
 
 function applyPreset(id: MappingPresetId): void {
-  config.value.anki.field_mapping = MAPPING_PRESETS[id]()
+  mapping.value = MAPPING_PRESETS[id]()
 }
 
 function sourceLabel(source: CardField): string {
@@ -96,7 +162,27 @@ function sourceLabel(source: CardField): string {
     <div class="pane-title-row">
       <h3 class="pane-title">{{ t('mapping.title') }}</h3>
       <div class="preset-row">
+        <button
+          type="button"
+          class="btn btn-secondary btn-mini"
+          data-test="match-by-name"
+          :disabled="!modelFields || matching"
+          :title="
+            modelFields || fieldsLoading || fieldsError ? undefined : t('mapping.matchOffline')
+          "
+          @click="matchByName"
+        >
+          {{ matching ? t('mapping.matching') : t('mapping.matchByName') }}
+        </button>
         <span class="input-hint">{{ t('mapping.presets') }}</span>
+        <button
+          type="button"
+          class="btn btn-secondary btn-mini"
+          data-test="preset-recommended"
+          @click="applyPreset('recommended')"
+        >
+          {{ t('mapping.presetRecommended', { name: RECOMMENDED_NOTE_TYPE }) }}
+        </button>
         <button
           type="button"
           class="btn btn-secondary btn-mini"
@@ -118,9 +204,7 @@ function sourceLabel(source: CardField): string {
 
     <p class="input-hint">{{ t('mapping.intro', { model: modelName }) }}</p>
 
-    <div v-if="chineseWarning" class="notice warning" role="alert" data-test="chinese-warning">
-      {{ t('mapping.chineseWarning') }}
-    </div>
+    <slot name="notices" />
 
     <p v-if="fieldsLoading" class="input-hint">
       {{ t('mapping.loadingFields', { model: modelName }) }}
@@ -128,9 +212,36 @@ function sourceLabel(source: CardField): string {
     <div v-else-if="fieldsError" class="notice error" data-test="fields-error">
       {{ t('mapping.fieldsFailed', { model: modelName, error: fieldsError }) }}
     </div>
-    <p v-if="!modelFields && !fieldsLoading" class="input-hint" data-test="mapping-offline">
+    <p
+      v-if="!modelFields && !fieldsLoading && !fieldsError"
+      class="input-hint"
+      data-test="mapping-offline"
+    >
       {{ t('mapping.offline') }}
     </p>
+
+    <div v-if="matchError" class="notice error" role="alert" data-test="match-error">
+      {{ t('mapping.matchFailed', { error: matchError }) }}
+    </div>
+    <div
+      v-if="matchResult && (matchResult.guessed.length > 0 || matchResult.unmatched.length > 0)"
+      class="notice"
+      role="status"
+      data-test="match-result"
+    >
+      <p v-if="matchResult.guessed.length > 0" data-test="matched-guessed">
+        {{ t('mapping.matchedGuessed') }}
+        <code v-for="field in matchResult.guessed" :key="field" class="field-chip">{{
+          field
+        }}</code>
+      </p>
+      <p v-if="matchResult.unmatched.length > 0" data-test="matched-unmatched">
+        {{ t('mapping.matchedUnmatched') }}
+        <code v-for="field in matchResult.unmatched" :key="field" class="field-chip">{{
+          field
+        }}</code>
+      </p>
+    </div>
 
     <table class="mapping-table">
       <thead>
@@ -171,16 +282,14 @@ function sourceLabel(source: CardField): string {
       {{ t('mapping.missing', { model: modelName }) }}
       <code v-for="field in missing" :key="field" class="field-chip">{{ field }}</code>
     </div>
-    <p v-if="issueText('anki.field_mapping')" class="field-error">
-      {{ issueText('anki.field_mapping') }}
-    </p>
+    <p v-if="issue" class="field-error">{{ issue }}</p>
 
     <div class="grid-row">
       <div class="field-group">
-        <label for="mapping-audio">{{ t('mapping.audioField') }}</label>
+        <label :for="audioId">{{ t('mapping.audioField') }}</label>
         <select
           v-if="modelFields"
-          id="mapping-audio"
+          :id="audioId"
           class="mac-select"
           data-test="audio-field"
           :value="mapping.audio_field ?? ''"
@@ -191,7 +300,7 @@ function sourceLabel(source: CardField): string {
         </select>
         <input
           v-else
-          id="mapping-audio"
+          :id="audioId"
           type="text"
           class="mac-input"
           data-test="audio-field"
@@ -199,10 +308,7 @@ function sourceLabel(source: CardField): string {
           @change="setAudio(($event.target as HTMLInputElement).value)"
         />
       </div>
-      <label class="checkbox-row">
-        <input v-model="config.anki.create_reverse" type="checkbox" data-test="create-reverse" />
-        <span>{{ t('mapping.createReverse') }}</span>
-      </label>
+      <slot name="options" />
     </div>
   </section>
 </template>

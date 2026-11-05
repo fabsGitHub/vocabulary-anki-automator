@@ -34,12 +34,19 @@ Two options were on the table:
 - `crates/anki-bridge/tests/mock_ankiconnect.rs` asserts the exact JSON
   bodies the client sends (`addNote`, `createDeck`, `findNotes`,
   `notesInfo`, ...) to a `wiremock` AnkiConnect on `127.0.0.1`;
-  `tests/no_proxy.rs` checks that AnkiConnect is never reached through a proxy.
+  `tests/no_proxy.rs` checks that AnkiConnect is never reached through a proxy, and
+  `tests/fresh_connection.rs` that no request reuses a connection: a plain `tokio` TCP
+  fake answers one request per connection, like AnkiConnect, and resets a connection
+  that carries a second one (wiremock keeps connections alive, so it cannot show this).
 - `src-tauri/tests/ipc_anki.rs` (Automator) and
   `apps/learn/src-tauri/tests/ipc_anki.rs` (Learn) drive the apps' own IPC
   commands through `tauri::test` against the same kind of mock.
 - Provider HTTP (MyMemory, Datamuse, dictionaryapi.dev, Google TTS) is mocked
   the same way in `crates/vocab-core/tests/providers_http.rs`.
+- Language detection tests (`src-tauri/src/detect.rs`, `src-tauri/tests/ipc.rs`)
+  use the real lingua detector: its models are compiled into the binary, so no
+  network is touched. The rules in `vocab_core::detect` are tested with a fake
+  guesser.
 
 The `wiremock` suites start servers on `127.0.0.1`, so they need local port
 binding (docs/architecture.md § 2); they never contact anything else.

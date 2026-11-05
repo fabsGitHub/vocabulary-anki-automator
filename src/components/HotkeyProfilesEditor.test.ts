@@ -77,6 +77,28 @@ describe('HotkeyProfilesEditor', () => {
     expect(store.config.value.hotkey_profiles[0].deck_name).toBeNull()
   })
 
+  it('suggests the deck of the profile\'s language under "My languages", else the global one', async () => {
+    const store = useConfig({ isMac: false })
+    store.config.value.learning.languages.push({
+      lang: 'zh-CN',
+      deck_name: 'chinese',
+      model_name: 'Chinese',
+      field_mapping: null,
+      create_reverse: false,
+    })
+    const wrapper = mountEditor(store)
+    await wrapper.find('[data-test="add-profile"]').trigger('click')
+    const deck = () => profiles(wrapper)[0].find('[data-test="profile-deck"]')
+    expect(deck().attributes('placeholder')).toBe('Default deck: English::AutomatedVocabulary')
+
+    await profiles(wrapper)[0].find('select[id="profile-0-source"]').setValue('zh-CN')
+    expect(deck().attributes('placeholder')).toBe('Default deck: chinese')
+
+    store.config.value.learning.languages[0].deck_name = ' '
+    await wrapper.vm.$nextTick()
+    expect(deck().attributes('placeholder')).toBe('Default deck: English::AutomatedVocabulary')
+  })
+
   it('removes a profile', async () => {
     const store = useConfig({ isMac: false })
     const wrapper = mountEditor(store)

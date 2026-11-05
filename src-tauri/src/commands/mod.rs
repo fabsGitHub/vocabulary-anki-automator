@@ -3,11 +3,13 @@
 //!
 //! Commands are generic over the Tauri runtime so the `tauri::test` mock app
 //! invokes exactly the code the real app does, and they stay thin: the logic
-//! lives in [`crate::push`], [`crate::capture`], [`crate::setup`] and
-//! [`crate::config`]. Errors cross the IPC edge as plain sentences.
+//! lives in [`crate::push`], [`crate::capture`], [`crate::setup`],
+//! [`crate::accessibility`] and [`crate::config`]. Errors cross the IPC edge
+//! as plain sentences.
 
 pub mod anki;
 pub mod app;
+pub mod assistant;
 pub mod capture;
 pub mod history;
 pub mod settings;

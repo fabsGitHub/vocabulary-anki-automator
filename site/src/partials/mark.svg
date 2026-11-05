@@ -1,0 +1,11 @@
+<svg class="mark" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true" focusable="false">
+  <path
+    fill="currentColor"
+    fill-rule="evenodd"
+    d="M20 8H52A8 8 0 0 1 60 16V36A8 8 0 0 1 56 42.93V24A12 12 0 0 0 44 12H13.07A8 8 0 0 1 20 8Z
+    M12 16H44A8 8 0 0 1 52 24V44A8 8 0 0 1 44 52H12A8 8 0 0 1 4 44V24A8 8 0 0 1 12 16Z
+    M14 24H30A2 2 0 0 1 32 26V34A2 2 0 0 1 30 36H14A2 2 0 0 1 12 34V26A2 2 0 0 1 14 24Z
+    M38 20H46A2 2 0 0 1 46 24H44V36H46A2 2 0 0 1 46 40H38A2 2 0 0 1 38 36H40V24H38A2 2 0 0 1 38 20Z
+    M14 44H38A2 2 0 0 1 38 48H14A2 2 0 0 1 14 44Z"
+  />
+</svg>

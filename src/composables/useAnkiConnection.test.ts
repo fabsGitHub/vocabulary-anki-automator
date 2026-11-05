@@ -397,6 +397,54 @@ describe('consent-gated installs', () => {
     expect(connection.state.value).toBe('plugin_missing')
   })
 
+  it('installs several actions after one agreement, recording each consent right before its install', async () => {
+    const connection = await connectionIn(
+      setup({ anki_installed: false, ankiconnect_installed: false }),
+    )
+    const consents: string[] = []
+    onCommand('grant_consent', (args: { action: string } | undefined) => {
+      consents.push(args?.action ?? '')
+      return NO_CONSENT
+    })
+    onCommand('download_and_install_anki', 'installed')
+    onCommand('auto_provision_ankiconnect', 'installed')
+    expect(await connection.installAll(['anki_install', 'ankiconnect_provision'])).toBe(true)
+    expect(commandNames()).toEqual([
+      'grant_consent',
+      'download_and_install_anki',
+      'grant_consent',
+      'auto_provision_ankiconnect',
+      'anki_status',
+      'get_setup_status',
+    ])
+    expect(consents).toEqual(['anki_install', 'ankiconnect_provision'])
+    expect(connection.activity.value).toBeNull()
+  })
+
+  it('stops installing at the first failure', async () => {
+    const connection = await connectionIn(
+      setup({ anki_installed: false, ankiconnect_installed: false }),
+    )
+    onCommand('grant_consent', NO_CONSENT)
+    onCommand('download_and_install_anki', () => {
+      throw 'checksum mismatch'
+    })
+    expect(await connection.installAll(['anki_install', 'ankiconnect_provision'])).toBe(false)
+    expect(commandNames()).not.toContain('auto_provision_ankiconnect')
+    expect(connection.feedback.value?.key).toBe('anki.feedback.installFailed')
+  })
+
+  it('does nothing while another operation runs', async () => {
+    const connection = await connectionIn(setup({ ankiconnect_installed: false }))
+    const launching = deferred<string>()
+    onCommand('launch_anki_desktop', () => launching.promise)
+    const launch = connection.launch()
+    expect(await connection.installAll(['ankiconnect_provision'])).toBe(false)
+    expect(commandNames()).toEqual(['launch_anki_desktop'])
+    launching.reject('no Anki')
+    await launch
+  })
+
   it('reports a failed install and re-checks the setup', async () => {
     const connection = await connectionIn(setup({ ankiconnect_installed: false }))
     onCommand('grant_consent', { ...NO_CONSENT, ankiconnect_provision_granted_at: GRANTED_AT })

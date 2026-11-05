@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { FakeIndexedDb, FakeLockManager } from './__fixtures__/fakeIndexedDb'
 import { WebAdapter } from './adapter'
-import { openIndexedDbStorage } from './idb'
+import { DATABASE_NAME, openIndexedDbStorage } from './idb'
 import type { CurriculumItem } from './model'
 import { TABLES, type Storage } from './storage'
 import { Store } from './store'
@@ -178,5 +178,12 @@ describe('the IndexedDB backend', () => {
       await open(factory)
     ).transaction((tx) => new Store(tx).getState('curriculum_fingerprint'))
     expect(fingerprints).toMatch(/^[0-9a-f]{16}$/)
+  })
+})
+
+describe('the database name', () => {
+  it('stays the one the web build used before the app was called Polywort Learn', () => {
+    // A browser keeps the data under this name; another one would start empty.
+    expect(DATABASE_NAME).toBe('vocab-learn')
   })
 })

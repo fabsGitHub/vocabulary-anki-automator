@@ -19,9 +19,11 @@ import {
   type AppConfig,
   type CardField,
   type ConsentState,
+  type FieldMapping,
   type HotkeyProfile,
+  type LearnedLanguage,
+  type SetupAssistantState,
 } from '../api'
-import { appleStyleMapping } from '../domain/fieldMapping'
 import { normalizeLang } from '../domain/language'
 import { IS_MAC } from '../domain/shortcuts'
 import { validateConfig, type ConfigIssue } from '../domain/validation'
@@ -44,9 +46,11 @@ export function defaultConfig(): AppConfig {
       deck_name: 'English::AutomatedVocabulary',
       model_name: 'AppleStyleFinalV3',
       create_reverse: true,
-      field_mapping: appleStyleMapping(),
+      field_mapping: null,
     },
     consent: { anki_install_granted_at: null, ankiconnect_provision_granted_at: null },
+    learning: { languages: [] },
+    setup_assistant: { closed_at: null, finished: false },
   }
 }
 
@@ -64,10 +68,35 @@ function blankToNull(value: string | null): string | null {
   return value !== null && value.trim() !== '' ? value.trim() : null
 }
 
+/** A mapping with every binding and the audio field in their § 8.1 types. */
+function normalizeMapping(raw: Loose<FieldMapping>): FieldMapping {
+  return {
+    fields: Array.isArray(raw.fields)
+      ? raw.fields.map((binding) => ({
+          anki_field: text(binding?.anki_field, ''),
+          source: text(binding?.source, 'front') as CardField,
+        }))
+      : [],
+    audio_field: optionalText(raw.audio_field),
+  }
+}
+
+/** `mapping` as `apply_settings` takes it: exactly its keys, a blank audio field as `null`. */
+function mappingPayload(mapping: FieldMapping): FieldMapping {
+  return {
+    fields: mapping.fields.map((binding) => ({
+      anki_field: binding.anki_field,
+      source: binding.source,
+    })),
+    audio_field: blankToNull(mapping.audio_field),
+  }
+}
+
 /**
  * A complete config from whatever `get_current_settings` returned: missing
  * sections take their defaults and language codes are made canonical, so the
- * form never has to deal with partial or legacy data.
+ * form never has to deal with partial or legacy data. A missing mapping is
+ * `null`, matched by field name.
  */
 export function normalizeConfig(raw: unknown): AppConfig {
   const base = defaultConfig()
@@ -76,6 +105,8 @@ export function normalizeConfig(raw: unknown): AppConfig {
   const anki = source.anki ?? {}
   const mapping = anki.field_mapping ?? null
   const consent = source.consent ?? {}
+  const learning = source.learning ?? {}
+  const assistant = source.setup_assistant ?? {}
   const maxChars = Number(translation.max_chars)
 
   return {
@@ -107,28 +138,40 @@ export function normalizeConfig(raw: unknown): AppConfig {
       model_name: text(anki.model_name, base.anki.model_name),
       create_reverse:
         typeof anki.create_reverse === 'boolean' ? anki.create_reverse : base.anki.create_reverse,
-      field_mapping: mapping
-        ? {
-            fields: Array.isArray(mapping.fields)
-              ? mapping.fields.map((binding) => ({
-                  anki_field: text(binding?.anki_field, ''),
-                  source: text(binding?.source, 'front') as CardField,
-                }))
-              : [],
-            audio_field: optionalText(mapping.audio_field),
-          }
-        : base.anki.field_mapping,
+      field_mapping: mapping ? normalizeMapping(mapping) : null,
     },
     consent: {
       anki_install_granted_at: optionalText(consent.anki_install_granted_at),
       ankiconnect_provision_granted_at: optionalText(consent.ankiconnect_provision_granted_at),
+    },
+    learning: {
+      languages: Array.isArray(learning.languages)
+        ? (learning.languages as (Loose<LearnedLanguage> | null)[]).map((entry) => {
+            const language = entry ?? {}
+            const own = language.field_mapping ?? null
+            return {
+              lang: normalizeLang(text(language.lang, '')),
+              deck_name: text(language.deck_name, ''),
+              model_name: text(language.model_name, ''),
+              field_mapping: own ? normalizeMapping(own as Loose<FieldMapping>) : null,
+              create_reverse:
+                typeof language.create_reverse === 'boolean' ? language.create_reverse : true,
+            }
+          })
+        : [],
+    },
+    setup_assistant: {
+      closed_at: optionalText(assistant.closed_at),
+      finished: assistant.finished === true,
     },
   }
 }
 
 /**
  * Exactly what `apply_settings` receives: the § 8.1 keys and nothing else,
- * text trimmed, blank optional values as `null`, language codes canonical.
+ * text trimmed, blank optional values as `null` and language codes
+ * canonical. A customized mapping is sent as it is, even one equal to the
+ * match by name: customizing is a choice, kept when the note type changes.
  */
 export function toSettingsPayload(config: AppConfig): AppConfig {
   return {
@@ -154,17 +197,24 @@ export function toSettingsPayload(config: AppConfig): AppConfig {
       deck_name: config.anki.deck_name.trim(),
       model_name: config.anki.model_name.trim(),
       create_reverse: config.anki.create_reverse,
-      field_mapping: {
-        fields: config.anki.field_mapping.fields.map((binding) => ({
-          anki_field: binding.anki_field,
-          source: binding.source,
-        })),
-        audio_field: blankToNull(config.anki.field_mapping.audio_field),
-      },
+      field_mapping: config.anki.field_mapping ? mappingPayload(config.anki.field_mapping) : null,
     },
     consent: {
       anki_install_granted_at: config.consent.anki_install_granted_at,
       ankiconnect_provision_granted_at: config.consent.ankiconnect_provision_granted_at,
+    },
+    learning: {
+      languages: config.learning.languages.map((language) => ({
+        lang: normalizeLang(language.lang),
+        deck_name: language.deck_name.trim(),
+        model_name: language.model_name.trim(),
+        field_mapping: language.field_mapping ? mappingPayload(language.field_mapping) : null,
+        create_reverse: language.create_reverse,
+      })),
+    },
+    setup_assistant: {
+      closed_at: config.setup_assistant.closed_at,
+      finished: config.setup_assistant.finished,
     },
   }
 }
@@ -202,6 +252,15 @@ export interface ConfigStore {
   persistUiLang(lang: string): Promise<boolean>
   /** Takes the state returned by `grant_consent`; consent is not a form edit, so nothing turns dirty. */
   setConsent(consent: ConsentState): void
+  /** Takes the state returned by `close_setup_assistant`, like {@link ConfigStore.setConsent}. */
+  setSetupAssistant(state: SetupAssistantState): void
+  /**
+   * Applies `change` to the saved config and saves that at once, like
+   * {@link ConfigStore.persistUiLang}: unsaved edits elsewhere in the form are
+   * not sent along. The form gets the same change, so it shows the result
+   * without turning dirty over it. Resolves to the backend's error, or `null`.
+   */
+  persist(change: (config: AppConfig) => void): Promise<string | null>
 }
 
 export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
@@ -300,6 +359,31 @@ export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
     }
   }
 
+  async function persist(change: (config: AppConfig) => void): Promise<string | null> {
+    if (!loaded.value) return 'The settings have not been loaded yet.'
+    const stored = savedConfig()
+    change(stored)
+    const body = toSettingsPayload(stored)
+    try {
+      await applySettings(body)
+      snapshot.value = JSON.stringify(body)
+      change(config.value)
+      return null
+    } catch (err) {
+      await resyncSaved()
+      return errorMessage(err)
+    }
+  }
+
+  function setSetupAssistant(state: SetupAssistantState): void {
+    const copy = { closed_at: state.closed_at, finished: state.finished }
+    config.value.setup_assistant = copy
+    if (!loaded.value) return
+    const stored = savedConfig()
+    stored.setup_assistant = { ...copy }
+    snapshot.value = JSON.stringify(stored)
+  }
+
   function setConsent(consent: ConsentState): void {
     const copy = {
       anki_install_granted_at: consent.anki_install_granted_at,
@@ -332,6 +416,8 @@ export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
     revert,
     persistUiLang,
     setConsent,
+    setSetupAssistant,
+    persist,
   }
 }
 

@@ -9,7 +9,7 @@
 
 export const en = {
   app: {
-    title: 'Vocabulary Automator',
+    title: 'Polywort',
     subtitle: 'Select a word anywhere, press your hotkey, approve the card.',
     loading: 'Loading settings…',
     loadFailed: 'The settings could not be loaded: {error}',
@@ -26,6 +26,7 @@ export const en = {
   },
   tabs: {
     capture: 'Capture & Language',
+    learning: 'My languages',
     profiles: 'Hotkey profiles',
     anki: 'Anki connection',
     history: 'History',
@@ -52,6 +53,8 @@ export const en = {
   capture: {
     languagesTitle: 'Languages',
     sourceLang: 'Source language',
+    sourceFallbackHint:
+      'Your default hotkey recognizes the languages listed under “My languages”. This source language is used only for text that matches none of them.',
     targetLang: 'Target language',
     languagesHint:
       'Text with Chinese characters is always captured as Chinese, whatever the source language says.',
@@ -79,10 +82,26 @@ export const en = {
     trySent: 'Sent. The approval window opens when the card is ready.',
     tryFailed: 'The capture could not start: {error}',
   },
+  learning: {
+    title: 'Languages I am learning',
+    intro:
+      'List the languages you learn. The default hotkey then recognizes which of them the selected text is in and files the card in that language’s deck and note type. Chinese text is recognized by its characters; between languages written in the Latin alphabet the app compares the words statistically, offline. For a short word that exists in several of your languages (“message” in English and French), the approval window shows the best guess, and one click switches it.',
+    native: 'Your language: {lang}. Cards are translated into it (set on “Capture & Language”).',
+    empty:
+      'No languages yet. Until you add one, the default hotkey captures from the source language on “Capture & Language”, as before.',
+    add: 'Add language',
+    allAdded: 'Every supported language is listed.',
+    remove: 'Remove',
+    language: 'Language',
+    deck: 'Deck',
+    deckPlaceholder: 'e.g. {deck}',
+    model: 'Note type',
+    mapping: 'Field mapping',
+  },
   profiles: {
     title: 'Hotkey profiles',
     intro:
-      'Each profile adds a shortcut that captures straight into its own language pair and, optionally, its own deck. The default hotkey on the first tab keeps using the main languages and deck.',
+      'Each profile adds a shortcut that captures straight into its own language pair and, optionally, its own deck. The default hotkey uses the languages under “My languages”, or the main language pair and deck when none are listed.',
     empty: 'No profiles yet.',
     add: 'Add profile',
     remove: 'Remove',
@@ -123,6 +142,8 @@ export const en = {
     offlineEditing:
       'Anki is offline. Deck and note type can still be typed in; the lists fill in once Anki is connected.',
     targetTitle: 'Where cards go',
+    otherLanguagesHint:
+      'Text in a language listed under “My languages” is filed with that language’s deck, note type and field mapping. These settings apply to all other text.',
     deck: 'Deck',
     deckHint: 'A deck that does not exist yet is created with the first card.',
     model: 'Note type',
@@ -169,11 +190,36 @@ export const en = {
     checksums: 'Expected SHA-256 checksums',
     agree: 'Agree and install',
     cancel: 'Cancel',
+    titleBoth: 'Install Anki {version} and AnkiConnect?',
+    ankiHeading: 'Anki {version}',
+    ankiconnectHeading: 'The AnkiConnect add-on',
+    planHeading: 'After the downloads',
+    planLaunch: 'Polywort starts Anki and waits until AnkiConnect answers.',
+    planNoteType:
+      'Unless your cards already go into a note type Anki has, it adds the note type “{name}” to your Anki collection and selects it.',
+    planAccessibility:
+      'It asks macOS for the Accessibility permission and opens System Settings, where you switch Polywort on.',
   },
   mapping: {
     title: 'Field mapping',
+    auto: 'Matched by field name',
+    custom: 'Customized',
+    autoHint:
+      'Each field of “{model}” is filled according to its name: “Audio” gets the pronunciation, “English Sentence” the English example, and so on. Nothing is saved until you customize it.',
+    autoOffline: 'Connect to Anki to see how the fields of “{model}” are matched.',
+    customize: 'Customize',
+    rematch: 'Stop customizing',
+    audioTo: 'Pronunciation → {field}',
+    noAudioField: 'No field for the pronunciation',
     intro: 'Choose what goes into each field of the note type “{model}”.',
     presets: 'Presets:',
+    matchByName: 'Match by field name',
+    matching: 'Matching…',
+    matchOffline: 'Connect to Anki to match the fields by name.',
+    matchFailed: 'The fields could not be matched: {error}',
+    matchedGuessed: 'Filled by position because no name fit:',
+    matchedUnmatched: 'Left empty:',
+    presetRecommended: '{name} (recommended)',
     presetApple: 'Apple style',
     presetChinese: 'Chinese (Hanzi/Pinyin/Meaning/Audio)',
     ankiField: 'Anki field',
@@ -191,17 +237,34 @@ export const en = {
     missing:
       'The note type “{model}” does not have these fields, so Anki silently drops their values:',
     chineseWarning:
-      'Chinese captures need a note type with Hanzi, Pinyin, Meaning and Audio fields, and a mapping that fills Pinyin. Choose such a note type and apply the Chinese preset, or bind a field to Pinyin.',
+      'Chinese captures need a note type with a Pinyin field. Click “{button}” above while Anki runs, or choose a note type with a Pinyin field and bind that field to Pinyin.',
     sources: {
       front: 'Word (front)',
       back: 'Translation (back)',
-      example_source: 'Example sentence',
-      example_target: 'Example translation',
+      example_source: 'Example in the front’s language',
+      example_target: 'Example in the back’s language',
       example: 'Example and translation (two lines)',
       notes: 'Notes',
       pinyin: 'Pinyin',
       hsk_level: 'HSK level',
+      example_in_source_lang: 'Example in the language learned',
+      example_in_target_lang: 'Example in your language',
     },
+  },
+  noteType: {
+    create: 'Create the recommended note type',
+    use: 'Use the recommended note type',
+    creating: 'Creating the note type…',
+    createHint:
+      'Adds the note type “{name}” to Anki, with a field for everything a card holds: word, translation, example and its translation, pronunciation, pinyin, HSK level and notes.',
+    useHint:
+      'Anki already has a note type named “{name}”. It is selected here if it has every recommended field, and it is never changed.',
+    created: '“{name}” was added to Anki.',
+    reused: 'Anki already has “{name}”, with every recommended field.',
+    saveToUse: 'It is selected here; save the settings to use it.',
+    alreadySelected: 'It is already selected here.',
+    inUse: 'It is selected here, and the saved settings already use it.',
+    failed: 'The note type could not be set up: {error}',
   },
   history: {
     title: 'Recent captures',
@@ -237,6 +300,18 @@ export const en = {
     languagePair: '{source} → {target}',
     profile: 'Hotkey: {label}',
     deck: 'Deck: {deck}',
+    model: 'Note type: {model}',
+    languageGroup: 'Language of the text',
+    switchTo: 'Capture as {lang}',
+    detectedUnsure: '{lang}?',
+    targetLang: '→ {lang}',
+    switching: 'Fetching the card in {lang}…',
+    switchFailed: 'Could not switch to {lang}: {error}',
+    unsureHint:
+      'This could be more than one of your languages. It was read as {lang}. If that is wrong, choose the right language: translation, example, pronunciation and deck are fetched again.',
+    fallbackHint: 'None of your languages fits this text. It was read as {lang}.',
+    foreignScript:
+      'The text is written in a script none of your languages uses. It was read as {lang}.',
     front: 'Front (word)',
     back: 'Back (translation)',
     exampleSource: 'Example sentence',
@@ -259,6 +334,14 @@ export const en = {
     close: 'Close',
     submitFailed: 'The card could not be saved: {error}',
     discardFailed: 'Discarding failed: {error}',
+    lostTitle: 'Not everything would reach Anki:',
+    lostMissingField: '{value}: the note type “{model}” has no field “{field}”.',
+    lostUnmapped: '{value}: no field of “{model}” is filled with it.',
+    lostAudio: 'Pronunciation: the note type “{model}” has no field “{field}”.',
+    lostAudioUnset: 'Pronunciation: no field of “{model}” is chosen for the audio.',
+    lostHint:
+      'Fix the field mapping in the settings under “My languages” or “Anki connection”, or add the card without these values.',
+    fieldCheckFailed: 'The note type could not be checked: {error}',
   },
   warnings: {
     title: 'Some details could not be fetched',
@@ -294,28 +377,101 @@ export const en = {
   credits: {
     title: 'Credits and licenses',
     intro:
-      'For Chinese words, the Automator looks up pinyin, the HSK level and an example in the bundled HSK 3.0 word list. It carries dictionary data that others made and share under these licenses.',
+      'For Chinese words, Polywort looks up pinyin, the HSK level and an example in the bundled HSK 3.0 word list. It carries dictionary data that others made and share under these licenses.',
     fullText: 'Full text',
     ccCedict:
       'The English meanings, traditional characters and pinyin of the HSK words, adapted from the CC-CEDICT dictionary. Licensed under CC BY-SA 4.0, and so is the adapted data.',
     completeHsk: 'The HSK 3.0 word lists by level, with frequency ranks. MIT License.',
     hsk30: 'The official HSK 3.0 word list, which picks each word’s reading. MIT License.',
   },
+  assistant: {
+    open: 'Setup assistant',
+    title: 'Set up Polywort',
+    intro: 'A few steps to your first card. Steps that are already done are ticked.',
+    dismiss: 'Close assistant',
+    everything: 'Set up everything',
+    everythingRunning: 'Setting up…',
+    everythingHint:
+      'Installs what is missing once you agree to the downloads, starts Anki, adds the note type and asks for the permission. Or go through the steps one by one.',
+    checking: 'Checking what is already set up…',
+    stepOf: 'Step {number} of {total}: {title}',
+    skip: 'Skip this step',
+    next: 'Next',
+    done: 'Done',
+    steps: {
+      anki: 'Install Anki',
+      ankiconnect: 'Install AnkiConnect',
+      running: 'Start Anki',
+      note_type: 'Set up the note type',
+      accessibility: 'Allow copying',
+      try: 'Try it',
+    },
+    anki: {
+      done: 'Anki is installed.',
+      body: 'Polywort adds your cards to Anki Desktop, the free flashcard app. It is not installed on this computer yet.',
+    },
+    ankiconnect: {
+      done: 'AnkiConnect is installed.',
+    },
+    running: {
+      done: 'Anki is running, and AnkiConnect answers.',
+      body: 'Start Anki and keep it open while you capture: Polywort reaches it only while it runs. This step notices by itself when Anki answers.',
+      restart:
+        'Anki loads AnkiConnect only when it starts. If Anki is already open, quit it completely and start it again.',
+      justInstalled:
+        'AnkiConnect was just installed. If Anki is open, quit it completely and start it again, so it loads the add-on.',
+      firstStart:
+        'On its first start, Anki asks for your language and may show a welcome screen. Answer them; Polywort connects as soon as Anki is ready.',
+    },
+    noteType: {
+      offline: 'Start Anki first: the note type is set up in your Anki collection.',
+      body: 'Cards need a note type with a field for everything they hold: word, translation, example and its translation, pronunciation, pinyin, HSK level and notes. The recommended note type “{name}” has them all; it is added to Anki and selected in the settings.',
+      done: 'Cards go into the note type “{model}”, which Anki has.',
+      keep: 'You can keep it, or switch to the recommended note type “{name}”, which has a field for every value.',
+      saveFailed: 'The note type is in Anki, but the settings could not be saved: {error}',
+    },
+    accessibility: {
+      done: 'Polywort may copy the text you select.',
+      body: 'To copy the text you select, Polywort presses Cmd+C for you. macOS allows that only for apps switched on under System Settings → Privacy & Security → Accessibility.',
+      open: 'Open System Settings',
+      opening: 'Opening…',
+      how: 'macOS asks whether Polywort may control this computer, and System Settings opens at the list. Switch on “Polywort” there; macOS may ask for your password.',
+      watching: 'This step notices by itself as soon as the switch is on.',
+      staleTitle: 'Polywort is switched on, but this step does not notice?',
+      stale:
+        'After an update, macOS sometimes keeps an outdated entry. Select Polywort in the list, remove it with “−”, then click “Open System Settings” again and switch it on.',
+      failed:
+        'System Settings could not be opened: {error}. Open it yourself: Privacy & Security → Accessibility.',
+    },
+    try: {
+      body: 'Select the word below (double-click it), then press your hotkey {hotkey}.',
+      waiting: 'Waiting for your hotkey…',
+      success:
+        'It works: the approval window shows your card. Press Enter to add it to Anki, or Esc to discard it.',
+      failed: 'The capture did not work: {message}',
+      notAllowed: 'Polywort may not copy yet: finish the step “{step}” first.',
+      restartHint:
+        'If you switched Polywort on under Accessibility only just now, macOS may apply it only after Polywort restarts.',
+      restart: 'Restart Polywort',
+      restarting: 'Restarting…',
+      anyApp: 'From now on this works in every app: select text, press {hotkey}, approve the card.',
+    },
+  },
   help: {
-    title: 'Setting up and using the Automator',
+    title: 'Setting up and using Polywort',
     close: 'Close',
     step1Title: '1. Install Anki and AnkiConnect',
     step1Body:
-      'On the “Anki connection” tab, install whatever is missing, or install Anki yourself and add AnkiConnect in Anki via Tools → Add-ons → Get Add-ons with the code 2055492159. Restart Anki afterwards.',
+      'The setup assistant (“Setup assistant” at the top) walks you through everything. Or, on the “Anki connection” tab, install whatever is missing, or install Anki yourself and add AnkiConnect in Anki via Tools → Add-ons → Get Add-ons with the code 2055492159. Restart Anki afterwards.',
     step2Title: '2. Keep Anki running',
     step2Body:
       'The app talks to Anki through AnkiConnect on this computer. Cards approved while Anki is closed stay in the history and can be synced later.',
     step3Title: '3. Capture',
     step3Body:
-      'Select a word or phrase in any app and press your hotkey. Check the card in the approval window, then press Enter to add it or Esc to discard it.',
+      'Select a word or phrase in any app and press your hotkey. Check the card in the approval window, then press Enter to add it or Esc to discard it. With languages listed under “My languages”, the hotkey recognizes the language of the text by itself.',
     step4Title: '4. Chinese',
     step4Body:
-      'Text with Chinese characters gets pinyin and, for HSK words, the HSK level. Use a note type with Hanzi, Pinyin, Meaning and Audio fields together with the Chinese mapping preset.',
+      'Text with Chinese characters gets pinyin and, for HSK words, the HSK level. The recommended note type has a field for each (Pinyin and HSK Level): while Anki runs, click “Create the recommended note type” on the “Anki connection” tab or in a “My languages” entry.',
   },
   update: {
     available: 'Version {version} is available – restart to update.',
@@ -335,6 +491,8 @@ export const en = {
     shortcutDuplicateDefault: 'Already used by the default hotkey.',
     languageUnsupported: 'Unsupported language.',
     languagesEqual: 'Source and target language must differ.',
+    languageDuplicate: 'This language is already listed.',
+    languageIsNative: 'Cards are translated into this language; choose another one.',
     maxCharsRange: 'Enter a whole number from 1 to {max}.',
     emailInvalid: 'Not a valid e-mail address.',
     providerUnknown: 'Unknown translation service.',

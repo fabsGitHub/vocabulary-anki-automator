@@ -45,6 +45,16 @@
       "returns": "null"
     },
     {
+      "args": [
+        "sourceLang",
+        "text",
+        "generation"
+      ],
+      "command": "rerun_pending_capture",
+      "function": "rerunPendingCapture",
+      "returns": "PendingCapture"
+    },
+    {
       "args": [],
       "command": "anki_status",
       "function": "ankiStatus",
@@ -57,6 +67,30 @@
       "command": "anki_model_field_names",
       "function": "ankiModelFieldNames",
       "returns": "string[]"
+    },
+    {
+      "args": [
+        "model",
+        "sourceLang",
+        "targetLang"
+      ],
+      "command": "suggest_field_mapping",
+      "function": "suggestFieldMapping",
+      "returns": "AutoMatch"
+    },
+    {
+      "args": [
+        "card"
+      ],
+      "command": "check_pending_fields",
+      "function": "checkPendingFields",
+      "returns": "FieldCheck | null"
+    },
+    {
+      "args": [],
+      "command": "create_recommended_note_type",
+      "function": "createRecommendedNoteType",
+      "returns": "RecommendedNoteType"
     },
     {
       "args": [],
@@ -95,6 +129,26 @@
       "command": "check_ankiconnect_installed",
       "function": "checkAnkiconnectInstalled",
       "returns": "boolean"
+    },
+    {
+      "args": [],
+      "command": "get_accessibility_status",
+      "function": "getAccessibilityStatus",
+      "returns": "AccessibilityStatus"
+    },
+    {
+      "args": [],
+      "command": "request_accessibility",
+      "function": "requestAccessibility",
+      "returns": "AccessibilityStatus"
+    },
+    {
+      "args": [
+        "finished"
+      ],
+      "command": "close_setup_assistant",
+      "function": "closeSetupAssistant",
+      "returns": "SetupAssistantState"
     },
     {
       "args": [
@@ -154,32 +208,26 @@
     "pinyin"
   ],
   "shapes": {
+    "AccessibilityStatus": [
+      {
+        "required": true,
+        "trusted": false
+      },
+      {
+        "required": true,
+        "trusted": true
+      },
+      {
+        "required": false,
+        "trusted": true
+      }
+    ],
     "AnkiConfig": [
       {
         "connect_url": "http://127.0.0.1:8765",
         "create_reverse": true,
         "deck_name": "English::AutomatedVocabulary",
-        "field_mapping": {
-          "audio_field": "Front Audio",
-          "fields": [
-            {
-              "anki_field": "Front",
-              "source": "front"
-            },
-            {
-              "anki_field": "Back",
-              "source": "back"
-            },
-            {
-              "anki_field": "Context Sentence",
-              "source": "example"
-            },
-            {
-              "anki_field": "Notes",
-              "source": "notes"
-            }
-          ]
-        },
+        "field_mapping": null,
         "model_name": "AppleStyleFinalV3"
       },
       {
@@ -234,27 +282,7 @@
           "connect_url": "http://127.0.0.1:8765",
           "create_reverse": true,
           "deck_name": "English::AutomatedVocabulary",
-          "field_mapping": {
-            "audio_field": "Front Audio",
-            "fields": [
-              {
-                "anki_field": "Front",
-                "source": "front"
-              },
-              {
-                "anki_field": "Back",
-                "source": "back"
-              },
-              {
-                "anki_field": "Context Sentence",
-                "source": "example"
-              },
-              {
-                "anki_field": "Notes",
-                "source": "notes"
-              }
-            ]
-          },
+          "field_mapping": null,
           "model_name": "AppleStyleFinalV3"
         },
         "consent": {
@@ -263,6 +291,13 @@
         },
         "hotkey_profiles": [],
         "hotkeys": "CommandOrControl+Shift+C",
+        "learning": {
+          "languages": []
+        },
+        "setup_assistant": {
+          "closed_at": null,
+          "finished": false
+        },
         "translation": {
           "contact_email": null,
           "max_chars": 100,
@@ -319,6 +354,48 @@
           }
         ],
         "hotkeys": "CommandOrControl+Alt+V",
+        "learning": {
+          "languages": [
+            {
+              "create_reverse": true,
+              "deck_name": "english",
+              "field_mapping": null,
+              "lang": "en",
+              "model_name": "AppleStyleFinalV3"
+            },
+            {
+              "create_reverse": false,
+              "deck_name": "chinese",
+              "field_mapping": {
+                "audio_field": "Audio",
+                "fields": [
+                  {
+                    "anki_field": "Hanzi",
+                    "source": "front"
+                  },
+                  {
+                    "anki_field": "Pinyin",
+                    "source": "pinyin"
+                  },
+                  {
+                    "anki_field": "Meaning",
+                    "source": "back"
+                  },
+                  {
+                    "anki_field": "Sentence",
+                    "source": "example"
+                  }
+                ]
+              },
+              "lang": "zh-CN",
+              "model_name": "Chinese (HSK)"
+            }
+          ]
+        },
+        "setup_assistant": {
+          "closed_at": "2026-11-05T09:30:00.000Z",
+          "finished": true
+        },
         "translation": {
           "contact_email": "learner@example.com",
           "max_chars": 250,
@@ -327,6 +404,55 @@
           "target_lang": "fr"
         },
         "ui_lang": "de"
+      }
+    ],
+    "AutoMatch": [
+      {
+        "guessed": [],
+        "mapping": {
+          "audio_field": "Audio",
+          "fields": [
+            {
+              "anki_field": "Front",
+              "source": "front"
+            },
+            {
+              "anki_field": "Back",
+              "source": "back"
+            },
+            {
+              "anki_field": "English Sentence",
+              "source": "example_in_source_lang"
+            },
+            {
+              "anki_field": "German Sentence",
+              "source": "example_in_target_lang"
+            }
+          ]
+        },
+        "unmatched": []
+      },
+      {
+        "guessed": [
+          "Q",
+          "A"
+        ],
+        "mapping": {
+          "audio_field": null,
+          "fields": [
+            {
+              "anki_field": "Q",
+              "source": "front"
+            },
+            {
+              "anki_field": "A",
+              "source": "back"
+            }
+          ]
+        },
+        "unmatched": [
+          "Add Reverse"
+        ]
       }
     ],
     "CaptureErrorPayload": [
@@ -385,7 +511,9 @@
       "example",
       "notes",
       "pinyin",
-      "hsk_level"
+      "hsk_level",
+      "example_in_source_lang",
+      "example_in_target_lang"
     ],
     "ConsentAction": [
       "anki_install",
@@ -401,10 +529,169 @@
         "ankiconnect_provision_granted_at": "2026-10-31T12:05:00.000Z"
       }
     ],
+    "Detection": [
+      {
+        "candidates": [
+          "zh-CN"
+        ],
+        "confident": true,
+        "lang": "zh-CN",
+        "method": "script",
+        "ranked": [],
+        "script": "han"
+      },
+      {
+        "candidates": [
+          "en"
+        ],
+        "confident": true,
+        "lang": "en",
+        "method": "single",
+        "ranked": [],
+        "script": "latin"
+      },
+      {
+        "candidates": [
+          "en",
+          "fr"
+        ],
+        "confident": true,
+        "lang": "en",
+        "method": "statistical",
+        "ranked": [
+          {
+            "confidence": 0.96,
+            "lang": "en"
+          },
+          {
+            "confidence": 0.04,
+            "lang": "fr"
+          }
+        ],
+        "script": "latin"
+      },
+      {
+        "candidates": [
+          "en",
+          "fr"
+        ],
+        "confident": false,
+        "lang": "fr",
+        "method": "statistical",
+        "ranked": [
+          {
+            "confidence": 0.6094,
+            "lang": "fr"
+          },
+          {
+            "confidence": 0.3906,
+            "lang": "en"
+          }
+        ],
+        "script": "latin"
+      },
+      {
+        "candidates": [
+          "en",
+          "fr"
+        ],
+        "confident": false,
+        "lang": "en",
+        "method": "tie_break",
+        "ranked": [
+          {
+            "confidence": 0.6094,
+            "lang": "fr"
+          },
+          {
+            "confidence": 0.3906,
+            "lang": "en"
+          }
+        ],
+        "script": "latin"
+      },
+      {
+        "candidates": [
+          "fr",
+          "zh-CN",
+          "en"
+        ],
+        "confident": false,
+        "lang": "en",
+        "method": "fallback",
+        "ranked": [],
+        "script": "kana"
+      },
+      {
+        "candidates": [
+          "en",
+          "fr"
+        ],
+        "confident": true,
+        "lang": "en",
+        "method": "chosen",
+        "ranked": [
+          {
+            "confidence": 0.6094,
+            "lang": "fr"
+          },
+          {
+            "confidence": 0.3906,
+            "lang": "en"
+          }
+        ],
+        "script": "latin"
+      }
+    ],
+    "DetectionMethod": [
+      "script",
+      "single",
+      "statistical",
+      "tie_break",
+      "fallback",
+      "chosen"
+    ],
     "FieldBinding": [
       {
         "anki_field": "Context Sentence",
         "source": "example"
+      }
+    ],
+    "FieldCheck": [
+      {
+        "status": "unchecked"
+      },
+      {
+        "error": "model was not found: Nope",
+        "model": "Nope",
+        "status": "failed"
+      },
+      {
+        "auto_matched": false,
+        "lost": [
+          {
+            "anki_field": "Context Sentence",
+            "kind": "missing_field",
+            "source": "example"
+          },
+          {
+            "anki_field": "Notes",
+            "kind": "missing_field",
+            "source": "notes"
+          },
+          {
+            "audio_field": "Front Audio",
+            "kind": "audio"
+          }
+        ],
+        "model": "AppleStyleFinalV3",
+        "status": "checked"
+      },
+      {
+        "auto_matched": true,
+        "lost": [],
+        "model": "AppleStyleFinalV3",
+        "status": "checked"
       }
     ],
     "FieldMapping": [
@@ -486,6 +773,114 @@
         "target_lang": "de"
       }
     ],
+    "LanguageScore": [
+      {
+        "confidence": 0.6094,
+        "lang": "fr"
+      },
+      {
+        "confidence": 0.3906,
+        "lang": "en"
+      }
+    ],
+    "LearnedLanguage": [
+      {
+        "create_reverse": true,
+        "deck_name": "english",
+        "field_mapping": null,
+        "lang": "en",
+        "model_name": "AppleStyleFinalV3"
+      },
+      {
+        "create_reverse": false,
+        "deck_name": "chinese",
+        "field_mapping": {
+          "audio_field": "Audio",
+          "fields": [
+            {
+              "anki_field": "Hanzi",
+              "source": "front"
+            },
+            {
+              "anki_field": "Pinyin",
+              "source": "pinyin"
+            },
+            {
+              "anki_field": "Meaning",
+              "source": "back"
+            },
+            {
+              "anki_field": "Sentence",
+              "source": "example"
+            }
+          ]
+        },
+        "lang": "zh-CN",
+        "model_name": "Chinese (HSK)"
+      }
+    ],
+    "LearningConfig": [
+      {
+        "languages": []
+      },
+      {
+        "languages": [
+          {
+            "create_reverse": true,
+            "deck_name": "english",
+            "field_mapping": null,
+            "lang": "en",
+            "model_name": "AppleStyleFinalV3"
+          },
+          {
+            "create_reverse": false,
+            "deck_name": "chinese",
+            "field_mapping": {
+              "audio_field": "Audio",
+              "fields": [
+                {
+                  "anki_field": "Hanzi",
+                  "source": "front"
+                },
+                {
+                  "anki_field": "Pinyin",
+                  "source": "pinyin"
+                },
+                {
+                  "anki_field": "Meaning",
+                  "source": "back"
+                },
+                {
+                  "anki_field": "Sentence",
+                  "source": "example"
+                }
+              ]
+            },
+            "lang": "zh-CN",
+            "model_name": "Chinese (HSK)"
+          }
+        ]
+      }
+    ],
+    "LostValue": [
+      {
+        "anki_field": "Context Sentence",
+        "kind": "missing_field",
+        "source": "example"
+      },
+      {
+        "kind": "unmapped",
+        "source": "pinyin"
+      },
+      {
+        "audio_field": "Front Audio",
+        "kind": "audio"
+      },
+      {
+        "audio_field": null,
+        "kind": "audio"
+      }
+    ],
     "PendingCapture": [
       {
         "card": {
@@ -506,6 +901,31 @@
           ],
           "target_lang": "de"
         },
+        "detection": {
+          "candidates": [
+            "en",
+            "fr"
+          ],
+          "confident": true,
+          "lang": "en",
+          "method": "statistical",
+          "ranked": [
+            {
+              "confidence": 0.96,
+              "lang": "en"
+            },
+            {
+              "confidence": 0.04,
+              "lang": "fr"
+            }
+          ],
+          "script": "latin"
+        },
+        "filing": {
+          "deck": "English::AutomatedVocabulary",
+          "model": "AppleStyleFinalV3"
+        },
+        "generation": 1,
         "profile_id": null,
         "warnings": [
           {
@@ -577,8 +997,71 @@
           "tags": [],
           "target_lang": "de"
         },
+        "detection": null,
+        "filing": {
+          "deck": "Chinese::HSK",
+          "model": "Chinese (HSK)"
+        },
+        "generation": 2,
         "profile_id": "zh-de",
         "warnings": []
+      },
+      {
+        "card": {
+          "audio_front": "SUQzIG1wMyBieXRlcw==",
+          "back": "Nachricht",
+          "captured_at": "2026-10-31T12:00:00.123Z",
+          "example_source": "It was pure serendipity.",
+          "example_target": "Es war reiner Zufall.",
+          "front": "message",
+          "notes": "Rare word. More common synonym: luck",
+          "script_metadata": {
+            "kind": "none"
+          },
+          "source_lang": "fr",
+          "tags": [
+            "vocab-automator",
+            "en-de"
+          ],
+          "target_lang": "de"
+        },
+        "detection": {
+          "candidates": [
+            "en",
+            "fr"
+          ],
+          "confident": false,
+          "lang": "fr",
+          "method": "statistical",
+          "ranked": [
+            {
+              "confidence": 0.6094,
+              "lang": "fr"
+            },
+            {
+              "confidence": 0.3906,
+              "lang": "en"
+            }
+          ],
+          "script": "latin"
+        },
+        "filing": {
+          "deck": "french",
+          "model": "AppleStyleFinalV3"
+        },
+        "generation": 3,
+        "profile_id": null,
+        "warnings": []
+      }
+    ],
+    "PendingFiling": [
+      {
+        "deck": "English::AutomatedVocabulary",
+        "model": "AppleStyleFinalV3"
+      },
+      {
+        "deck": "Chinese::HSK",
+        "model": "Chinese (HSK)"
       }
     ],
     "PipelineStage": [
@@ -683,6 +1166,93 @@
         "kind": "new"
       }
     ],
+    "RecommendedNoteType": [
+      {
+        "created": true,
+        "mapping": {
+          "audio_field": "Audio",
+          "fields": [
+            {
+              "anki_field": "Front",
+              "source": "front"
+            },
+            {
+              "anki_field": "Back",
+              "source": "back"
+            },
+            {
+              "anki_field": "Sentence",
+              "source": "example_in_source_lang"
+            },
+            {
+              "anki_field": "Sentence Translation",
+              "source": "example_in_target_lang"
+            },
+            {
+              "anki_field": "Pinyin",
+              "source": "pinyin"
+            },
+            {
+              "anki_field": "HSK Level",
+              "source": "hsk_level"
+            },
+            {
+              "anki_field": "Notes",
+              "source": "notes"
+            }
+          ]
+        },
+        "matches_by_name": true,
+        "model_name": "Polywort"
+      },
+      {
+        "created": false,
+        "mapping": {
+          "audio_field": "Audio",
+          "fields": [
+            {
+              "anki_field": "Front",
+              "source": "front"
+            },
+            {
+              "anki_field": "Back",
+              "source": "back"
+            },
+            {
+              "anki_field": "Sentence",
+              "source": "example_in_source_lang"
+            },
+            {
+              "anki_field": "Sentence Translation",
+              "source": "example_in_target_lang"
+            },
+            {
+              "anki_field": "Pinyin",
+              "source": "pinyin"
+            },
+            {
+              "anki_field": "HSK Level",
+              "source": "hsk_level"
+            },
+            {
+              "anki_field": "Notes",
+              "source": "notes"
+            }
+          ]
+        },
+        "matches_by_name": false,
+        "model_name": "Polywort"
+      }
+    ],
+    "Script": [
+      "latin",
+      "han",
+      "kana",
+      "hangul",
+      "cyrillic",
+      "other",
+      "none"
+    ],
     "ScriptMetadata": [
       {
         "kind": "none"
@@ -698,6 +1268,16 @@
         "kind": "chinese",
         "pinyin": "xué xí",
         "script_variant": "traditional"
+      }
+    ],
+    "SetupAssistantState": [
+      {
+        "closed_at": null,
+        "finished": false
+      },
+      {
+        "closed_at": "2026-11-05T09:30:00.000Z",
+        "finished": true
       }
     ],
     "SetupStatus": [
