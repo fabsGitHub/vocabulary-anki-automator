@@ -624,12 +624,7 @@ async fn create_model_sends_the_exact_create_model_request() {
 #[tokio::test]
 async fn create_model_sends_the_recommended_note_type_as_defined() {
     let server = MockServer::start().await;
-    answer(
-        &server,
-        "createModel",
-        ok(created_model("Vocabulary Automator")),
-    )
-    .await;
+    answer(&server, "createModel", ok(created_model("Polywort"))).await;
     let client = AnkiClient::new(server.uri());
     let spec = recommended_note_type();
 
@@ -641,7 +636,7 @@ async fn create_model_sends_the_recommended_note_type_as_defined() {
     let [request] = <[Value; 1]>::try_from(sent(&server).await).expect("one request");
     assert_eq!(request["action"], "createModel");
     let params = &request["params"];
-    assert_eq!(params["modelName"], "Vocabulary Automator");
+    assert_eq!(params["modelName"], "Polywort");
     assert_eq!(
         params["inOrderFields"],
         json!([

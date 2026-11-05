@@ -529,9 +529,9 @@ describe('the recommended note type', () => {
   })
 
   it('is what the Chinese warning right below it points to', async () => {
-    onCommand('anki_status', { ...ONLINE, models: [...ONLINE.models, 'Vocabulary Automator'] })
+    onCommand('anki_status', { ...ONLINE, models: [...ONLINE.models, 'Polywort'] })
     onCommand('suggest_field_mapping', ({ model }: { model: string }) =>
-      model === 'Vocabulary Automator'
+      model === 'Polywort'
         ? { mapping: recommendedMapping(), guessed: [], unmatched: [] }
         : APPLE_V3_FR,
     )
@@ -548,7 +548,7 @@ describe('the recommended note type', () => {
     )
 
     onCommand('create_recommended_note_type', {
-      model_name: 'Vocabulary Automator',
+      model_name: 'Polywort',
       mapping: recommendedMapping(),
       created: false,
       matches_by_name: true,
@@ -568,18 +568,18 @@ describe('the recommended note type', () => {
       true,
     ])
     onCommand('create_recommended_note_type', {
-      model_name: 'Vocabulary Automator',
+      model_name: 'Polywort',
       mapping: recommendedMapping(),
       created: true,
       matches_by_name: true,
     })
-    onCommand('anki_status', { ...ONLINE, models: [...ONLINE.models, 'Vocabulary Automator'] })
+    onCommand('anki_status', { ...ONLINE, models: [...ONLINE.models, 'Polywort'] })
 
     await card(1).find('[data-test="create-note-type"]').trigger('click')
     await flushPromises()
 
     const [french, spanish] = store.config.value.learning.languages
-    expect(spanish).toMatchObject({ model_name: 'Vocabulary Automator', field_mapping: null })
+    expect(spanish).toMatchObject({ model_name: 'Polywort', field_mapping: null })
     expect(french).toEqual(entry())
     expect(callsTo('create_recommended_note_type')).toHaveLength(1)
     expect(card(1).find('[data-test="create-note-type"]').exists()).toBe(false)

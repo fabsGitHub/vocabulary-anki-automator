@@ -77,16 +77,16 @@ pub fn run() {
     let result = configure(tauri::Builder::default())
         .plugin(tauri_plugin_log::Builder::new().build())
         .setup(|app| {
-            log::info!("Vocabulary Learn is starting.");
+            log::info!("Polywort Learn is starting.");
             let db_path = database_path(app);
             app.manage(AppState::new(AppServices::production(&db_path)));
-            log::info!("Vocabulary Learn is ready.");
+            log::info!("Polywort Learn is ready.");
             Ok(())
         })
         .run(tauri::generate_context!());
     if let Err(err) = result {
-        log::error!("Vocabulary Learn stopped with an error: {err}");
-        eprintln!("Vocabulary Learn stopped with an error: {err}");
+        log::error!("Polywort Learn stopped with an error: {err}");
+        eprintln!("Polywort Learn stopped with an error: {err}");
         std::process::exit(1);
     }
 }

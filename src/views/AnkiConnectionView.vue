@@ -294,7 +294,7 @@ const fallback = appleStyleMapping()
 
     <ConsentDialog
       v-if="pendingConsent"
-      :action="pendingConsent"
+      :actions="[pendingConsent]"
       :anki-version="ankiVersion"
       @agree="anki.confirmConsent()"
       @cancel="anki.cancelConsent()"

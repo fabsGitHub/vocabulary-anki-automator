@@ -71,7 +71,7 @@ describe('presets', () => {
 
   it('name the recommended note type as anki_bridge::RECOMMENDED_NOTE_TYPE does', () => {
     const rust = /pub const RECOMMENDED_NOTE_TYPE: &str = "([^"]+)";/.exec(mapperSource)
-    expect(rust?.[1]).toBe('Vocabulary Automator')
+    expect(rust?.[1]).toBe('Polywort')
     expect(RECOMMENDED_NOTE_TYPE).toBe(rust?.[1])
   })
 
@@ -105,7 +105,7 @@ describe('selectRecommendedNoteType', () => {
       created: true,
       matches_by_name: true,
     })
-    expect(place).toEqual({ model_name: 'Vocabulary Automator', field_mapping: null })
+    expect(place).toEqual({ model_name: 'Polywort', field_mapping: null })
   })
 
   it('saves a copy of the mapping when the match would differ', () => {
@@ -117,7 +117,7 @@ describe('selectRecommendedNoteType', () => {
       created: false,
       matches_by_name: false,
     })
-    expect(place).toEqual({ model_name: 'Vocabulary Automator', field_mapping: mapping })
+    expect(place).toEqual({ model_name: 'Polywort', field_mapping: mapping })
     expect(place.field_mapping).not.toBe(mapping)
   })
 })

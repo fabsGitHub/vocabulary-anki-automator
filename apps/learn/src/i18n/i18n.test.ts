@@ -141,7 +141,7 @@ describe('locale', () => {
     expect(document.documentElement.lang).toBe('de')
     setLocale('en')
     expect(i18n.global.t('review.showAnswer')).toBe('Show answer')
-    expect(document.title).toBe('Vocabulary Learn')
+    expect(document.title).toBe('Polywort Learn')
   })
 
   it('starts in the remembered language, else the system one', () => {

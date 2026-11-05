@@ -17,7 +17,10 @@ beforeEach(() => {
   setLocale('en')
   vi.mocked(check).mockClear()
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-  onCommand('get_current_settings', defaultConfig())
+  onCommand('get_current_settings', {
+    ...defaultConfig(),
+    setup_assistant: { closed_at: '2026-11-01T08:00:00.000Z', finished: true },
+  })
   onCommand('get_pending_payload', null)
   onCommand('anki_status', { online: false, version: null, decks: [], models: [], error: null })
   onCommand('get_setup_status', {

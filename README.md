@@ -1,12 +1,22 @@
-# vocabulary-anki-automator
+# Polywort
 
 Two apps for learning vocabulary, built with Tauri 2 (Rust + Vue 3) on one shared
 Rust core:
 
-- **Automator** turns any text you select into a flashcard: press a hotkey, check
-  the generated card, and it lands in Anki and in a local history.
-- **Learn** teaches the HSK 3.0 word list with FSRS-scheduled reviews, a daily
-  goal, exercises, lessons made from your captures, XP and streaks.
+- **Polywort** (the Automator in the code) turns any text you select into a
+  flashcard: press a hotkey, check the generated card, and it lands in Anki and in
+  a local history.
+- **Polywort Learn** (Learn in the code) teaches the HSK 3.0 word list with
+  FSRS-scheduled reviews, a daily goal, exercises, lessons made from your captures,
+  XP and streaks.
+
+Until 2026-11 they were called Vocabulary Automator and Vocabulary Learn. What
+installs and their data depend on keeps the old name: the bundle identifiers (and
+with them the settings and log folders), the `VocabularyAutomator` history folder,
+the crate and package names, the updater endpoint and this repository,
+`vocabulary-anki-automator`. `tests/product_identity.rs` in both apps pins the
+bundle identifiers and the history path, and Polywort's also pins the updater
+endpoint.
 
 Both desktop apps keep their data in the same SQLite file: Learn builds its
 lessons from Automator's captures, and a captured HSK word joins the review
@@ -26,7 +36,7 @@ schedule when the daily queue reaches it.
 
 ## The apps
 
-### Automator (macOS, Windows, Linux)
+### Polywort, the Automator (macOS, Windows, Linux)
 
 1. Select a word or phrase in any app and press the hotkey
    (default `CommandOrControl+Shift+C`; hotkey profiles add more shortcuts, each
@@ -58,7 +68,7 @@ downloads are pinned and checksum-verified before anything is installed.
 
 No note type of your own yet? While Anki runs, click **Create the recommended note
 type** on **Anki connection** or in a **My languages** entry. It adds the note type
-"Vocabulary Automator" to Anki, with a field for every value a card has (word,
+"Polywort" to Anki, with a field for every value a card has (word,
 translation, example and its translation, pronunciation, pinyin, HSK level, notes)
 and a card with a light and a dark style, and selects it there with the field
 mapping matched by name; save the settings to use it. If Anki already has a note
@@ -68,7 +78,7 @@ On macOS the hotkey copies the selection with a simulated `Cmd+C`, which needs
 the Accessibility permission (System Settings > Privacy & Security >
 Accessibility).
 
-### Learn (macOS, Windows, Linux, and the web)
+### Polywort Learn (macOS, Windows, Linux, and the web)
 
 - **Daily goal**: on the first start of a day Learn asks how many new characters
   you want to learn. "Not today" means reviews only; the menu reopens the question.
@@ -174,6 +184,14 @@ CC BY-SA 4.0, not MIT ([NOTICE-CC-CEDICT](crates/vocab-core/data/NOTICE-CC-CEDIC
 Provenance, licenses, known gaps (no German meanings or example sentences yet)
 and how to regenerate it are in
 [crates/vocab-core/data/README.md](crates/vocab-core/data/README.md).
+
+## Website
+
+`site/` holds the product page (English and German) with the macOS download: static HTML
+that a Node script without npm packages renders for a static Vercel project.
+`npm run site:build` renders it into `site/dist`, `npm run site:preview` serves that locally
+and `npm run site:test` checks it. [site/README.md](site/README.md) covers publishing a
+`.dmg` and deploying.
 
 ## Documentation
 

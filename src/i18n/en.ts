@@ -9,7 +9,7 @@
 
 export const en = {
   app: {
-    title: 'Vocabulary Automator',
+    title: 'Polywort',
     subtitle: 'Select a word anywhere, press your hotkey, approve the card.',
     loading: 'Loading settings…',
     loadFailed: 'The settings could not be loaded: {error}',
@@ -190,6 +190,15 @@ export const en = {
     checksums: 'Expected SHA-256 checksums',
     agree: 'Agree and install',
     cancel: 'Cancel',
+    titleBoth: 'Install Anki {version} and AnkiConnect?',
+    ankiHeading: 'Anki {version}',
+    ankiconnectHeading: 'The AnkiConnect add-on',
+    planHeading: 'After the downloads',
+    planLaunch: 'Polywort starts Anki and waits until AnkiConnect answers.',
+    planNoteType:
+      'Unless your cards already go into a note type Anki has, it adds the note type “{name}” to your Anki collection and selects it.',
+    planAccessibility:
+      'It asks macOS for the Accessibility permission and opens System Settings, where you switch Polywort on.',
   },
   mapping: {
     title: 'Field mapping',
@@ -368,19 +377,92 @@ export const en = {
   credits: {
     title: 'Credits and licenses',
     intro:
-      'For Chinese words, the Automator looks up pinyin, the HSK level and an example in the bundled HSK 3.0 word list. It carries dictionary data that others made and share under these licenses.',
+      'For Chinese words, Polywort looks up pinyin, the HSK level and an example in the bundled HSK 3.0 word list. It carries dictionary data that others made and share under these licenses.',
     fullText: 'Full text',
     ccCedict:
       'The English meanings, traditional characters and pinyin of the HSK words, adapted from the CC-CEDICT dictionary. Licensed under CC BY-SA 4.0, and so is the adapted data.',
     completeHsk: 'The HSK 3.0 word lists by level, with frequency ranks. MIT License.',
     hsk30: 'The official HSK 3.0 word list, which picks each word’s reading. MIT License.',
   },
+  assistant: {
+    open: 'Setup assistant',
+    title: 'Set up Polywort',
+    intro: 'A few steps to your first card. Steps that are already done are ticked.',
+    dismiss: 'Close assistant',
+    everything: 'Set up everything',
+    everythingRunning: 'Setting up…',
+    everythingHint:
+      'Installs what is missing once you agree to the downloads, starts Anki, adds the note type and asks for the permission. Or go through the steps one by one.',
+    checking: 'Checking what is already set up…',
+    stepOf: 'Step {number} of {total}: {title}',
+    skip: 'Skip this step',
+    next: 'Next',
+    done: 'Done',
+    steps: {
+      anki: 'Install Anki',
+      ankiconnect: 'Install AnkiConnect',
+      running: 'Start Anki',
+      note_type: 'Set up the note type',
+      accessibility: 'Allow copying',
+      try: 'Try it',
+    },
+    anki: {
+      done: 'Anki is installed.',
+      body: 'Polywort adds your cards to Anki Desktop, the free flashcard app. It is not installed on this computer yet.',
+    },
+    ankiconnect: {
+      done: 'AnkiConnect is installed.',
+    },
+    running: {
+      done: 'Anki is running, and AnkiConnect answers.',
+      body: 'Start Anki and keep it open while you capture: Polywort reaches it only while it runs. This step notices by itself when Anki answers.',
+      restart:
+        'Anki loads AnkiConnect only when it starts. If Anki is already open, quit it completely and start it again.',
+      justInstalled:
+        'AnkiConnect was just installed. If Anki is open, quit it completely and start it again, so it loads the add-on.',
+      firstStart:
+        'On its first start, Anki asks for your language and may show a welcome screen. Answer them; Polywort connects as soon as Anki is ready.',
+    },
+    noteType: {
+      offline: 'Start Anki first: the note type is set up in your Anki collection.',
+      body: 'Cards need a note type with a field for everything they hold: word, translation, example and its translation, pronunciation, pinyin, HSK level and notes. The recommended note type “{name}” has them all; it is added to Anki and selected in the settings.',
+      done: 'Cards go into the note type “{model}”, which Anki has.',
+      keep: 'You can keep it, or switch to the recommended note type “{name}”, which has a field for every value.',
+      saveFailed: 'The note type is in Anki, but the settings could not be saved: {error}',
+    },
+    accessibility: {
+      done: 'Polywort may copy the text you select.',
+      body: 'To copy the text you select, Polywort presses Cmd+C for you. macOS allows that only for apps switched on under System Settings → Privacy & Security → Accessibility.',
+      open: 'Open System Settings',
+      opening: 'Opening…',
+      how: 'macOS asks whether Polywort may control this computer, and System Settings opens at the list. Switch on “Polywort” there; macOS may ask for your password.',
+      watching: 'This step notices by itself as soon as the switch is on.',
+      staleTitle: 'Polywort is switched on, but this step does not notice?',
+      stale:
+        'After an update, macOS sometimes keeps an outdated entry. Select Polywort in the list, remove it with “−”, then click “Open System Settings” again and switch it on.',
+      failed:
+        'System Settings could not be opened: {error}. Open it yourself: Privacy & Security → Accessibility.',
+    },
+    try: {
+      body: 'Select the word below (double-click it), then press your hotkey {hotkey}.',
+      waiting: 'Waiting for your hotkey…',
+      success:
+        'It works: the approval window shows your card. Press Enter to add it to Anki, or Esc to discard it.',
+      failed: 'The capture did not work: {message}',
+      notAllowed: 'Polywort may not copy yet: finish the step “{step}” first.',
+      restartHint:
+        'If you switched Polywort on under Accessibility only just now, macOS may apply it only after Polywort restarts.',
+      restart: 'Restart Polywort',
+      restarting: 'Restarting…',
+      anyApp: 'From now on this works in every app: select text, press {hotkey}, approve the card.',
+    },
+  },
   help: {
-    title: 'Setting up and using the Automator',
+    title: 'Setting up and using Polywort',
     close: 'Close',
     step1Title: '1. Install Anki and AnkiConnect',
     step1Body:
-      'On the “Anki connection” tab, install whatever is missing, or install Anki yourself and add AnkiConnect in Anki via Tools → Add-ons → Get Add-ons with the code 2055492159. Restart Anki afterwards.',
+      'The setup assistant (“Setup assistant” at the top) walks you through everything. Or, on the “Anki connection” tab, install whatever is missing, or install Anki yourself and add AnkiConnect in Anki via Tools → Add-ons → Get Add-ons with the code 2055492159. Restart Anki afterwards.',
     step2Title: '2. Keep Anki running',
     step2Body:
       'The app talks to Anki through AnkiConnect on this computer. Cards approved while Anki is closed stay in the history and can be synced later.',

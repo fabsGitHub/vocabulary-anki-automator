@@ -5,21 +5,23 @@
 //!
 //! Module map (contracts: docs/architecture.md § 8):
 //!
-//! | module      | milestone  | contents                                                    |
-//! |-------------|------------|-------------------------------------------------------------|
-//! | `config`    | B2, H      | `config.json`: shape, legacy migration, validation          |
-//! | `state`     | B3, F, N4  | runtime state and the injected services                     |
-//! | `capture`   | B3, D, H   | hotkey -> clipboard -> pipeline -> approval window          |
-//! | `detect`    | O          | lingua, ranking the learned Latin-script languages          |
-//! | `filing`    | O          | the mapping a card is pushed with, and what it would drop   |
-//! | `shortcuts` | H          | the default hotkey plus one per hotkey profile              |
-//! | `push`      | B3, F, J5  | save-then-push of approved cards, retry of unsynced ones     |
-//! | `setup`     | E          | consent-gated, pinned and verified Anki/AnkiConnect install |
-//! | `commands`  | all        | the IPC surface (§ 8.2)                                     |
+//! | module          | milestone | contents                                                    |
+//! |-----------------|-----------|-------------------------------------------------------------|
+//! | `config`        | B2, H     | `config.json`: shape, legacy migration, validation          |
+//! | `state`         | B3, F, N4 | runtime state and the injected services                     |
+//! | `capture`       | B3, D, H  | hotkey -> clipboard -> pipeline -> approval window          |
+//! | `detect`        | O         | lingua, ranking the learned Latin-script languages          |
+//! | `filing`        | O         | the mapping a card is pushed with, and what it would drop   |
+//! | `shortcuts`     | H         | the default hotkey plus one per hotkey profile              |
+//! | `push`          | B3, F, J5 | save-then-push of approved cards, retry of unsynced ones    |
+//! | `setup`         | E         | consent-gated, pinned and verified Anki/AnkiConnect install |
+//! | `accessibility` | assistant | the macOS Accessibility permission the copy keystroke needs |
+//! | `commands`      | all       | the IPC surface (§ 8.2)                                     |
 //!
 //! Startup only checks the Anki setup; nothing is downloaded, installed or
 //! launched until the user clicks (Milestone E).
 
+pub mod accessibility;
 pub mod capture;
 pub mod commands;
 pub mod config;
@@ -70,6 +72,9 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::setup::download_and_install_anki,
             commands::setup::auto_provision_ankiconnect,
             commands::setup::check_ankiconnect_installed,
+            commands::assistant::get_accessibility_status,
+            commands::assistant::request_accessibility,
+            commands::assistant::close_setup_assistant,
             commands::history::list_recent_captures,
             commands::history::delete_capture,
             commands::history::sync_pending_captures,
@@ -123,8 +128,8 @@ pub fn run() {
         })
         .run(tauri::generate_context!());
     if let Err(err) = result {
-        log::error!("Vocabulary Automator stopped with an error: {err}");
-        eprintln!("Vocabulary Automator stopped with an error: {err}");
+        log::error!("Polywort stopped with an error: {err}");
+        eprintln!("Polywort stopped with an error: {err}");
         std::process::exit(1);
     }
 }
@@ -147,7 +152,7 @@ pub fn keeps_running(exit_code: Option<i32>) -> bool {
 pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: &RunEvent) {
     match event {
         RunEvent::ExitRequested { code, api, .. } if keeps_running(*code) => {
-            log::info!("No window is open; Vocabulary Automator keeps running in the tray.");
+            log::info!("No window is open; Polywort keeps running in the tray.");
             api.prevent_exit();
         }
         // Not reachable through tauri::test: the mock runtime raises no
@@ -171,7 +176,7 @@ pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: &RunEvent) {
 /// Startup: state, tray, hotkeys, and a check (only a check) of the Anki
 /// setup.
 fn start(app: &mut tauri::App) -> Result<(), String> {
-    log::info!("Vocabulary Automator is starting.");
+    log::info!("Polywort is starting.");
     let handle = app.handle().clone();
     let config_path = config::config_path(&handle)?;
     app.manage(AppState::new(AppServices::production(config_path)));
@@ -187,7 +192,7 @@ fn start(app: &mut tauri::App) -> Result<(), String> {
         yes_no(status.anki_installed),
         yes_no(status.ankiconnect_installed)
     );
-    log::info!("Vocabulary Automator is ready.");
+    log::info!("Polywort is ready.");
     Ok(())
 }
 

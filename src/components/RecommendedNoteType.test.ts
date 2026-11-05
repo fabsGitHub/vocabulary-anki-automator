@@ -37,7 +37,7 @@ const ONLINE: AnkiStatus = {
 }
 const WITH_RECOMMENDED: AnkiStatus = {
   ...ONLINE,
-  models: [...ONLINE.models, 'Vocabulary Automator'],
+  models: [...ONLINE.models, 'Polywort'],
 }
 const OFFLINE: AnkiStatus = { online: false, version: null, decks: [], models: [], error: 'x' }
 const SETUP = {
@@ -50,7 +50,7 @@ const SETUP = {
 
 /** What `create_recommended_note_type` answers after creating the note type (ipc_anki.rs). */
 const CREATED: NoteType = {
-  model_name: 'Vocabulary Automator',
+  model_name: 'Polywort',
   mapping: recommendedMapping(),
   created: true,
   matches_by_name: true,
@@ -137,7 +137,7 @@ describe('when it is offered', () => {
     expect(button().text()).toBe('Create the recommended note type')
     expect(button().attributes('disabled')).toBeUndefined()
     expect(find('note-type-hint').text()).toBe(
-      'Adds the note type “Vocabulary Automator” to Anki, with a field for everything a card holds: word, translation, example and its translation, pronunciation, pinyin, HSK level and notes.',
+      'Adds the note type “Polywort” to Anki, with a field for everything a card holds: word, translation, example and its translation, pronunciation, pinyin, HSK level and notes.',
     )
     expect(invokeCalls).toEqual([])
   })
@@ -146,17 +146,17 @@ describe('when it is offered', () => {
     await mountButton(WITH_RECOMMENDED)
     expect(button().text()).toBe('Use the recommended note type')
     expect(find('note-type-hint').text()).toBe(
-      'Anki already has a note type named “Vocabulary Automator”. It is selected here if it has every recommended field, and it is never changed.',
+      'Anki already has a note type named “Polywort”. It is selected here if it has every recommended field, and it is never changed.',
     )
   })
 
   it('is hidden where the note type is already selected', async () => {
-    await mountButton(WITH_RECOMMENDED, ' Vocabulary Automator ')
+    await mountButton(WITH_RECOMMENDED, ' Polywort ')
     expect(find('recommended-note-type').exists()).toBe(false)
   })
 
   it('offers to create it where it is selected but Anki lacks it, without asking to save', async () => {
-    await mountButton(ONLINE, 'Vocabulary Automator', { field_mapping: null })
+    await mountButton(ONLINE, 'Polywort', { field_mapping: null })
     expect(button().text()).toBe('Create the recommended note type')
     onCommand('create_recommended_note_type', CREATED)
     onCommand('anki_status', WITH_RECOMMENDED)
@@ -166,19 +166,19 @@ describe('when it is offered', () => {
     expect(button().exists()).toBe(false)
     expect(store.dirty.value).toBe(false)
     expect(find('note-type-result').text()).toBe(
-      '“Vocabulary Automator” was added to Anki. It is selected here, and the saved settings already use it.',
+      '“Polywort” was added to Anki. It is selected here, and the saved settings already use it.',
     )
     expect(find('note-type-result').classes()).toContain('success')
   })
 
   it('says it was already selected where only the unsaved form selects it', async () => {
-    await mountButton(ONLINE, 'Vocabulary Automator', { model_name: 'AppleStyleFinalV3' })
+    await mountButton(ONLINE, 'Polywort', { model_name: 'AppleStyleFinalV3' })
     expect(store.dirty.value).toBe(true)
     onCommand('create_recommended_note_type', CREATED)
     await button().trigger('click')
     await flushPromises()
     expect(find('note-type-result').text()).toBe(
-      '“Vocabulary Automator” was added to Anki. It is already selected here.',
+      '“Polywort” was added to Anki. It is already selected here.',
     )
   })
 
@@ -194,7 +194,7 @@ describe('when it is offered', () => {
     setLocale('de')
     await mountButton(ONLINE)
     expect(button().text()).toBe('Empfohlenen Notiztyp anlegen')
-    expect(find('note-type-hint').text()).toContain('„Vocabulary Automator“')
+    expect(find('note-type-hint').text()).toContain('„Polywort“')
   })
 })
 
@@ -218,12 +218,12 @@ describe('a click', () => {
     ])
     expect(used).toEqual([CREATED])
     expect(commandNames()).toEqual(['create_recommended_note_type', 'anki_status'])
-    expect(connection.models.value).toContain('Vocabulary Automator')
+    expect(connection.models.value).toContain('Polywort')
     expect(connection.activity.value).toBeNull()
     // Selected now: the offer is gone, the result stays.
     expect(button().exists()).toBe(false)
     expect(find('note-type-result').text()).toBe(
-      '“Vocabulary Automator” was added to Anki. It is selected here; save the settings to use it.',
+      '“Polywort” was added to Anki. It is selected here; save the settings to use it.',
     )
     expect(find('note-type-result').classes()).toContain('success')
     expect(store.dirty.value).toBe(true)
@@ -236,7 +236,7 @@ describe('a click', () => {
     await flushPromises()
     expect(used).toHaveLength(1)
     expect(find('note-type-result').text()).toBe(
-      'Anki already has “Vocabulary Automator”, with every recommended field. It is selected here; save the settings to use it.',
+      'Anki already has “Polywort”, with every recommended field. It is selected here; save the settings to use it.',
     )
   })
 
@@ -258,7 +258,7 @@ describe('a click', () => {
   it('shows the error and selects nothing when the note type cannot be set up', async () => {
     await mountButton(WITH_RECOMMENDED)
     const message =
-      'Anki already has a note type named “Vocabulary Automator”, but some of its fields are missing: “Pinyin”.'
+      'Anki already has a note type named “Polywort”, but some of its fields are missing: “Pinyin”.'
     onCommand('create_recommended_note_type', () => Promise.reject(message))
     await button().trigger('click')
     await flushPromises()

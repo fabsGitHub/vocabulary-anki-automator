@@ -131,6 +131,26 @@
       "returns": "boolean"
     },
     {
+      "args": [],
+      "command": "get_accessibility_status",
+      "function": "getAccessibilityStatus",
+      "returns": "AccessibilityStatus"
+    },
+    {
+      "args": [],
+      "command": "request_accessibility",
+      "function": "requestAccessibility",
+      "returns": "AccessibilityStatus"
+    },
+    {
+      "args": [
+        "finished"
+      ],
+      "command": "close_setup_assistant",
+      "function": "closeSetupAssistant",
+      "returns": "SetupAssistantState"
+    },
+    {
       "args": [
         "limit"
       ],
@@ -188,6 +208,20 @@
     "pinyin"
   ],
   "shapes": {
+    "AccessibilityStatus": [
+      {
+        "required": true,
+        "trusted": false
+      },
+      {
+        "required": true,
+        "trusted": true
+      },
+      {
+        "required": false,
+        "trusted": true
+      }
+    ],
     "AnkiConfig": [
       {
         "connect_url": "http://127.0.0.1:8765",
@@ -259,6 +293,10 @@
         "hotkeys": "CommandOrControl+Shift+C",
         "learning": {
           "languages": []
+        },
+        "setup_assistant": {
+          "closed_at": null,
+          "finished": false
         },
         "translation": {
           "contact_email": null,
@@ -353,6 +391,10 @@
               "model_name": "Chinese (HSK)"
             }
           ]
+        },
+        "setup_assistant": {
+          "closed_at": "2026-11-05T09:30:00.000Z",
+          "finished": true
         },
         "translation": {
           "contact_email": "learner@example.com",
@@ -1161,7 +1203,7 @@
           ]
         },
         "matches_by_name": true,
-        "model_name": "Vocabulary Automator"
+        "model_name": "Polywort"
       },
       {
         "created": false,
@@ -1199,7 +1241,7 @@
           ]
         },
         "matches_by_name": false,
-        "model_name": "Vocabulary Automator"
+        "model_name": "Polywort"
       }
     ],
     "Script": [
@@ -1226,6 +1268,16 @@
         "kind": "chinese",
         "pinyin": "xué xí",
         "script_variant": "traditional"
+      }
+    ],
+    "SetupAssistantState": [
+      {
+        "closed_at": null,
+        "finished": false
+      },
+      {
+        "closed_at": "2026-11-05T09:30:00.000Z",
+        "finished": true
       }
     ],
     "SetupStatus": [

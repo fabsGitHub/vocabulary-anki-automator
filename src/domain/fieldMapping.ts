@@ -68,7 +68,7 @@ export function chineseMapping(): FieldMapping {
  * (`anki_bridge::RECOMMENDED_NOTE_TYPE`, which the tests read it from). The
  * UI texts name it through this constant only.
  */
-export const RECOMMENDED_NOTE_TYPE = 'Vocabulary Automator'
+export const RECOMMENDED_NOTE_TYPE = 'Polywort'
 
 /**
  * The label of the button that sets up the recommended note type, given the

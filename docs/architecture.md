@@ -24,6 +24,34 @@ docs/                      this file, test-harness strategy, signing-key custody
 scripts/                   bootstrap, run-all-checks, git hooks
 ```
 
+**Product names.** Users see the Automator as **Polywort** and Learn as **Polywort
+Learn** (`productName` and the window titles in each `tauri.conf.json`, the
+`<title>` of each `index.html`, `app.title` in each app's i18n, the log lines that
+greet and say goodbye). Both set `bundle.publisher` to "Polywort", because without
+it Tauri shows the identifier's second segment, "ankiautomator", as the Windows
+publisher. Until 2026-11 they were Vocabulary
+Automator and Vocabulary Learn. The log file follows `productName` too:
+tauri-plugin-log names it after the product, so in the log folder below it is now
+`Polywort.log` or `Polywort Learn.log`, and an install from before keeps its old
+`Vocabulary Automator.log` or `Vocabulary Learn.log` beside it, no longer rotated.
+These kept the old names, because installs and their data depend on them.
+`tests/product_identity.rs` pins the bundle identifier and the history path in both
+apps, and the updater endpoint in the Automator's:
+
+- the bundle identifiers `com.ankiautomator.app` and `com.ankiautomator.learn`, from
+  which Tauri derives the settings folder (`config.json`) and the log folder;
+- the shared history `VocabularyAutomator/vocab.sqlite3` (§ 6, `default_db_path`);
+- the updater endpoint and the GitHub repository `vocabulary-anki-automator`;
+- the Cargo packages, crates and binaries (`vocab-automator`, `vocab-learn`, …) and
+  the npm package `vocab-automator`;
+- the User-Agents (AnkiConnect's `vocabulary-anki-automator anki-bridge/…`, the
+  providers' and the setup downloads' `vocabulary-automator/…`), the `app_state`
+  keys (`automator.*`, `learn.settings`) and the web build's IndexedDB `vocab-learn`.
+
+No Anki tag, note marker or query names the product: neither app adds tags of its
+own, and Learn's import finds notes by deck (`deck_query`). The recommended note
+type (§ 9) is named after the product, "Polywort".
+
 ## 2. Conventions (all crates)
 
 - **No network in tests, ever.** Every provider and client takes a base URL
@@ -721,7 +749,8 @@ language pair in capture order.
         "create_reverse": true
       }
     ]
-  }
+  },
+  "setup_assistant": { "closed_at": null, "finished": false }
 }
 ```
 
@@ -801,6 +830,12 @@ language pair in capture order.
   (`a_build_from_before_the_mapping_could_be_unset_reads_the_saved_file`). An older
   build saves without `version`, so after a save there a global mapping equal to the
   Apple-style default loads as unset here again.
+- `setup_assistant` is the first-run setup assistant's state, written only by
+  `close_setup_assistant` (`apply_settings` keeps the stored value, like `consent`).
+  While `closed_at` is `null` the settings window opens the assistant once the
+  settings have loaded; `finished` tells "Done" on its last step from a dismissal. A
+  file without the key, or with a `closed_at` that is not RFC 3339, loads as never
+  closed, so an existing install sees the assistant once after the update.
 - Loading a legacy file maps the old `deepl` section onto `translation`
   (`api_key` is dropped), lowercases language codes and fills every new field
   with its default. `load_config_from(path)`/`save_config_to(path, cfg)` are
@@ -828,6 +863,9 @@ language pair in capture order.
 | `download_and_install_anki`    | —                                                       | `string` (error unless consent granted)                                                                 |
 | `auto_provision_ankiconnect`   | —                                                       | `string` (error unless consent granted)                                                                 |
 | `check_ankiconnect_installed`  | —                                                       | `boolean`                                                                                               |
+| `get_accessibility_status`     | —                                                       | `AccessibilityStatus` (`AXIsProcessTrusted` on macOS; asks nothing)                                     |
+| `request_accessibility`        | —                                                       | `AccessibilityStatus` (prompts and opens System Settings at the Accessibility list; installs nothing)   |
+| `close_setup_assistant`        | `finished: boolean`                                     | `SetupAssistantState` (stops the assistant from opening at startup)                                     |
 | `list_recent_captures`         | `limit: number`                                         | `StoredCapture[]`                                                                                       |
 | `delete_capture`               | `id: number`                                            | `boolean`                                                                                               |
 | `sync_pending_captures`        | —                                                       | `SyncReport`                                                                                            |
@@ -855,7 +893,36 @@ frontend so it can show the result first. `capture_id` is `0` in Anki-only mode
 Further rules both sides rely on:
 
 - **`apply_settings` ignores `newCfg.consent`**: consent is recorded only by
-  `grant_consent`, so no webview script can forge it through a settings save.
+  `grant_consent`, so no webview script can forge it through a settings save. It
+  ignores `newCfg.setup_assistant` the same way.
+- The setup assistant (`src/views/SetupAssistant.vue`,
+  `src/composables/useSetupAssistant.ts`) runs in the settings window: Anki →
+  AnkiConnect → Anki running with AnkiConnect loaded → the recommended note type
+  created and saved as `anki.model_name` → the Accessibility permission (macOS only;
+  `required: false` hides the step elsewhere) → a practice capture with the default
+  hotkey. Each step is ticked from what the app can check (`anki_status`,
+  `get_setup_status`, the saved note type against Anki's `models`,
+  `get_accessibility_status`), and the step shown moves on by itself when it gets
+  done; while shown, "Anki running" probes every 2 s and the permission is read every
+  1 s. "Set up everything" opens one consent dialog listing every download it needs
+  (the Anki release and source, the AnkiConnect commit), then runs `grant_consent`
+  and the install for each in turn, `launch_anki_desktop`,
+  `create_recommended_note_type` plus a save of only that change on top of the saved
+  settings, and `request_accessibility`, stopping at the first step that needs the
+  user. AnkiConnect loads only when Anki starts, so the "Anki running" step asks the
+  user to quit and restart an Anki that was open during the install. Whether a
+  permission granted while the app runs reaches the simulated Cmd+C without a restart
+  is not documented by Apple: the practice step offers `restart_app` when a capture
+  fails while `AXIsProcessTrusted` is true.
+- `get_accessibility_status` and `request_accessibility` go through the
+  `Accessibility` trait (`src-tauri/src/accessibility.rs`, direct FFI to
+  ApplicationServices), injected through `AppServices`, so no test calls the real API.
+  `request_accessibility` calls `AXIsProcessTrustedWithOptions` with
+  `kAXTrustedCheckOptionPrompt` (macOS adds the app, switched off, to the list and
+  shows its alert) and then opens
+  `x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility`;
+  it does neither when the permission is granted or not required. Only the user's own
+  switch grants it.
 - `capture_in_progress` is true from the hotkey until the capture is approved or
   discarded (the approval window counts); closing the preview counts as a discard.
 - `max_chars` must be a whole number in `1..=500`; a profile's source and target
@@ -931,7 +998,7 @@ Further rules both sides rely on:
   online, from a cache the main window shares between them
   (`src/composables/useModelFields.ts`).
 - `create_recommended_note_type` sets up the recommended note type (§ 9
-  `recommended_note_type`, "Vocabulary Automator") in the user's collection, the
+  `recommended_note_type`, "Polywort") in the user's collection, the
   one command besides the pushes that writes to it. It runs only from the button
   both settings tabs show while Anki is online (the Anki tab under the note type,
   each "My languages" entry under its own; `src/components/RecommendedNoteType.vue`),
@@ -1011,7 +1078,9 @@ holds the Accessibility permission, which macOS ties to its signature).
 ### 8.4 Consent & supply chain (Milestone E)
 
 - Startup only _checks_ (`check_anki_installed`, `check_ankiconnect_installed`);
-  nothing is downloaded, installed or launched without a user click. Creating the
+  nothing is downloaded, installed or launched without a user click. The setup
+  assistant may open at startup (§ 8.2), but it too only checks until the user clicks,
+  and its "Set up everything" asks for every download in one consent dialog first. Creating the
   recommended note type (§ 8.2) writes to the collection, so it waits for a click
   too; it records no consent, since it downloads nothing and only ever adds.
 - Each install action requires a one-time consent recorded in
@@ -1104,7 +1173,7 @@ pub struct AudioAttachment { pub filename: String, pub data_b64: String, pub fie
 pub fn map_card(card: &Card, direction: Direction, target: &AnkiTarget, mapping: &FieldMapping, audio: Option<&[u8]>) -> NoteSpec;
 pub fn add_note_params(note: &NoteSpec) -> serde_json::Value;     // exactly AnkiConnect's addNote "params"
 pub fn card_from_note(note: &NoteInfo, mapping: &FieldMapping, source_lang: &str, target_lang: &str, captured_at: DateTime<Utc>) -> Option<Card>;
-pub const RECOMMENDED_NOTE_TYPE: &str = "Vocabulary Automator";
+pub const RECOMMENDED_NOTE_TYPE: &str = "Polywort";
 pub struct NoteTypeSpec { pub name: String, pub fields: Vec<String>, pub css: String, pub templates: Vec<CardTemplate> }
 pub fn recommended_note_type() -> NoteTypeSpec;
 ```
@@ -1400,6 +1469,14 @@ interface SetupStatus {
   platform_supported: boolean
   anki_version: string
   consent: ConsentState
+}
+interface AccessibilityStatus {
+  required: boolean // false: no permission on this platform, the assistant hides its step
+  trusted: boolean // AXIsProcessTrusted(); true when not required
+}
+interface SetupAssistantState {
+  closed_at: string | null // RFC 3339; null: the settings window opens the assistant
+  finished: boolean // closed with "Done" rather than dismissed
 }
 type QueueItem =
   | { kind: 'review'; card_id: number; due_date: string }

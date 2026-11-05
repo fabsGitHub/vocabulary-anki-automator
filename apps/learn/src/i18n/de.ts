@@ -4,13 +4,13 @@ import type { MessageSchema } from './en'
 
 export const de: MessageSchema = {
   app: {
-    title: 'Vocabulary Learn',
+    title: 'Polywort Learn',
     subtitle: 'Wörter wiederholen, üben und die Serie halten.',
     loading: 'Die heutige Sitzung wird geladen…',
     loadFailed: 'Die heutige Sitzung konnte nicht geladen werden: {error}',
     retry: 'Erneut versuchen',
     uiLanguage: 'Sprache der App',
-    startFailed: 'Learn konnte nicht starten: {error}',
+    startFailed: 'Polywort Learn konnte nicht starten: {error}',
     reopenFailed: 'Das heutige Ziel konnte nicht erneut geöffnet werden: {error}',
     dismiss: 'Ausblenden',
   },
@@ -26,7 +26,7 @@ export const de: MessageSchema = {
   credits: {
     title: 'Quellen und Lizenzen',
     intro:
-      'Learn enthält die HSK-3.0-Wortliste mit Wörterbuchdaten, die andere erstellt haben und unter diesen Lizenzen teilen.',
+      'Polywort Learn enthält die HSK-3.0-Wortliste mit Wörterbuchdaten, die andere erstellt haben und unter diesen Lizenzen teilen.',
     close: 'Schließen',
     fullText: 'Volltext',
     ccCedict:
@@ -116,9 +116,9 @@ export const de: MessageSchema = {
       'Lerne zuerst ein paar Wörter unter „Wiederholen“: Übungen verwenden nur gelernte Wörter.',
     card: 'Wort',
     kind: 'Übung',
-    needsTts: 'Braucht Sprachausgabe, die diese Version von Learn nicht hat.',
+    needsTts: 'Braucht Sprachausgabe, die diese Version von Polywort Learn nicht hat.',
     needsAudio:
-      'Dieses Wort hat keine Aufnahme, und diese Version von Learn hat keine Sprachausgabe.',
+      'Dieses Wort hat keine Aufnahme, und diese Version von Polywort Learn hat keine Sprachausgabe.',
     start: 'Übung starten',
     next: 'Nächste Übung',
     skip: 'Überspringen',
@@ -165,9 +165,9 @@ export const de: MessageSchema = {
     loading: 'Deine Lektionen werden geladen…',
     loadFailed: 'Deine Lektionen konnten nicht geladen werden: {error}',
     empty:
-      'Noch keine Lektionen. Erfasse im Automator Wörter mit einem Beispielsatz und seiner Übersetzung, dann werden daraus hier Lektionen.',
+      'Noch keine Lektionen. Erfasse in Polywort Wörter mit einem Beispielsatz und seiner Übersetzung, dann werden daraus hier Lektionen.',
     emptyWeb:
-      'Keine Lektionen in der Web-Version: Lektionen entstehen aus den Wörtern, die du im Automator erfasst, und die bleiben in der Desktop-App.',
+      'Keine Lektionen in der Web-Version: Lektionen entstehen aus den Wörtern, die du in Polywort erfasst, und die bleiben in der Desktop-App.',
     lessonTitle: '{source} → {target} · Lektion {number}',
     cardCount: 'Wörter: {count}',
     start: 'Starten',

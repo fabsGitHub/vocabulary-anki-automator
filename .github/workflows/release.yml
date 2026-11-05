@@ -1,6 +1,7 @@
-# Milestone N5: build, sign and publish Automator for macOS, Windows and Linux
-# when the operator pushes a `v*` tag. The tag push is the deliberate, human
-# release gate (CLAUDE.md); nothing in this workflow runs on a plain merge.
+# Milestone N5: build, sign and publish Polywort (the Automator, src-tauri/)
+# for macOS, Windows and Linux when the operator pushes a `v*` tag. The tag
+# push is the deliberate, human release gate (CLAUDE.md); nothing in this
+# workflow runs on a plain merge.
 #
 # Secrets (repo Settings -> Secrets and variables -> Actions), see
 # docs/signing-key-custody.md. They are referenced by name only, never
@@ -13,8 +14,14 @@
 # checkouts never store it in .git/config, where the npm and cargo build code
 # that runs afterwards could read it.
 #
-# Learn (apps/learn) is not released here: its mobile/web distribution is a
-# later milestone (decision 11).
+# The bundles and the release assets are named after tauri.conf.json's
+# productName (Polywort.app, Polywort_<version>_aarch64.dmg, …); the product
+# page (site/) links to the release page, not to an asset name. The updater
+# endpoint, the repository and the bundle identifier keep their old names, so
+# installed copies find their updates and keep their data.
+#
+# Polywort Learn (apps/learn) is not released here: its mobile/web
+# distribution is a later milestone (decision 11).
 
 name: Release
 
@@ -134,7 +141,7 @@ jobs:
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: Vocabulary Automator ${{ github.ref_name }}
+          releaseName: Polywort ${{ github.ref_name }}
           releaseBody: See the commit history for changes in this release.
           releaseDraft: false
           prerelease: false

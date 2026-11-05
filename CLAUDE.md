@@ -1,6 +1,7 @@
-# Vocabulary Automator
+# Polywort
 
-Two Tauri 2 desktop apps sharing one Rust core:
+Two Tauri 2 desktop apps sharing one Rust core. Users see them as **Polywort** and **Polywort
+Learn**; the code and docs call them Automator and Learn.
 
 - **Automator** (`src-tauri/` + Vue frontend in `src/`): select text anywhere, press the
   hotkey, approve the generated card, and it lands in Anki and in the local SQLite history.
@@ -56,5 +57,11 @@ tests (wiremock) need local port binding (docs/architecture.md § 2).
   Anki-agnostic.
 - **Quiz isolation:** every exercise draws from `LearnedVocabularyPool::load` and nothing else; the
   leak test in `crates/vocab-core/tests/quiz_isolation.rs` must keep failing when that is violated.
+- **Old names that stay:** the apps were Vocabulary Automator / Vocabulary Learn until 2026-11.
+  Bundle identifiers (`com.ankiautomator.app`, `com.ankiautomator.learn`, hence the settings
+  and log folders), the `VocabularyAutomator` history folder, crate and package names, the
+  User-Agents, the web build's IndexedDB name, the updater endpoint and the repository keep the
+  old names, since installs and data depend on them. `tests/product_identity.rs` in both apps
+  pins the identifiers and the history path (plus the Automator's updater endpoint).
 - **Signing keys** (updater private key, Apple/Windows certificates) never appear in code, logs,
   tickets or agent sessions — they exist only as GitHub Actions secrets.

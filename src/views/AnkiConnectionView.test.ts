@@ -321,12 +321,12 @@ describe('the recommended note type', () => {
   /** Clicks the button; Anki lists the note type from then on. */
   async function setUp(matchesByName: boolean, created = true): Promise<void> {
     onCommand('create_recommended_note_type', {
-      model_name: 'Vocabulary Automator',
+      model_name: 'Polywort',
       mapping: recommendedMapping(),
       created,
       matches_by_name: matchesByName,
     })
-    onCommand('anki_status', { ...ONLINE, models: [...ONLINE.models, 'Vocabulary Automator'] })
+    onCommand('anki_status', { ...ONLINE, models: [...ONLINE.models, 'Polywort'] })
     await find('create-note-type')?.trigger('click')
     await flushPromises()
   }
@@ -337,18 +337,18 @@ describe('the recommended note type', () => {
 
     await setUp(true)
 
-    expect(store.config.value.anki.model_name).toBe('Vocabulary Automator')
+    expect(store.config.value.anki.model_name).toBe('Polywort')
     expect(store.config.value.anki.field_mapping).toBeNull()
-    expect(find('model-select')?.element).toHaveProperty('value', 'Vocabulary Automator')
+    expect(find('model-select')?.element).toHaveProperty('value', 'Polywort')
     expect(find('mapping-badge')?.text()).toBe('Matched by field name')
     expect(callsTo('suggest_field_mapping').map((call) => call.args)).toContainEqual({
-      model: 'Vocabulary Automator',
+      model: 'Polywort',
       sourceLang: 'en',
       targetLang: 'de',
     })
     expect(exists('create-note-type')).toBe(false)
     expect(find('note-type-result')?.text()).toBe(
-      '“Vocabulary Automator” was added to Anki. It is selected here; save the settings to use it.',
+      '“Polywort” was added to Anki. It is selected here; save the settings to use it.',
     )
 
     // Nothing is saved until the user saves.
@@ -357,7 +357,7 @@ describe('the recommended note type', () => {
     onCommand('apply_settings', null)
     expect(await store.save()).toBe(true)
     expect(callsTo('apply_settings')[0].args?.newCfg).toMatchObject({
-      anki: { model_name: 'Vocabulary Automator', field_mapping: null },
+      anki: { model_name: 'Polywort', field_mapping: null },
     })
     await flushPromises()
     expect(exists('note-type-result')).toBe(false)
@@ -367,10 +367,10 @@ describe('the recommended note type', () => {
     await mountTab()
     await setUp(false, false)
 
-    expect(store.config.value.anki.model_name).toBe('Vocabulary Automator')
+    expect(store.config.value.anki.model_name).toBe('Polywort')
     expect(store.config.value.anki.field_mapping).toEqual(recommendedMapping())
     expect(find('note-type-result')?.text()).toBe(
-      'Anki already has “Vocabulary Automator”, with every recommended field. It is selected here; save the settings to use it.',
+      'Anki already has “Polywort”, with every recommended field. It is selected here; save the settings to use it.',
     )
   })
 

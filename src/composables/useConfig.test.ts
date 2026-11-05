@@ -63,6 +63,7 @@ function backendConfig(): AppConfig {
         },
       ],
     },
+    setup_assistant: { closed_at: '2026-11-01T08:00:00.000Z', finished: false },
   }
 }
 
@@ -135,6 +136,7 @@ describe('load', () => {
       ankiconnect_provision_granted_at: null,
     })
     expect(config.learning).toEqual({ languages: [] })
+    expect(config.setup_assistant).toEqual({ closed_at: null, finished: false })
   })
 
   it('reads learned languages with canonical codes, a null mapping and reverse cards by default', async () => {
@@ -210,6 +212,7 @@ describe('save', () => {
         'hotkey_profiles',
         'hotkeys',
         'learning',
+        'setup_assistant',
         'translation',
         'ui_lang',
       ].sort(),
@@ -414,5 +417,46 @@ describe('setConsent', () => {
     store.config.value.anki.deck_name = 'Other'
     await store.save()
     expect(sentConfig().consent).toEqual(granted)
+  })
+})
+
+describe('setSetupAssistant', () => {
+  it('keeps the closed assistant without dirtying the form, and a save sends it back unchanged', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', null)
+    const closed = { closed_at: '2026-11-05T09:30:00.000Z', finished: true }
+    store.setSetupAssistant(closed)
+    expect(store.dirty.value).toBe(false)
+    expect(store.saved.value.setup_assistant).toEqual(closed)
+    store.config.value.anki.deck_name = 'Other'
+    await store.save()
+    expect(sentConfig().setup_assistant).toEqual(closed)
+  })
+})
+
+describe('persist', () => {
+  it('saves one change on top of the saved settings, leaving other edits unsaved', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', null)
+    store.config.value.anki.deck_name = 'Unsaved deck'
+    const error = await store.persist((config) => (config.anki.model_name = 'Polywort'))
+    expect(error).toBeNull()
+    expect(sentConfig().anki.model_name).toBe('Polywort')
+    expect(sentConfig().anki.deck_name).toBe(backendConfig().anki.deck_name)
+    expect(store.saved.value.anki.model_name).toBe('Polywort')
+    expect(store.config.value.anki.model_name).toBe('Polywort')
+    expect(store.config.value.anki.deck_name).toBe('Unsaved deck')
+    expect(store.dirty.value).toBe(true)
+  })
+
+  it('resolves to the backend error and keeps the saved settings', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', () => {
+      throw 'The settings were not saved: disk full'
+    })
+    const error = await store.persist((config) => (config.anki.model_name = 'Polywort'))
+    expect(error).toBe('The settings were not saved: disk full')
+    expect(store.saved.value.anki.model_name).toBe(backendConfig().anki.model_name)
+    expect(store.config.value.anki.model_name).toBe(backendConfig().anki.model_name)
   })
 })

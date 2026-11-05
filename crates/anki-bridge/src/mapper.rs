@@ -626,10 +626,12 @@ fn parse_hsk_level(text: &str) -> Option<u8> {
 // ---------------------------------------------------------------------------
 // The recommended note type
 
-/// The name of the recommended note type, and the one place the product
-/// name appears in Rust; the settings form mirrors it (`RECOMMENDED_NOTE_TYPE`
-/// in `src/domain/fieldMapping.ts`, which its tests read from here).
-pub const RECOMMENDED_NOTE_TYPE: &str = "Vocabulary Automator";
+/// The name of the recommended note type: the product's name, Polywort.
+/// Before the app was renamed in 2026-11 it was "Vocabulary Automator"; no
+/// released build created that one, so nothing migrates it. The settings
+/// form mirrors it (`RECOMMENDED_NOTE_TYPE` in
+/// `src/domain/fieldMapping.ts`, which its tests read from here).
+pub const RECOMMENDED_NOTE_TYPE: &str = "Polywort";
 
 /// A note type to create, as [`AnkiClient::create_model`](crate::AnkiClient::create_model)
 /// takes it.
@@ -2932,7 +2934,7 @@ mod recommended_tests {
     #[test]
     fn the_note_type_has_its_fields_in_order_and_one_card() {
         let spec = recommended_note_type();
-        assert_eq!(spec.name, "Vocabulary Automator");
+        assert_eq!(spec.name, "Polywort");
         assert_eq!(spec.name, RECOMMENDED_NOTE_TYPE);
         assert_eq!(
             spec.fields,
