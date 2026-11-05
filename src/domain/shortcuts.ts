@@ -163,3 +163,27 @@ export function leavesTypingAlone(shortcut: Shortcut): boolean {
     shortcut.modifiers.some((modifier) => modifier !== 'shift') || FUNCTION_KEY.test(shortcut.key)
   )
 }
+
+const MAC_SYMBOLS: Record<Modifier, string> = { control: '⌃', alt: '⌥', shift: '⇧', super: '⌘' }
+const PC_NAMES: Record<Modifier, string> = {
+  control: 'Ctrl',
+  alt: 'Alt',
+  shift: 'Shift',
+  super: 'Win',
+}
+/** The order macOS menus and Windows list modifiers in. */
+const DISPLAY_ORDER: Modifier[] = ['control', 'alt', 'shift', 'super']
+
+/**
+ * `text` as the keyboard shows it, for instructions: `⇧⌘C` on macOS,
+ * `Ctrl+Shift+C` elsewhere. Text that does not parse is returned as it is.
+ */
+export function formatShortcut(text: string, isMac: boolean = IS_MAC): string {
+  const shortcut = parseShortcut(text, isMac)
+  if (!shortcut) return text
+  const key = /^(?:Key|Digit)(.)$/.exec(shortcut.key)?.[1] ?? shortcut.key
+  const modifiers = DISPLAY_ORDER.filter((modifier) => shortcut.modifiers.includes(modifier))
+  return isMac
+    ? modifiers.map((modifier) => MAC_SYMBOLS[modifier]).join('') + key
+    : [...modifiers.map((modifier) => PC_NAMES[modifier]), key].join('+')
+}

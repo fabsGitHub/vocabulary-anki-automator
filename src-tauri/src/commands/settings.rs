@@ -12,7 +12,8 @@ pub fn get_current_settings(state: State<'_, AppState>) -> AppConfig {
 
 /// Normalizes and validates `new_cfg`, saves it and re-registers every
 /// hotkey. Validation problems come back as one sentence per line and save
-/// nothing. `consent` is ignored: only `grant_consent` records consent.
+/// nothing. `consent` and `setup_assistant` are ignored: only `grant_consent`
+/// records consent, and only `close_setup_assistant` closes the assistant.
 /// Settings that saved but whose shortcuts the OS refused (another app owns
 /// them) are reported as an error too, so the form can say so.
 #[tauri::command]
@@ -28,8 +29,10 @@ pub fn apply_settings<R: Runtime>(
     let saved = state
         .update_config(|config| {
             let consent = std::mem::take(&mut config.consent);
+            let setup_assistant = std::mem::take(&mut config.setup_assistant);
             *config = AppConfig {
                 consent,
+                setup_assistant,
                 ..candidate
             };
             config.clone()

@@ -83,6 +83,8 @@ pub struct AppConfig {
     /// Languages the default hotkey detects among (empty = detection off,
     /// today's behaviour), each with its own deck and note type.
     pub learning: LearningConfig,
+    /// Written only by `close_setup_assistant`.
+    pub setup_assistant: SetupAssistantState,
 }
 
 /// One extra capture shortcut (Milestone H).
@@ -187,6 +189,18 @@ pub struct ConsentState {
     pub ankiconnect_provision_granted_at: Option<String>,
 }
 
+/// The first-run setup assistant. Until the user finishes or dismisses it,
+/// the settings window opens it at startup; it only ever shows and checks
+/// there, every install waits for a click.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SetupAssistantState {
+    /// When the user last closed it (RFC 3339 UTC); `None` = never.
+    pub closed_at: Option<String>,
+    /// Whether that was "Done" on its last step rather than a dismissal.
+    pub finished: bool,
+}
+
 /// An install action that needs the user's consent (the `action` argument of
 /// `grant_consent`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -239,6 +253,7 @@ impl Default for AppConfig {
             anki: AnkiConfig::default(),
             consent: ConsentState::default(),
             learning: LearningConfig::default(),
+            setup_assistant: SetupAssistantState::default(),
         }
     }
 }
@@ -371,8 +386,9 @@ impl AppConfig {
 
     /// Canonical spelling of everything that has one: language codes through
     /// `normalize_lang`, trimmed text, blank optional values as `None`, and
-    /// consent timestamps that do not parse as RFC 3339 dropped (a consent
-    /// must say when it was given). Applied on every load and save. Field
+    /// consent and setup-assistant timestamps that do not parse as RFC 3339
+    /// dropped (a consent must say when it was given; an unreadable close
+    /// opens the assistant again). Applied on every load and save. Field
     /// mappings stay exactly as given.
     pub fn normalize(&mut self) {
         self.ui_lang = self.ui_lang.trim().to_string();
@@ -416,6 +432,14 @@ impl AppConfig {
                     log::warn!("Ignoring a consent record with an unreadable timestamp: {value:?}");
                     *granted_at = None;
                 }
+            }
+        }
+
+        let assistant = &mut self.setup_assistant;
+        if let Some(value) = assistant.closed_at.as_deref() {
+            if DateTime::parse_from_rfc3339(value.trim()).is_err() {
+                log::warn!("Opening the setup assistant again: unreadable close time {value:?}");
+                *assistant = SetupAssistantState::default();
             }
         }
     }
@@ -591,6 +615,15 @@ impl ConsentState {
     }
 }
 
+impl SetupAssistantState {
+    /// Closed at `at` (RFC 3339 UTC with milliseconds), `finished` or
+    /// dismissed.
+    pub fn close(&mut self, finished: bool, at: DateTime<Utc>) {
+        self.closed_at = Some(at.to_rfc3339_opts(SecondsFormat::Millis, true));
+        self.finished = finished;
+    }
+}
+
 impl ConsentAction {
     /// The action as the subject of a sentence ("Installing Anki ...").
     pub fn describe(&self) -> &'static str {
@@ -719,6 +752,7 @@ struct ConfigFile<'a> {
     anki: AnkiFile<'a>,
     consent: &'a ConsentState,
     learning: &'a LearningConfig,
+    setup_assistant: &'a SetupAssistantState,
 }
 
 /// [`AnkiConfig`] in a [`ConfigFile`].
@@ -742,6 +776,7 @@ impl<'a> ConfigFile<'a> {
             anki,
             consent,
             learning,
+            setup_assistant,
         } = config;
         let AnkiConfig {
             connect_url,
@@ -765,6 +800,7 @@ impl<'a> ConfigFile<'a> {
             },
             consent,
             learning,
+            setup_assistant,
         }
     }
 }
@@ -948,7 +984,8 @@ mod tests {
                     "anki_install_granted_at": null,
                     "ankiconnect_provision_granted_at": null
                 },
-                "learning": { "languages": [] }
+                "learning": { "languages": [] },
+                "setup_assistant": { "closed_at": null, "finished": false }
             })
         );
         assert!(AppConfig::default().validate().is_ok());
@@ -1082,6 +1119,7 @@ mod tests {
             },
             consent: ConsentState::default(),
             learning: LearningConfig::default(),
+            setup_assistant: SetupAssistantState::default(),
         };
         assert_eq!(loaded, expected);
         assert!(loaded.learning.languages.is_empty());
@@ -1098,6 +1136,7 @@ mod tests {
                 "hotkey_profiles",
                 "hotkeys",
                 "learning",
+                "setup_assistant",
                 "translation",
                 "ui_lang",
                 "version"
@@ -1205,6 +1244,26 @@ mod tests {
         assert!(config
             .consent
             .is_granted(ConsentAction::AnkiconnectProvision));
+    }
+
+    #[test]
+    fn the_setup_assistant_opens_again_after_an_unreadable_close() {
+        let mut config = AppConfig::default();
+        config
+            .setup_assistant
+            .close(true, Utc.with_ymd_and_hms(2026, 11, 5, 9, 0, 0).unwrap());
+        config.normalize();
+        assert_eq!(
+            config.setup_assistant,
+            SetupAssistantState {
+                closed_at: Some("2026-11-05T09:00:00.000Z".into()),
+                finished: true,
+            }
+        );
+
+        config.setup_assistant.closed_at = Some("last week".into());
+        config.normalize();
+        assert_eq!(config.setup_assistant, SetupAssistantState::default());
     }
 
     #[test]

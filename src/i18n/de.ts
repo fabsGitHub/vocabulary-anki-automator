@@ -189,6 +189,15 @@ export const de: MessageSchema = {
     checksums: 'Erwartete SHA-256-Prüfsummen',
     agree: 'Zustimmen und installieren',
     cancel: 'Abbrechen',
+    titleBoth: 'Anki {version} und AnkiConnect installieren?',
+    ankiHeading: 'Anki {version}',
+    ankiconnectHeading: 'Das Add-on AnkiConnect',
+    planHeading: 'Nach den Downloads',
+    planLaunch: 'Polywort startet Anki und wartet, bis AnkiConnect antwortet.',
+    planNoteType:
+      'Gehen Ihre Karten nicht schon in einen Notiztyp, den Anki hat, legt es den Notiztyp „{name}“ in Ihrer Anki-Sammlung an und wählt ihn aus.',
+    planAccessibility:
+      'Es bittet macOS um die Bedienungshilfen-Berechtigung und öffnet die Systemeinstellungen, wo Sie Polywort einschalten.',
   },
   mapping: {
     title: 'Feldzuordnung',
@@ -378,12 +387,88 @@ export const de: MessageSchema = {
     hsk30:
       'Die offizielle HSK-3.0-Wortliste, nach der die Lesung jedes Worts gewählt wird. MIT-Lizenz.',
   },
+  assistant: {
+    open: 'Einrichtungsassistent',
+    title: 'Polywort einrichten',
+    intro: 'In wenigen Schritten zur ersten Karte. Erledigte Schritte sind abgehakt.',
+    dismiss: 'Assistent schließen',
+    everything: 'Alles einrichten',
+    everythingRunning: 'Wird eingerichtet…',
+    everythingHint:
+      'Installiert, was fehlt, sobald Sie den Downloads zustimmen, startet Anki, legt den Notiztyp an und fragt nach der Berechtigung. Oder gehen Sie die Schritte einzeln durch.',
+    checking: 'Es wird geprüft, was schon eingerichtet ist…',
+    stepOf: 'Schritt {number} von {total}: {title}',
+    skip: 'Schritt überspringen',
+    next: 'Weiter',
+    done: 'Fertig',
+    steps: {
+      anki: 'Anki installieren',
+      ankiconnect: 'AnkiConnect installieren',
+      running: 'Anki starten',
+      note_type: 'Notiztyp einrichten',
+      accessibility: 'Kopieren erlauben',
+      try: 'Ausprobieren',
+    },
+    anki: {
+      done: 'Anki ist installiert.',
+      body: 'Polywort fügt Ihre Karten in Anki Desktop ein, die kostenlose Lernkarten-App. Sie ist auf diesem Computer noch nicht installiert.',
+    },
+    ankiconnect: {
+      done: 'AnkiConnect ist installiert.',
+    },
+    running: {
+      done: 'Anki läuft, und AnkiConnect antwortet.',
+      body: 'Starten Sie Anki und lassen Sie es während der Erfassung geöffnet: Polywort erreicht Anki nur, solange es läuft. Dieser Schritt merkt von selbst, wenn Anki antwortet.',
+      restart:
+        'Anki lädt AnkiConnect nur beim Start. Ist Anki schon geöffnet, beenden Sie es ganz und starten Sie es neu.',
+      justInstalled:
+        'AnkiConnect wurde gerade installiert. Ist Anki geöffnet, beenden Sie es ganz und starten Sie es neu, damit es das Add-on lädt.',
+      firstStart:
+        'Beim ersten Start fragt Anki nach Ihrer Sprache und zeigt eventuell einen Willkommensbildschirm. Beantworten Sie beides; Polywort verbindet sich, sobald Anki bereit ist.',
+    },
+    noteType: {
+      offline: 'Starten Sie zuerst Anki: Der Notiztyp wird in Ihrer Anki-Sammlung eingerichtet.',
+      body: 'Karten brauchen einen Notiztyp mit einem Feld für alles, was sie enthalten: Wort, Übersetzung, Beispiel und seine Übersetzung, Aussprache, Pinyin, HSK-Stufe und Notizen. Der empfohlene Notiztyp „{name}“ hat sie alle; er wird in Anki angelegt und in den Einstellungen ausgewählt.',
+      done: 'Karten gehen in den Notiztyp „{model}“, den Anki hat.',
+      keep: 'Sie können ihn behalten oder zum empfohlenen Notiztyp „{name}“ wechseln, der für jeden Wert ein Feld hat.',
+      saveFailed:
+        'Der Notiztyp ist in Anki, aber die Einstellungen konnten nicht gespeichert werden: {error}',
+    },
+    accessibility: {
+      done: 'Polywort darf den markierten Text kopieren.',
+      body: 'Um den markierten Text zu kopieren, drückt Polywort für Sie Cmd+C. macOS erlaubt das nur Apps, die unter Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen eingeschaltet sind.',
+      open: 'Systemeinstellungen öffnen',
+      opening: 'Wird geöffnet…',
+      how: 'macOS fragt, ob Polywort diesen Computer steuern darf, und die Systemeinstellungen öffnen sich bei der Liste. Schalten Sie dort „Polywort“ ein; macOS fragt eventuell nach Ihrem Passwort.',
+      watching: 'Dieser Schritt merkt von selbst, sobald der Schalter an ist.',
+      staleTitle: 'Polywort ist eingeschaltet, aber dieser Schritt merkt es nicht?',
+      stale:
+        'Nach einem Update behält macOS manchmal einen veralteten Eintrag. Wählen Sie Polywort in der Liste aus, entfernen Sie es mit „−“, klicken Sie dann erneut auf „Systemeinstellungen öffnen“ und schalten Sie es ein.',
+      failed:
+        'Die Systemeinstellungen konnten nicht geöffnet werden: {error}. Öffnen Sie sie selbst: Datenschutz & Sicherheit → Bedienungshilfen.',
+    },
+    try: {
+      body: 'Markieren Sie das Wort unten (Doppelklick) und drücken Sie dann Ihren Hotkey {hotkey}.',
+      waiting: 'Warte auf Ihren Hotkey…',
+      success:
+        'Es funktioniert: Das Bestätigungsfenster zeigt Ihre Karte. Drücken Sie Enter, um sie zu Anki hinzuzufügen, oder Esc, um sie zu verwerfen.',
+      failed: 'Die Erfassung hat nicht funktioniert: {message}',
+      notAllowed:
+        'Polywort darf noch nicht kopieren: Schließen Sie zuerst den Schritt „{step}“ ab.',
+      restartHint:
+        'Haben Sie Polywort gerade erst unter Bedienungshilfen eingeschaltet, wendet macOS das eventuell erst nach einem Neustart von Polywort an.',
+      restart: 'Polywort neu starten',
+      restarting: 'Wird neu gestartet…',
+      anyApp:
+        'Ab jetzt funktioniert das in jeder App: Text markieren, {hotkey} drücken, Karte bestätigen.',
+    },
+  },
   help: {
     title: 'Einrichtung und Bedienung',
     close: 'Schließen',
     step1Title: '1. Anki und AnkiConnect installieren',
     step1Body:
-      'Installieren Sie auf dem Tab „Anki-Verbindung“, was fehlt, oder installieren Sie Anki selbst und fügen Sie AnkiConnect in Anki über Extras → Erweiterungen → Erweiterungen herunterladen mit dem Code 2055492159 hinzu. Starten Sie Anki danach neu.',
+      'Der Einrichtungsassistent („Einrichtungsassistent“ oben) führt Sie durch alles. Oder installieren Sie auf dem Tab „Anki-Verbindung“, was fehlt, oder installieren Sie Anki selbst und fügen Sie AnkiConnect in Anki über Extras → Erweiterungen → Erweiterungen herunterladen mit dem Code 2055492159 hinzu. Starten Sie Anki danach neu.',
     step2Title: '2. Anki geöffnet lassen',
     step2Body:
       'Die App spricht über AnkiConnect auf diesem Computer mit Anki. Karten, die Sie bestätigen, während Anki geschlossen ist, bleiben im Verlauf und lassen sich später übertragen.',

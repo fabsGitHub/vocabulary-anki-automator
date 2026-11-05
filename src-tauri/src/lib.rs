@@ -5,21 +5,23 @@
 //!
 //! Module map (contracts: docs/architecture.md § 8):
 //!
-//! | module      | milestone  | contents                                                    |
-//! |-------------|------------|-------------------------------------------------------------|
-//! | `config`    | B2, H      | `config.json`: shape, legacy migration, validation          |
-//! | `state`     | B3, F, N4  | runtime state and the injected services                     |
-//! | `capture`   | B3, D, H   | hotkey -> clipboard -> pipeline -> approval window          |
-//! | `detect`    | O          | lingua, ranking the learned Latin-script languages          |
-//! | `filing`    | O          | the mapping a card is pushed with, and what it would drop   |
-//! | `shortcuts` | H          | the default hotkey plus one per hotkey profile              |
-//! | `push`      | B3, F, J5  | save-then-push of approved cards, retry of unsynced ones     |
-//! | `setup`     | E          | consent-gated, pinned and verified Anki/AnkiConnect install |
-//! | `commands`  | all        | the IPC surface (§ 8.2)                                     |
+//! | module          | milestone | contents                                                    |
+//! |-----------------|-----------|-------------------------------------------------------------|
+//! | `config`        | B2, H     | `config.json`: shape, legacy migration, validation          |
+//! | `state`         | B3, F, N4 | runtime state and the injected services                     |
+//! | `capture`       | B3, D, H  | hotkey -> clipboard -> pipeline -> approval window          |
+//! | `detect`        | O         | lingua, ranking the learned Latin-script languages          |
+//! | `filing`        | O         | the mapping a card is pushed with, and what it would drop   |
+//! | `shortcuts`     | H         | the default hotkey plus one per hotkey profile              |
+//! | `push`          | B3, F, J5 | save-then-push of approved cards, retry of unsynced ones    |
+//! | `setup`         | E         | consent-gated, pinned and verified Anki/AnkiConnect install |
+//! | `accessibility` | assistant | the macOS Accessibility permission the copy keystroke needs |
+//! | `commands`      | all       | the IPC surface (§ 8.2)                                     |
 //!
 //! Startup only checks the Anki setup; nothing is downloaded, installed or
 //! launched until the user clicks (Milestone E).
 
+pub mod accessibility;
 pub mod capture;
 pub mod commands;
 pub mod config;
@@ -70,6 +72,9 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::setup::download_and_install_anki,
             commands::setup::auto_provision_ankiconnect,
             commands::setup::check_ankiconnect_installed,
+            commands::assistant::get_accessibility_status,
+            commands::assistant::request_accessibility,
+            commands::assistant::close_setup_assistant,
             commands::history::list_recent_captures,
             commands::history::delete_capture,
             commands::history::sync_pending_captures,

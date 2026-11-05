@@ -224,6 +224,7 @@ const ankiConfig = object({
   create_reverse: boolean,
   field_mapping: nullable(fieldMapping),
 })
+const setupAssistantState = object({ closed_at: nullable(instant), finished: boolean })
 const appConfig = object({
   ui_lang: string,
   hotkeys: string,
@@ -232,8 +233,10 @@ const appConfig = object({
   anki: ankiConfig,
   consent: consentState,
   learning: learningConfig,
+  setup_assistant: setupAssistantState,
 })
 const captureErrorPayload = object({ message: string })
+const accessibilityStatus = object({ required: boolean, trusted: boolean })
 
 const SCHEMAS = {
   ScriptMetadata: scriptMetadata,
@@ -271,6 +274,8 @@ const SCHEMAS = {
   AnkiConfig: ankiConfig,
   AppConfig: appConfig,
   CaptureErrorPayload: captureErrorPayload,
+  AccessibilityStatus: accessibilityStatus,
+  SetupAssistantState: setupAssistantState,
 }
 
 /** The interfaces of ./types.ts the schemas stand for, by name. */
@@ -310,6 +315,8 @@ interface Types {
   AnkiConfig: T.AnkiConfig
   AppConfig: T.AppConfig
   CaptureErrorPayload: T.CaptureErrorPayload
+  AccessibilityStatus: T.AccessibilityStatus
+  SetupAssistantState: T.SetupAssistantState
 }
 
 // A compile error here names the type whose schema differs from its interface.
@@ -345,6 +352,8 @@ interface Results {
   AutoMatch: T.AutoMatch
   RecommendedNoteType: T.RecommendedNoteType
   'FieldCheck | null': T.FieldCheck | null
+  AccessibilityStatus: T.AccessibilityStatus
+  SetupAssistantState: T.SetupAssistantState
   never: never
 }
 
@@ -367,6 +376,9 @@ const RETURNS = {
   downloadAndInstallAnki: 'string',
   autoProvisionAnkiconnect: 'string',
   checkAnkiconnectInstalled: 'boolean',
+  getAccessibilityStatus: 'AccessibilityStatus',
+  requestAccessibility: 'AccessibilityStatus',
+  closeSetupAssistant: 'SetupAssistantState',
   listRecentCaptures: 'StoredCapture[]',
   deleteCapture: 'boolean',
   syncPendingCaptures: 'SyncReport',
@@ -405,6 +417,9 @@ const CALLS: Record<Wrapper, () => Promise<unknown>> = {
   downloadAndInstallAnki: () => commands.downloadAndInstallAnki(),
   autoProvisionAnkiconnect: () => commands.autoProvisionAnkiconnect(),
   checkAnkiconnectInstalled: () => commands.checkAnkiconnectInstalled(),
+  getAccessibilityStatus: () => commands.getAccessibilityStatus(),
+  requestAccessibility: () => commands.requestAccessibility(),
+  closeSetupAssistant: () => commands.closeSetupAssistant(true),
   listRecentCaptures: () => commands.listRecentCaptures(50),
   deleteCapture: () => commands.deleteCapture(7),
   syncPendingCaptures: () => commands.syncPendingCaptures(),

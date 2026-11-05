@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { leavesTypingAlone, parseShortcut, shortcutId } from './shortcuts'
+import { formatShortcut, leavesTypingAlone, parseShortcut, shortcutId } from './shortcuts'
 
 const id = (text: string, isMac: boolean) => {
   const parsed = parseShortcut(text, isMac)
@@ -89,5 +89,22 @@ describe('leavesTypingAlone (the backend refuses the rest)', () => {
   ])('accepts %j', (text) => {
     expect(safe(text, false)).toBe(true)
     expect(safe(text, true)).toBe(true)
+  })
+})
+
+describe('formatShortcut', () => {
+  it('shows the default hotkey as the keyboard labels it', () => {
+    expect(formatShortcut('CommandOrControl+Shift+C', true)).toBe('⇧⌘C')
+    expect(formatShortcut('CommandOrControl+Shift+C', false)).toBe('Ctrl+Shift+C')
+  })
+
+  it('orders modifiers like the menus do, whatever order they were typed in', () => {
+    expect(formatShortcut('shift+alt+ctrl+Digit1', true)).toBe('⌃⌥⇧1')
+    expect(formatShortcut('Shift+Alt+F5', false)).toBe('Alt+Shift+F5')
+    expect(formatShortcut('Super+Space', false)).toBe('Win+Space')
+  })
+
+  it('leaves text it cannot parse alone', () => {
+    expect(formatShortcut('Ctrl+Shift', true)).toBe('Ctrl+Shift')
   })
 })

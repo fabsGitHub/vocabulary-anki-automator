@@ -38,11 +38,12 @@ use common::Harness;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Map, Value};
 use vocab_automator_lib::{
+    accessibility::AccessibilityStatus,
     capture::{CaptureErrorPayload, PendingCapture, PendingFiling},
     commands::anki::{AnkiStatus, RecommendedNoteType},
     config::{
         AnkiConfig, AppConfig, ConsentAction, ConsentState, HotkeyProfile, LearnedLanguage,
-        LearningConfig, TranslationConfig,
+        LearningConfig, SetupAssistantState, TranslationConfig,
     },
     filing::FieldCheck,
     push::{SubmitResult, SyncFailure, SyncReport},
@@ -149,6 +150,24 @@ const COMMANDS: &[(&str, &str, &[&str], &str)] = &[
         "check_ankiconnect_installed",
         &[],
         "boolean",
+    ),
+    (
+        "getAccessibilityStatus",
+        "get_accessibility_status",
+        &[],
+        "AccessibilityStatus",
+    ),
+    (
+        "requestAccessibility",
+        "request_accessibility",
+        &[],
+        "AccessibilityStatus",
+    ),
+    (
+        "closeSetupAssistant",
+        "close_setup_assistant",
+        &["finished"],
+        "SetupAssistantState",
     ),
     (
         "listRecentCaptures",
@@ -520,6 +539,14 @@ fn custom_config() -> AppConfig {
         learning: LearningConfig {
             languages: learned_languages(),
         },
+        setup_assistant: closed_assistant(),
+    }
+}
+
+fn closed_assistant() -> SetupAssistantState {
+    SetupAssistantState {
+        closed_at: Some("2026-11-05T09:30:00.000Z".into()),
+        finished: true,
     }
 }
 
@@ -872,6 +899,30 @@ fn shapes() -> Map<String, Value> {
             vec![json_of(AppConfig::default()), json_of(custom_config())],
         ),
         (
+            "AccessibilityStatus",
+            vec![
+                json_of(AccessibilityStatus {
+                    required: true,
+                    trusted: false,
+                }),
+                json_of(AccessibilityStatus {
+                    required: true,
+                    trusted: true,
+                }),
+                json_of(AccessibilityStatus {
+                    required: false,
+                    trusted: true,
+                }),
+            ],
+        ),
+        (
+            "SetupAssistantState",
+            vec![
+                json_of(SetupAssistantState::default()),
+                json_of(closed_assistant()),
+            ],
+        ),
+        (
             "CaptureErrorPayload",
             vec![json_of(CaptureErrorPayload {
                 message: "Nothing to capture: the selected text is empty.".into(),
@@ -929,6 +980,8 @@ fn conforms(returns: &str, value: &Value) -> Result<(), String> {
         "RecommendedNoteType" => exactly::<RecommendedNoteType>(value),
         "FieldCheck" => exactly::<FieldCheck>(value),
         "CaptureErrorPayload" => exactly::<CaptureErrorPayload>(value),
+        "AccessibilityStatus" => exactly::<AccessibilityStatus>(value),
+        "SetupAssistantState" => exactly::<SetupAssistantState>(value),
         other => Err(format!("no Rust type is known for {other}")),
     }
 }
@@ -1006,6 +1059,10 @@ fn run_every_command() -> (Results, Harness) {
     call("auto_provision_ankiconnect", json!({}));
     call("grant_consent", json!({ "action": "anki_install" }));
     call("check_ankiconnect_installed", json!({}));
+    // The assistant's Accessibility step: a check, then its button.
+    call("get_accessibility_status", json!({}));
+    call("request_accessibility", json!({}));
+    call("close_setup_assistant", json!({ "finished": true }));
     call("list_recent_captures", json!({ "limit": 10 }));
     call("sync_pending_captures", json!({}));
     call("delete_capture", json!({ "id": submitted["capture_id"] }));
@@ -1037,6 +1094,11 @@ fn run_every_command() -> (Results, Harness) {
     assert!(
         harness.downloader.requests().is_empty(),
         "nothing was downloaded"
+    );
+    assert_eq!(
+        harness.accessibility.calls(),
+        ["prompt", "open_settings"],
+        "only the button asked for the permission"
     );
     assert!(
         harness.runner.calls().len() <= 1,

@@ -10,6 +10,7 @@
 import { invoke } from '@tauri-apps/api/core'
 
 import type {
+  AccessibilityStatus,
   AnkiStatus,
   AppConfig,
   AutoMatch,
@@ -19,6 +20,7 @@ import type {
   FieldCheck,
   PendingCapture,
   RecommendedNoteType,
+  SetupAssistantState,
   SetupStatus,
   StoredCapture,
   SubmitResult,
@@ -125,6 +127,21 @@ export function autoProvisionAnkiconnect(): Promise<string> {
 
 export function checkAnkiconnectInstalled(): Promise<boolean> {
   return invoke<boolean>('check_ankiconnect_installed')
+}
+
+/** `AXIsProcessTrusted()` on macOS; asks nothing, so it may be polled. */
+export function getAccessibilityStatus(): Promise<AccessibilityStatus> {
+  return invoke<AccessibilityStatus>('get_accessibility_status')
+}
+
+/** Adds Polywort to macOS's Accessibility list with the system alert and opens that list. */
+export function requestAccessibility(): Promise<AccessibilityStatus> {
+  return invoke<AccessibilityStatus>('request_accessibility')
+}
+
+/** Stops the setup assistant from opening at startup; `finished`: "Done" rather than dismissed. */
+export function closeSetupAssistant(finished: boolean): Promise<SetupAssistantState> {
+  return invoke<SetupAssistantState>('close_setup_assistant', { finished })
 }
 
 /** Newest first; `audio_front` is not included. */

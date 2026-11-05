@@ -165,6 +165,22 @@ export interface SetupStatus {
   consent: ConsentState
 }
 
+/** The macOS Accessibility permission the copy keystroke needs. */
+export interface AccessibilityStatus {
+  /** `false` where no permission is needed (Windows, Linux): the assistant hides its step. */
+  required: boolean
+  /** `AXIsProcessTrusted()`; always `true` when not `required`. */
+  trusted: boolean
+}
+
+/** The first-run setup assistant; it opens at startup until `closed_at` is set. */
+export interface SetupAssistantState {
+  /** RFC 3339; `null` = never closed. */
+  closed_at: string | null
+  /** Closed with "Done" on its last step rather than dismissed. */
+  finished: boolean
+}
+
 /** Learn's daily queue entry (§ 11); unused by the Automator, mirrored for completeness. */
 export type QueueItem =
   | { kind: 'review'; card_id: number; due_date: string }
@@ -298,6 +314,8 @@ export interface AppConfig {
   anki: AnkiConfig
   consent: ConsentState
   learning: LearningConfig
+  /** Written only by `close_setup_assistant`; `apply_settings` ignores it. */
+  setup_assistant: SetupAssistantState
 }
 
 /** Payload of the app-wide `capture-error` event. */
