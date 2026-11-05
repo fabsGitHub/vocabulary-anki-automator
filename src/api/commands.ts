@@ -1,0 +1,188 @@
+/**
+ * Typed wrappers around every Automator command (docs/architecture.md § 8.2).
+ *
+ * This is the only module that calls `invoke`: command names and the
+ * camelCase argument names Tauri maps onto the Rust parameters exist here and
+ * nowhere else, so a change to the IPC surface is a change to this file.
+ * Commands reject with the backend's error string; see {@link errorMessage}.
+ */
+
+import { invoke } from '@tauri-apps/api/core'
+
+import type {
+  AccessibilityStatus,
+  AnkiStatus,
+  AppConfig,
+  AutoMatch,
+  Card,
+  ConsentAction,
+  ConsentState,
+  FieldCheck,
+  PendingCapture,
+  RecommendedNoteType,
+  SetupAssistantState,
+  SetupStatus,
+  StoredCapture,
+  SubmitResult,
+  SyncReport,
+} from './types'
+
+export function getCurrentSettings(): Promise<AppConfig> {
+  return invoke<AppConfig>('get_current_settings')
+}
+
+/** Validates, saves and re-registers the shortcuts; rejects with the validation error. */
+export function applySettings(newCfg: AppConfig): Promise<null> {
+  return invoke<null>('apply_settings', { newCfg })
+}
+
+export function getPendingPayload(): Promise<PendingCapture | null> {
+  return invoke<PendingCapture | null>('get_pending_payload')
+}
+
+/** Forgets the pending capture and hides the `preview` window. */
+export function discardPendingPayload(): Promise<null> {
+  return invoke<null>('discard_pending_payload')
+}
+
+/** Saves `card` to the local history first, then pushes it to Anki. */
+export function executeCardGeneration(card: Card): Promise<SubmitResult> {
+  return invoke<SubmitResult>('execute_card_generation', { card })
+}
+
+/** Runs the capture pipeline on `text` as if the hotkey had copied it. */
+export function captureText(text: string, profileId: string | null): Promise<null> {
+  return invoke<null>('capture_text', { text, profileId })
+}
+
+/**
+ * Captures the pending card's `text` (the edited front) again as `sourceLang`
+ * and returns the new pending capture, which also arrives as `translation-payload`.
+ * `generation` is the capture shown; the backend refuses when another one is pending.
+ */
+export function rerunPendingCapture(
+  sourceLang: string,
+  text: string,
+  generation: number,
+): Promise<PendingCapture> {
+  return invoke<PendingCapture>('rerun_pending_capture', { sourceLang, text, generation })
+}
+
+export function ankiStatus(): Promise<AnkiStatus> {
+  return invoke<AnkiStatus>('anki_status')
+}
+
+export function ankiModelFieldNames(model: string): Promise<string[]> {
+  return invoke<string[]>('anki_model_field_names', { model })
+}
+
+/** Binds every field of note type `model` by its name, for cards `sourceLang` -> `targetLang`. */
+export function suggestFieldMapping(
+  model: string,
+  sourceLang: string,
+  targetLang: string,
+): Promise<AutoMatch> {
+  return invoke<AutoMatch>('suggest_field_mapping', { model, sourceLang, targetLang })
+}
+
+/**
+ * What a push of the pending card would drop, checked with `card` (the edited
+ * card; the pending one when omitted); `null` when nothing is pending. Reads from Anki only.
+ */
+export function checkPendingFields(card?: Card): Promise<FieldCheck | null> {
+  return invoke<FieldCheck | null>('check_pending_fields', { card: card ?? null })
+}
+
+/**
+ * Creates the recommended note type in Anki, or reuses one of that name with
+ * every field; rejects for one with other fields, which stays as it is.
+ * Writes to the user's Anki collection: only a click may call it.
+ */
+export function createRecommendedNoteType(): Promise<RecommendedNoteType> {
+  return invoke<RecommendedNoteType>('create_recommended_note_type')
+}
+
+export function launchAnkiDesktop(): Promise<string> {
+  return invoke<string>('launch_anki_desktop')
+}
+
+export function getSetupStatus(): Promise<SetupStatus> {
+  return invoke<SetupStatus>('get_setup_status')
+}
+
+/** Records the user's consent to one install action (§ 8.4). */
+export function grantConsent(action: ConsentAction): Promise<ConsentState> {
+  return invoke<ConsentState>('grant_consent', { action })
+}
+
+/** Fails unless `grant_consent('anki_install')` succeeded first. */
+export function downloadAndInstallAnki(): Promise<string> {
+  return invoke<string>('download_and_install_anki')
+}
+
+/** Fails unless `grant_consent('ankiconnect_provision')` succeeded first. */
+export function autoProvisionAnkiconnect(): Promise<string> {
+  return invoke<string>('auto_provision_ankiconnect')
+}
+
+export function checkAnkiconnectInstalled(): Promise<boolean> {
+  return invoke<boolean>('check_ankiconnect_installed')
+}
+
+/** `AXIsProcessTrusted()` on macOS; asks nothing, so it may be polled. */
+export function getAccessibilityStatus(): Promise<AccessibilityStatus> {
+  return invoke<AccessibilityStatus>('get_accessibility_status')
+}
+
+/** Adds Polywort to macOS's Accessibility list with the system alert and opens that list. */
+export function requestAccessibility(): Promise<AccessibilityStatus> {
+  return invoke<AccessibilityStatus>('request_accessibility')
+}
+
+/** Stops the setup assistant from opening at startup; `finished`: "Done" rather than dismissed. */
+export function closeSetupAssistant(finished: boolean): Promise<SetupAssistantState> {
+  return invoke<SetupAssistantState>('close_setup_assistant', { finished })
+}
+
+/** Newest first; `audio_front` is not included. */
+export function listRecentCaptures(limit: number): Promise<StoredCapture[]> {
+  return invoke<StoredCapture[]>('list_recent_captures', { limit })
+}
+
+/** `false` when no capture had this id. */
+export function deleteCapture(id: number): Promise<boolean> {
+  return invoke<boolean>('delete_capture', { id })
+}
+
+export function syncPendingCaptures(): Promise<SyncReport> {
+  return invoke<SyncReport>('sync_pending_captures')
+}
+
+/** Whether a capture is running or waiting for approval. */
+export function captureInProgress(): Promise<boolean> {
+  return invoke<boolean>('capture_in_progress')
+}
+
+/** Restarts the app; the promise never settles on success. */
+export function restartApp(): Promise<never> {
+  return invoke<never>('restart_app')
+}
+
+/**
+ * A human-readable message for a rejected command. Tauri commands reject with
+ * the `String` of their `Result`, but a panic or a typed error arrives as an
+ * `Error` or an object.
+ */
+export function errorMessage(err: unknown): string {
+  if (typeof err === 'string') return err
+  if (err instanceof Error) return err.message
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message: unknown }).message
+    if (typeof message === 'string') return message
+  }
+  try {
+    return JSON.stringify(err) ?? String(err)
+  } catch {
+    return String(err)
+  }
+}

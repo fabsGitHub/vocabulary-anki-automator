@@ -1,0 +1,63 @@
+{
+  "responseData": { "translatedText": "Serendipit\u00e4t", "match": 0.98 },
+  "quotaFinished": false,
+  "mtLangSupported": null,
+  "responseDetails": "",
+  "responseStatus": 200,
+  "responderId": null,
+  "exception_code": null,
+  "matches": [
+    {
+      "id": "434560509",
+      "segment": "Serendipity",
+      "translation": "Serendipit\u00e4t",
+      "source": "en-GB",
+      "target": "de-DE",
+      "quality": 0,
+      "reference": null,
+      "usage-count": 2,
+      "subject": "All",
+      "created-by": "Wikipedia",
+      "last-updated-by": "Wikipedia",
+      "create-date": "2013-08-05 00:59:39",
+      "last-update-date": "2013-08-05 00:59:39",
+      "match": 0.98,
+      "penalty": 0
+    },
+    {
+      "id": 0,
+      "segment": "serendipity",
+      "translation": "serendipity",
+      "source": "en-GB",
+      "target": "de-DE",
+      "quality": 70,
+      "reference": "Machine Translation.",
+      "usage-count": 2,
+      "subject": false,
+      "created-by": "MT!",
+      "last-updated-by": "MT!",
+      "create-date": "2026-10-31 00:40:44",
+      "last-update-date": "2026-10-31 00:40:44",
+      "match": 0.85,
+      "penalty": null,
+      "model": "neural"
+    },
+    {
+      "id": "591605141",
+      "segment": "Serendipity (3)",
+      "translation": "Serendipity (3)",
+      "source": "en-GB",
+      "target": "de-DE",
+      "quality": "0",
+      "reference": null,
+      "usage-count": 2,
+      "subject": "All",
+      "created-by": "Public_Corpora",
+      "last-updated-by": "Public_Corpora",
+      "create-date": "2018-02-13 12:20:53",
+      "last-update-date": "2018-02-13 12:20:53",
+      "match": 0.8,
+      "penalty": 0
+    }
+  ]
+}

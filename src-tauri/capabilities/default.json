@@ -1,13 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Settings window: listen for the app's events (capture-error, captures-changed) and check, download and install updates (useUpdater: check, Update.download, Update.install, Update.close). The app's own commands need no permission.",
   "windows": ["main"],
   "permissions": [
-    "core:default",
-    "opener:default",
-    "updater:default",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:resources:allow-close",
     "updater:allow-check",
-    "updater:allow-download-and-install"
+    "updater:allow-download",
+    "updater:allow-install"
   ]
 }

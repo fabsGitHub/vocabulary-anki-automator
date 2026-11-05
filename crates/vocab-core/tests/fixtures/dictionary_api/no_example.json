@@ -1,0 +1,35 @@
+[
+  {
+    "word": "hello",
+    "phonetics": [{ "text": "/həˈləʊ/", "audio": "" }],
+    "meanings": [
+      {
+        "partOfSpeech": "noun",
+        "definitions": [
+          {
+            "definition": "\"Hello!\" or an equivalent greeting.",
+            "synonyms": [],
+            "antonyms": []
+          }
+        ],
+        "synonyms": ["greeting"],
+        "antonyms": []
+      },
+      {
+        "partOfSpeech": "verb",
+        "definitions": [
+          {
+            "definition": "To greet with \"hello\".",
+            "synonyms": [],
+            "antonyms": [],
+            "example": "  "
+          }
+        ],
+        "synonyms": [],
+        "antonyms": []
+      }
+    ],
+    "license": { "name": "CC BY-SA 3.0", "url": "https://creativecommons.org/licenses/by-sa/3.0" },
+    "sourceUrls": ["https://en.wiktionary.org/wiki/hello"]
+  }
+]

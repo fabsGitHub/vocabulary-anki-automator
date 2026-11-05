@@ -1,0 +1,340 @@
+{
+  "meta": {
+    "title": "Polywort – Anki cards from any text",
+    "description": "Select a word in any app, press a hotkey, check the card and add it to Anki. With translation, pronunciation and language recognition. For macOS.",
+    "ogTitle": "Polywort",
+    "ogDescription": "Select a word anywhere, press your hotkey, approve the card. It lands in Anki.",
+    "ogImageAlt": "The Polywort approval window with a card for the word “reluctant”"
+  },
+  "nav": {
+    "skip": "Skip to content",
+    "label": "Main",
+    "how": "How it works",
+    "features": "Features",
+    "data": "Your data",
+    "requirements": "Requirements",
+    "download": "Download",
+    "faq": "FAQ",
+    "langSwitch": "Deutsch",
+    "langSwitchAria": "Diese Seite auf Deutsch",
+    "menu": "Menu",
+    "github": "GitHub",
+    "githubAria": "Source code on GitHub"
+  },
+  "hero": {
+    "eyebrow": "Desktop app for Anki",
+    "title_html": "Turn the <span class=\"hero-selection\">words</span> you read into Anki cards.",
+    "subline_html": "Select a word or phrase in any app and press <kbd>⇧⌘C</kbd> (Shift-Command-C). Polywort looks up the translation and the pronunciation and shows you the finished card. Press <kbd>Enter</kbd>, and it is in your deck.",
+    "cta": "Download for macOS",
+    "meta": "Version\u00a0{version}\u00a0· Preview\u00a0· Apple Silicon and Intel",
+    "ctaFallback": "GitHub Releases",
+    "metaFallback": "The macOS download is not available yet.",
+    "secondary": "How it works",
+    "source": "Source code on GitHub",
+    "note": "Windows and Linux follow with the first official release.",
+    "mobileNote": "Polywort is a desktop app. Open this page on your Mac to download it."
+  },
+  "mock": {
+    "label": "Illustration of the approval window",
+    "description": "The approval window with a card for the English word “reluctant”: the language chips “English” (selected) and “French”, “→ German”, the deck “English”, the note type “Polywort”, the back “widerwillig”, an example sentence with its German translation, a button that plays the pronunciation and the buttons “Discard” and “Add to Anki”.",
+    "title": "New card",
+    "langActive": "English",
+    "langOther": "French",
+    "target": "→ German",
+    "deck": "Deck: English",
+    "model": "Note type: Polywort",
+    "front": "Front (word)",
+    "frontValue": "reluctant",
+    "back": "Back (translation)",
+    "backValue": "widerwillig",
+    "example": "Example sentence",
+    "exampleValue": "He was reluctant to admit his mistake.",
+    "exampleTarget": "Example translation",
+    "exampleTargetValue": "Er gab seinen Fehler nur widerwillig zu.",
+    "notes": "Notes",
+    "hint": "Enter adds the card, Esc discards it, Shift+Enter starts a new line.",
+    "discard": "Discard",
+    "approve": "Add to Anki"
+  },
+  "how": {
+    "title": "How it works",
+    "s1": {
+      "title": "Select and press the hotkey",
+      "body_html": "Select a word or phrase in any app you can copy text from and press <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Shift-Command-C</span>. The app copies the selection and then puts your previous clipboard text back."
+    },
+    "s2": {
+      "title": "The card fills itself in",
+      "body": "The app recognizes which of your languages the text is in, translates it and adds the pronunciation. English words also get an example sentence. Chinese gets pinyin and the HSK level."
+    },
+    "s3": {
+      "title": "You check it",
+      "body_html": "The approval window shows the card. Change whatever you like, then press <kbd>Enter</kbd> to add it or <kbd>Esc</kbd> to discard it."
+    },
+    "s4": {
+      "title": "It lands in Anki",
+      "body": "The card is saved to the local history and sent through AnkiConnect to the deck of its language, with a reverse card (on by default except for Chinese; it can be switched off per language). If Anki is closed, the card waits in the history until you sync it."
+    }
+  },
+  "features": {
+    "title": "What it does",
+    "f1": {
+      "title": "Works in any app you can copy from",
+      "body": "One global hotkey, wherever you read. Close the settings window and the app keeps running in the menu bar, with the hotkey still active."
+    },
+    "f2": {
+      "title": "You approve every card",
+      "body": "Nothing goes to Anki until you press “Add to Anki”. Every field can be edited first, and the pronunciation is recorded again if you change the word."
+    },
+    "f3": {
+      "title": "Recognizes your languages",
+      "body": "Under “My languages”, list what you learn: English, German, French, Spanish, Italian or Chinese. The hotkey recognizes which one the text is in, without an internet connection. If a short word such as “message” could be English or French, the window marks its guess, and one click switches the language.",
+      "visualLabel": "Illustration: the language chips “English?” and “French” next to “→ German”, with the hint shown when the language is unsure",
+      "chipActive": "English?",
+      "chipOther": "French",
+      "target": "→ German",
+      "hint": "This could be more than one of your languages. It was read as English. If that is wrong, choose the right language: translation, example, pronunciation and deck are fetched again."
+    },
+    "f4": {
+      "title": "Every language in its own deck",
+      "body": "Each language has its own deck, note type and reverse-card setting. Until you assign the fields yourself, they are matched by their names: “Audio” gets the pronunciation, “English Sentence” the English example. If none of your note types fits, one click creates “Polywort”, with a field for everything a card holds."
+    },
+    "f5": {
+      "title": "Warns before anything gets lost",
+      "body": "Before you approve, the window lists every value the note type would drop, such as audio without a matching field. If a service fails, the card is still created, a warning says what is missing, and you can type it in yourself.",
+      "visualLabel": "Illustration: the warning “Not everything would reach Anki” for a pronunciation without a field",
+      "lostTitle": "Not everything would reach Anki:",
+      "lostItem": "Pronunciation: no field of “Basic” is chosen for the audio."
+    },
+    "f6": {
+      "title": "Chinese with pinyin and HSK level",
+      "body": "Text with Chinese characters is always captured as Chinese. Pinyin with tone marks and the HSK\u00a03.0 level come from a bundled list of 10,969\u00a0words. Words outside the list still get pinyin.",
+      "visualLabel": "Illustration: the word 银行 with the pinyin yín háng and the level HSK\u00a02",
+      "front": "Front (word)",
+      "hanzi": "银行",
+      "pinyinLabel": "Pinyin",
+      "pinyin": "yín háng",
+      "hsk": "HSK\u00a02"
+    },
+    "f7": {
+      "title": "Works when Anki is closed",
+      "body": "Every approved card is saved to a local history first. If Anki is not running, the card stays there as “Not in Anki yet”, and “Sync pending to Anki” sends it later."
+    },
+    "f8": {
+      "title": "Rare words flagged",
+      "body": "A single English word that is rare gets a note saying so, with a more common synonym when Datamuse knows one."
+    },
+    "f9": {
+      "title": "More hotkeys, more language pairs",
+      "body": "Hotkey profiles add shortcuts with a fixed language pair and, if you like, a deck of their own."
+    },
+    "f10": {
+      "title": "Anki setup included",
+      "body": "If Anki or the AnkiConnect add-on is missing, the app can install it, but only after you agree in a dialog that says what is downloaded, from where and how it is checked. Both downloads are pinned to a fixed version and verified by SHA-256 before anything is installed."
+    }
+  },
+  "data": {
+    "title": "What happens to your data",
+    "intro": "Polywort has no account and no server of its own. Your cards, your history and your settings stay on your Mac. To fill in a card, the app sends the captured text to the services in this table. Apart from these requests, nothing leaves your Mac.",
+    "caption": "Requests the app sends, and when",
+    "colWhat": "What is sent",
+    "colTo": "To",
+    "colWhen": "When",
+    "r1": {
+      "what": "The captured text and the language pair, plus your contact e-mail if you entered one",
+      "to_html": "<a href=\"{mymemoryUrl}\">MyMemory</a> <code>api.mymemory.translated.net</code>",
+      "when": "Every capture, for the translation"
+    },
+    "r2": {
+      "what": "The captured text and its language",
+      "to_html": "Google Text-to-Speech <code>translate.google.com</code>",
+      "when": "Every capture, for the pronunciation. Again when you approve a card whose word you changed"
+    },
+    "r3": {
+      "what": "The translation and its language",
+      "to_html": "Google Text-to-Speech <code>translate.google.com</code>",
+      "when": "When a reverse card is also sent to Anki, for its pronunciation"
+    },
+    "r4": {
+      "what": "English text",
+      "to_html": "dictionaryapi.dev <code>api.dictionaryapi.dev</code>",
+      "when": "English captures, for an example sentence"
+    },
+    "r5": {
+      "what": "A single English word",
+      "to_html": "Datamuse <code>api.datamuse.com</code>",
+      "when": "Single English words, for the rarity check and a synonym"
+    },
+    "r6": {
+      "what": "The example sentence and the language pair, plus your contact e-mail if you entered one",
+      "to_html": "<a href=\"{mymemoryUrl}\">MyMemory</a> <code>api.mymemory.translated.net</code>",
+      "when": "When a card has an example sentence, for its translation"
+    },
+    "r7": {
+      "what": "A request for the newest version number, with no captured text",
+      "to_html": "GitHub <code>github.com</code> and its download server",
+      "when": "About 10\u00a0seconds after the settings window opens"
+    },
+    "r8": {
+      "what": "Download requests for Anki or AnkiConnect",
+      "to_html": "GitHub <code>github.com</code>, its download server and <code>raw.githubusercontent.com</code>",
+      "when": "Only when you install them from the app and agree"
+    },
+    "n1": {
+      "title": "Stays on your Mac:",
+      "body": "language recognition, pinyin and HSK level, your history and your settings. AnkiConnect also runs on your Mac (127.0.0.1)."
+    },
+    "n2": {
+      "title": "Switching the language:",
+      "body": "when you choose another language in the approval window, the card is fetched again, with the same requests."
+    },
+    "n3": {
+      "title": "Please do not capture passwords or other private text.",
+      "body": "Everything you capture goes to the services above."
+    },
+    "n4": {
+      "title": "Where your data lives:",
+      "body_html": "the history is in <code>~/Library/Application Support/VocabularyAutomator/vocab.sqlite3</code>, the settings are in <code>~/Library/Application Support/com.ankiautomator.app/config.json</code>, and the app’s log is in <code>~/Library/Logs/com.ankiautomator.app</code>."
+    }
+  },
+  "req": {
+    "title": "What you need",
+    "i1": {
+      "title": "A Mac",
+      "body": "With Apple Silicon or Intel. Polywort is developed on macOS\u00a026\u00a0Tahoe. Older macOS versions have not been tested yet."
+    },
+    "i2": {
+      "title_html": "<a href=\"{ankiUrl}\">Anki Desktop</a>",
+      "body_html": "With the <strong>AnkiConnect</strong> add-on (code 2055492159). Cards reach Anki while it is open; otherwise they wait in the history. The app can install both for you."
+    },
+    "i3": {
+      "title": "The Accessibility permission",
+      "body_html": "So the hotkey can copy your selection. <a href=\"#install\">The steps are below.</a>"
+    },
+    "i4": {
+      "title": "An internet connection",
+      "body": "For translation, pronunciation and example sentences."
+    }
+  },
+  "download": {
+    "title": "Download & install",
+    "yourSystem": "Your system",
+    "macTitle": "Polywort {version} for macOS",
+    "macMeta": "Disk image (.dmg)\u00a0· Apple Silicon and Intel",
+    "macButton": "Download .dmg",
+    "macFallback": "The macOS download is not available yet.",
+    "macFallbackButton": "GitHub Releases",
+    "checksumLabel": "SHA-256",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyAria": "Copy the SHA-256 checksum",
+    "checksumHelp_html": "To check the file, run <code>shasum -a 256 ~/Downloads/{dmgFile}</code> in Terminal and compare the result with the value above.",
+    "otherTitle": "Windows and Linux",
+    "otherBody": "Versions for Windows and Linux will be available with the first official release on GitHub Releases. There is no date yet.",
+    "otherLink": "GitHub Releases",
+    "previewTitle": "Preview build",
+    "previewBody": "This is a preview build. Apple has not notarized it, because the project does not have an Apple Developer ID yet. That is why macOS warns you the first time you open it. The steps below take you past that warning and set up the one permission the app needs.",
+    "stepsTitle": "Install and set up",
+    "s1": {
+      "title": "Install",
+      "body": "Open the downloaded .dmg and drag Polywort into the Applications folder."
+    },
+    "s2": {
+      "title": "Open it for the first time",
+      "sequoia_html": "<em>macOS\u00a015\u00a0Sequoia and later:</em> Double-click Polywort in Applications. macOS says it could not verify the app. Click <strong>Done</strong>. Open <strong>System Settings > Privacy &amp; Security</strong>, scroll down to <strong>Security</strong> and click <strong>Open Anyway</strong> next to the message about Polywort. Confirm with <strong>Open Anyway</strong> and your password or Touch\u00a0ID.",
+      "sonoma_html": "<em>macOS\u00a014\u00a0Sonoma and earlier:</em> Control-click Polywort in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> in the dialog.",
+      "once": "You need to do this only once per version."
+    },
+    "s3": {
+      "title": "Let the hotkey copy text",
+      "body_html": "The hotkey copies your selection with a simulated <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span>, which macOS allows only with the Accessibility permission. The app does not ask for it by itself. Open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, click <strong>+</strong>, choose Polywort in Applications and turn its switch on. If the settings window is open, it shows a short message that points here. If the hotkey seems to do nothing, check this permission first. If a capture still copies nothing, quit the app (menu bar icon > Quit) and open it again."
+    },
+    "s4": {
+      "title": "Connect Anki",
+      "body_html": "In Polywort, open the <strong>“Anki connection”</strong> tab. It shows what is missing and, if you agree, installs <a href=\"{ankiUrl}\">Anki</a> or AnkiConnect for you. After installing AnkiConnect, restart Anki, and keep it open while you capture. With Anki running, click <strong>“Create the recommended note type”</strong> under the note type: it adds the note type “Polywort” to Anki, with a field for everything a card holds, and selects it. Then save the settings. The app’s language (English or German) is set at the top right of the settings window."
+    },
+    "s5": {
+      "title": "Add your languages",
+      "body_html": "On <strong>“My languages”</strong>, add each language you learn and choose its deck and note type. A new language starts with the note type from the “Anki connection” tab, so after step\u00a04 that is “Polywort”. A deck that does not exist yet is created with the first card. Your own language, the one cards are translated into, is set on <strong>“Capture &amp; Language”</strong>."
+    },
+    "s6": {
+      "title": "Try it",
+      "body_html": "Select a word anywhere and press <kbd aria-hidden=\"true\">⇧⌘C</kbd><span class=\"visually-hidden\">Shift-Command-C</span>. Or type a word under <strong>“Try a capture”</strong> on the “Capture &amp; Language” tab."
+    },
+    "updateTitle": "Updating the preview",
+    "updateBody_html": "The preview does not update itself. To update, download the new version from this page, quit Polywort (menu bar icon > Quit) and replace the app in Applications. Your settings and history are kept. macOS may show the warning from step 2 again. macOS also treats each new preview build as a different app, so open <strong>System Settings > Privacy &amp; Security > Accessibility</strong>, remove the old Polywort entry with <strong>−</strong> and add the new one with <strong>+</strong>. If the app shows “Version … is available – restart to update”, its button cannot install the preview: download the new version from this page instead.",
+    "knowTitle": "Good to know before you install",
+    "k1": "Example sentences exist for English so far. Chinese cards get a simple template sentence, and French, German, Spanish and Italian cards get none yet.",
+    "k2": "Translations come from a free translation service. Check them before you approve.",
+    "k3": "Captures are limited to 100\u00a0characters, and you can raise that to 500 in the settings.",
+    "k4": "The app only adds to Anki: new cards, the decks they go into if those do not exist yet, and the note type “Polywort” when you click its button. It never changes or deletes your existing notes or note types.",
+    "k5": "The preview is not notarized and does not update itself."
+  },
+  "faq": {
+    "title": "Frequently asked questions",
+    "q1": {
+      "q": "What does it cost?",
+      "a_html": "Nothing. The preview is a free download, and the services it uses for translation, pronunciation and example sentences work without an account or payment."
+    },
+    "q2": {
+      "q": "What is Anki?",
+      "a_html": "<a href=\"{ankiUrl}\">Anki</a> is a free flashcard program that shows each card again shortly before you would forget it. Polywort adds the cards; you review them in Anki."
+    },
+    "q3": {
+      "q": "Do I need an account or an API key?",
+      "a_html": "No. The translation service, MyMemory, works without a key. MyMemory allows about 5,000\u00a0characters a day anonymously. If you add a contact e-mail under “Capture &amp; Language”, it allows about 50,000. The address goes to MyMemory only."
+    },
+    "q4": {
+      "q": "Why does macOS warn me when I open the app?",
+      "a_html": "The preview build is not notarized by Apple yet, so macOS cannot verify it. Follow step 2 under <a href=\"#install\">“Download &amp; install”</a> once, and the app opens normally from then on."
+    },
+    "q5": {
+      "q": "Why does the app need the Accessibility permission?",
+      "a_html": "To copy your selection, the hotkey sends <kbd aria-hidden=\"true\">⌘C</kbd><span class=\"visually-hidden\">Command-C</span> to the app you are reading in, and macOS allows that only with the Accessibility permission. Polywort uses it for nothing else."
+    },
+    "q6": {
+      "q": "What happens if Anki is closed?",
+      "a_html": "The card is saved to the history anyway and marked “Not in Anki yet”. Once Anki is running again, click “Sync pending to Anki” on the History tab."
+    },
+    "q7": {
+      "q": "Does it work without an internet connection?",
+      "a_html": "Partly. Language recognition, pinyin and the HSK level work offline. Without a connection, the translation, the example’s translation and the pronunciation stay empty (English and Chinese cards still get a template example sentence), a warning says so, and you can type the values in yourself."
+    },
+    "q8": {
+      "q": "Which languages are supported?",
+      "a_html": "English, German, French, Spanish, Italian and Chinese (Simplified), in any pair. The hotkey recognizes the language among those you list under “My languages”. For other text it uses the source language set on “Capture &amp; Language”."
+    },
+    "q9": {
+      "q": "Which note type should I use?",
+      "a_html": "The recommended one, unless you already have a note type you like. While Anki is running, click “Create the recommended note type” on the “Anki connection” tab or in a language’s entry under “My languages”. It adds the note type “Polywort” to Anki, with the fields Front, Back, Sentence, Sentence Translation, Audio, Pinyin, HSK Level and Notes, so every value of a card has its place, including the pinyin and HSK level of Chinese words. If Anki already has a note type of that name, the app uses it only if it has all of these fields, and it never changes it. Any other note type works too: its fields are matched by their names until you assign them yourself, and the approval window warns you when a value has no field."
+    },
+    "q10": {
+      "q": "What happens to my clipboard?",
+      "a_html": "The hotkey copies the selection through the clipboard and then puts your previous text back. Only text can be restored: an image on the clipboard is replaced. The restored text also loses the marker that password managers use to keep a copied password out of clipboard history."
+    },
+    "q11": {
+      "q": "Can I change the hotkey?",
+      "a_html": "Yes, on the “Capture &amp; Language” tab. Type the shortcut as modifiers and one key joined by “+”, for example <code>CommandOrControl+Shift+C</code>. It needs Cmd, Ctrl or Alt (Option); only function keys (F1–F24) may stand alone. Hotkey profiles add more shortcuts, each with its own language pair and deck."
+    },
+    "q12": {
+      "q": "How do I uninstall it?",
+      "a_html": "Quit the app (menu bar icon > Quit) and move it from Applications to the Trash. Remove its entry under System Settings > Privacy &amp; Security > Accessibility. To delete your history, settings and log as well, delete the folders <code>VocabularyAutomator</code> and <code>com.ankiautomator.app</code> in <code>~/Library/Application Support</code> and the folder <code>~/Library/Logs/com.ankiautomator.app</code>. Finder hides <code>~/Library</code>: choose Go > Go to Folder and enter the path. Cards already in Anki stay there."
+    },
+    "q13": {
+      "q": "Where does the name come from?",
+      "a_html": "Polywort joins the Greek <em>poly</em> (“many”) and the German <em>Wort</em> (“word”): many words. The app used to be called Vocabulary Automator, which is why the folder with your history is still called <code>VocabularyAutomator</code>."
+    }
+  },
+  "footer": {
+    "line": "Polywort\u00a0· Version\u00a0{version} (preview)",
+    "source": "Source code on GitHub",
+    "releases": "GitHub Releases",
+    "independence": "Polywort is an independent project. It is not affiliated with or endorsed by Anki, AnkiWeb or the AnkiConnect add-on.",
+    "credits": "For Chinese, the app bundles data from CC-CEDICT (CC BY-SA 4.0) and two HSK word lists (MIT License). The full credits are in the app’s help dialog.",
+    "siteNote": "This website sets no cookies, uses no analytics and loads nothing from other servers."
+  },
+  "nf": {
+    "title": "Page not found",
+    "body": "There is no page at this address.",
+    "home": "Go to the home page"
+  }
+}

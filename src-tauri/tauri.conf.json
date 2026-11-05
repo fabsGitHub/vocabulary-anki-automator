@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Vocabulary Automator",
+  "productName": "Polywort",
   "version": "0.1.0",
   "identifier": "com.ankiautomator.app",
   "build": {
@@ -12,18 +12,45 @@
   "app": {
     "windows": [
       {
-        "title": "Vocabulary Automator",
+        "label": "main",
+        "title": "Polywort",
         "width": 800,
         "height": 600
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self'",
+        "media-src": "data:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-src": "'none'",
+        "frame-ancestors": "'none'"
+      },
+      "devCsp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self'",
+        "media-src": "data:",
+        "connect-src": "ipc: http://ipc.localhost ws://localhost:1420",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-src": "'none'",
+        "frame-ancestors": "'none'"
+      }
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Polywort",
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
@@ -33,16 +60,12 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": "{{env.APPLE_SIGNING_IDENTITY:::}}",
       "entitlements": "./entitlements.mac.plist",
       "minimumSystemVersion": "10.13"
     },
     "windows": {
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com"
-    },
-    "linux": {
-      "targets": ["deb", "rpm", "appimage"]
     }
   },
   "plugins": {

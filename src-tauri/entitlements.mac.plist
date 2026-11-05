@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-runtime entitlements of the notarized app: deliberately none.
+
+  The app holds the Accessibility permission (it sends the synthetic Cmd+C),
+  and macOS ties that permission to this code signature. Exceptions such as
+  com.apple.security.cs.disable-library-validation or
+  com.apple.security.cs.allow-unsigned-executable-memory would let foreign
+  dylibs or injected code run inside that trusted process; nothing here needs
+  them (WKWebView JITs in Apple's own WebContent process, every library is
+  Apple's or linked in statically). com.apple.security.network.client only
+  matters inside the App Sandbox, which this app does not use.
+  src-tauri/tests/security_config.rs keeps this list empty.
+-->
 <plist version="1.0">
-<dict>
-    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true/>
-    <key>com.apple.security.cs.disable-library-validation</key>
-    <true/>
-    <key>com.apple.security.network.client</key>
-    <true/>
-</dict>
+<dict/>
 </plist>

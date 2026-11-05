@@ -1,0 +1,10 @@
+# The Rust version every build uses: cargo anywhere in this repo (rustup reads
+# this file and installs the version on first use) and both workflows, whose
+# dtolnay/rust-toolchain steps name the same version (the workflow tests in
+# scripts/release-preflight.test.ts keep them equal). A new Rust release thus
+# cannot fail CI or a release on its own: bump the version here and in the two
+# workflows together, in a PR.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

@@ -23,10 +23,21 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 command -v brew >/dev/null 2>&1 || fail "Homebrew is required but not installed (https://brew.sh)"
-command -v cargo >/dev/null 2>&1 || fail "Rust/cargo is required but not installed (https://rustup.rs)"
+command -v rustup >/dev/null 2>&1 || fail "Rust via rustup is required but not installed (https://rustup.rs)"
 command -v npm >/dev/null 2>&1 || fail "Node/npm is required but not installed"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# --- Rust: the version rust-toolchain.toml pins ------------------------------
+# rustup would install it on the first cargo command in the repo anyway; doing
+# it here keeps that download out of the first build. `rustup show
+# active-toolchain` installs it wherever rustup auto-installs and only reads
+# local state once it is there; the fallback covers rustup 1.28.0 and
+# auto-install turned off. (A bare `rustup toolchain install` would also update
+# rustup itself, and needs rustup 1.28 or newer.)
+log "installing the Rust version rust-toolchain.toml pins (if missing)"
+(cd "$REPO_ROOT" && { rustup show active-toolchain >/dev/null || rustup toolchain install --no-self-update; }) \
+  || fail "could not install the Rust version rust-toolchain.toml pins"
 
 # --- cargo-watch: Rust watch loop -------------------------------------------
 if cargo watch --version >/dev/null 2>&1; then
@@ -36,12 +47,19 @@ else
   cargo install cargo-watch || fail "cargo install cargo-watch failed"
 fi
 
-# --- tauri-driver: E2E automation of the compiled app -----------------------
-if command -v tauri-driver >/dev/null 2>&1; then
-  log "tauri-driver already installed ($(tauri-driver --version 2>&1 || true))"
+# --- tauri-driver / safaridriver: intentionally NOT installed ---------------
+# Milestone A1 originally listed `cargo install tauri-driver` and
+# `safaridriver --enable` here. tauri-driver only drives WebKitWebDriver (Linux)
+# and Microsoft Edge Driver (Windows); there is no WKWebView driver on macOS,
+# so neither tool can automate this app on a Mac. The E2E tier (Milestone G)
+# therefore belongs on a Linux/Windows CI runner, not in this bootstrap.
+
+# --- just: task runner for the repo's justfile ------------------------------
+if command -v just >/dev/null 2>&1; then
+  log "just already installed ($(just --version))"
 else
-  log "installing tauri-driver"
-  cargo install tauri-driver || fail "cargo install tauri-driver failed"
+  log "installing just"
+  brew install just || fail "brew install just failed"
 fi
 
 # --- gh: PR/issue CLI workflow -----------------------------------------------
@@ -61,22 +79,9 @@ else
   brew install watchman || fail "brew install watchman failed"
 fi
 
-# --- safaridriver: enable the built-in WebDriver backend used by tauri-driver
-if safaridriver --enable >/dev/null 2>&1; then
-  log "safaridriver enabled"
-else
-  # safaridriver --enable exits non-zero if already enabled on some macOS
-  # versions; only treat this as fatal if it's not already enabled.
-  if safaridriver --enable 2>&1 | grep -qi "already enabled"; then
-    log "safaridriver already enabled"
-  else
-    fail "safaridriver --enable failed (may require: sudo safaridriver --enable)"
-  fi
-fi
-
 # --- frontend test runner: vitest / @vue/test-utils / jsdom -----------------
-log "syncing npm devDependencies (vitest, @vue/test-utils, jsdom, eslint, prettier)"
-(cd "$REPO_ROOT" && npm install) || fail "npm install failed"
+log "installing npm dependencies from package-lock.json"
+(cd "$REPO_ROOT" && npm ci) || fail "npm ci failed"
 
 # --- RTK: token-efficiency wrapper for cargo/npm build output (A3) ----------
 if command -v rtk >/dev/null 2>&1; then
@@ -87,14 +92,22 @@ else
 fi
 
 # --- pre-commit hook: install the tracked script into .git/hooks -----------
+# Only into this checkout's own repository (not one it was copied into), and
+# into the common git dir, so a linked worktree (where .git is a file) gets it
+# too. With core.hooksPath set, git ignores .git/hooks, and that path may be
+# shared by every repository on the machine: the hook is left to the developer.
 HOOK_SRC="$REPO_ROOT/scripts/hooks/pre-commit"
-HOOK_DEST="$REPO_ROOT/.git/hooks/pre-commit"
-if [[ -d "$REPO_ROOT/.git" ]]; then
-  log "installing pre-commit hook"
-  cp "$HOOK_SRC" "$HOOK_DEST" || fail "failed to install pre-commit hook"
-  chmod +x "$HOOK_DEST" || fail "failed to chmod pre-commit hook"
+TOPLEVEL="$(git -C "$REPO_ROOT" rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$TOPLEVEL" || "$(cd "$TOPLEVEL" && pwd -P)" != "$(cd "$REPO_ROOT" && pwd -P)" ]]; then
+  log "not a git checkout of its own, skipping pre-commit hook install"
+elif HOOKS_PATH="$(git -C "$REPO_ROOT" config --get core.hooksPath)"; then
+  log "core.hooksPath is set ($HOOKS_PATH), so git ignores .git/hooks; not installing the pre-commit hook (add scripts/hooks/pre-commit there yourself)"
 else
-  log "no .git directory found, skipping pre-commit hook install"
+  HOOKS_DIR="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir)/hooks"
+  log "installing pre-commit hook into $HOOKS_DIR"
+  mkdir -p "$HOOKS_DIR" || fail "failed to create $HOOKS_DIR"
+  cp "$HOOK_SRC" "$HOOKS_DIR/pre-commit" || fail "failed to install pre-commit hook"
+  chmod +x "$HOOKS_DIR/pre-commit" || fail "failed to chmod pre-commit hook"
 fi
 
 log "bootstrap complete"
