@@ -22,8 +22,10 @@ const ONLINE: AnkiStatus = {
   error: null,
 }
 
+/** The defaults, with the setup assistant closed, as after the first run. */
 function settings(edit: (config: AppConfig) => void = () => {}): AppConfig {
   const config = defaultConfig()
+  config.setup_assistant = { closed_at: '2026-11-01T08:00:00.000Z', finished: true }
   edit(config)
   return config
 }
@@ -298,5 +300,67 @@ describe('MainWindow', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('MainWindow and the setup assistant', () => {
+  beforeEach(() => {
+    onCommand('get_accessibility_status', { required: true, trusted: true })
+    onCommand('close_setup_assistant', (args: { finished: boolean } | undefined) => ({
+      closed_at: '2026-11-05T10:30:00.000Z',
+      finished: args?.finished ?? false,
+    }))
+  })
+
+  it('opens it instead of the tabs on the first launch, and only checks', async () => {
+    onCommand('get_current_settings', defaultConfig())
+    await mountMain()
+    expect(wrapper?.find('[data-test="setup-assistant"]').exists()).toBe(true)
+    expect(wrapper?.find('[role="tablist"]').exists()).toBe(false)
+    expect(wrapper?.find('[data-test="save"]').exists()).toBe(false)
+    expect(wrapper?.find('[data-test="open-assistant"]').exists()).toBe(false)
+    for (const forbidden of [
+      'grant_consent',
+      'download_and_install_anki',
+      'auto_provision_ankiconnect',
+      'launch_anki_desktop',
+      'create_recommended_note_type',
+      'request_accessibility',
+      'apply_settings',
+    ]) {
+      expect(callsTo(forbidden), forbidden).toHaveLength(0)
+    }
+
+    await wrapper?.find('[data-test="assistant-dismiss"]').trigger('click')
+    await flushPromises()
+    expect(callsTo('close_setup_assistant')).toHaveLength(1)
+    expect(wrapper?.find('[data-test="setup-assistant"]').exists()).toBe(false)
+    expect(wrapper?.find('[role="tablist"]').exists()).toBe(true)
+    // Closing it is not a settings edit.
+    expect(wrapper?.find('[data-test="revert"]').exists()).toBe(false)
+  })
+
+  it('leaves capture errors to the assistant while it shows "Try it"', async () => {
+    onCommand('get_current_settings', defaultConfig())
+    await mountMain()
+    expect(wrapper?.find('[data-test="assistant-detail"]').attributes('data-step')).toBe('try')
+    emitEvent('capture-error', { message: 'Nothing was copied.' })
+    await flushPromises()
+    expect(wrapper?.find('[data-test="try-error"]').text()).toContain('Nothing was copied.')
+    expect(wrapper?.find('[data-test="capture-error"]').exists()).toBe(false)
+
+    await wrapper?.find('[data-test="step-anki"]').trigger('click')
+    emitEvent('capture-error', { message: 'Nothing was copied again.' })
+    await flushPromises()
+    expect(wrapper?.find('[data-test="capture-error"]').text()).toContain('copied again')
+  })
+
+  it('stays closed once closed, and the header brings it back', async () => {
+    await mountMain()
+    expect(wrapper?.find('[data-test="setup-assistant"]').exists()).toBe(false)
+    await wrapper?.find('[data-test="open-assistant"]').trigger('click')
+    await flushPromises()
+    expect(wrapper?.find('[data-test="setup-assistant"]').exists()).toBe(true)
+    expect(wrapper?.find('[role="tablist"]').exists()).toBe(false)
   })
 })

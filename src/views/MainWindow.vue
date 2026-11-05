@@ -8,6 +8,10 @@
  * Anki tab must show the same connection, and the Anki and "My languages"
  * tabs read the same note types. Startup only checks Anki (§ 8.4): nothing is
  * installed or launched without a click.
+ *
+ * Until the user finishes or dismisses it (`setup_assistant.closed_at`), the
+ * setup assistant takes the place of the tabs once the settings have loaded;
+ * the header's "Setup assistant" button brings it back at any time.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -24,6 +28,7 @@ import { UI_LANGS, setLocale, toUiLang, type MessageKey, type UiLang } from '../
 import AnkiConnectionView from './AnkiConnectionView.vue'
 import CaptureSettings from './CaptureSettings.vue'
 import HistoryView from './HistoryView.vue'
+import SetupAssistant from './SetupAssistant.vue'
 
 type TabId = 'capture' | 'learning' | 'profiles' | 'anki' | 'history'
 
@@ -59,6 +64,9 @@ provideModelFields(createModelFields(() => ankiState.value === 'online'))
 
 const activeTab = ref<TabId>('capture')
 const showHelp = ref(false)
+const showAssistant = ref(false)
+/** The assistant shows its "try" step, which reports capture errors itself. */
+const assistantTrying = ref(false)
 const saveNotice = ref<'saved' | 'invalid' | null>(null)
 const captureError = ref<string | null>(null)
 const uiLang = computed(() => toUiLang(config.value.ui_lang))
@@ -82,6 +90,13 @@ function later(ms: number, run: () => void): void {
 function tabHasIssues(tab: Tab): boolean {
   return loaded.value && tab.paths.some((path) => store.hasIssuesUnder(path))
 }
+
+// The first load decides whether the assistant opens by itself.
+const stopAssistantCheck = watch(loaded, (isLoaded) => {
+  if (!isLoaded) return
+  showAssistant.value = store.saved.value.setup_assistant.closed_at === null
+  stopAssistantCheck()
+})
 
 watch(isValid, (valid) => {
   if (valid && saveNotice.value === 'invalid') saveNotice.value = null
@@ -176,6 +191,15 @@ onBeforeUnmount(() => {
           </option>
         </select>
         <button
+          v-if="loaded && !showAssistant"
+          type="button"
+          class="btn btn-secondary btn-mini"
+          data-test="open-assistant"
+          @click="showAssistant = true"
+        >
+          {{ t('assistant.open') }}
+        </button>
+        <button
           type="button"
           class="help-circle"
           data-test="help"
@@ -190,7 +214,12 @@ onBeforeUnmount(() => {
 
     <UpdateBanner />
 
-    <div v-if="captureError" class="notice error toast-row" role="alert" data-test="capture-error">
+    <div
+      v-if="captureError && !assistantTrying"
+      class="notice error toast-row"
+      role="alert"
+      data-test="capture-error"
+    >
       <span>{{ t('app.captureFailed', { message: captureError }) }}</span>
       <button
         type="button"
@@ -205,7 +234,7 @@ onBeforeUnmount(() => {
       {{ t('settings.uiLangFailed', { error: uiLangError }) }}
     </p>
 
-    <nav class="segmented-bar" role="tablist">
+    <nav v-if="!showAssistant" class="segmented-bar" role="tablist">
       <button
         v-for="tab in TABS"
         :key="tab.id"
@@ -222,7 +251,12 @@ onBeforeUnmount(() => {
     </nav>
 
     <div class="pane-scroll">
-      <HistoryView v-if="activeTab === 'history'" />
+      <SetupAssistant
+        v-if="showAssistant"
+        @close="showAssistant = false"
+        @trying="(shown) => (assistantTrying = shown)"
+      />
+      <HistoryView v-else-if="activeTab === 'history'" />
       <template v-else-if="loaded">
         <CaptureSettings v-if="activeTab === 'capture'" />
         <section v-else-if="activeTab === 'learning'" class="pane-layout">
@@ -242,7 +276,7 @@ onBeforeUnmount(() => {
       <p v-else class="input-hint spinner">{{ t('app.loading') }}</p>
     </div>
 
-    <footer v-if="activeTab !== 'history' && loaded" class="footer-action-bar">
+    <footer v-if="!showAssistant && activeTab !== 'history' && loaded" class="footer-action-bar">
       <div v-if="saveError" class="interactive-toast error" role="alert">
         {{ t('settings.saveFailed', { error: saveError }) }}
       </div>

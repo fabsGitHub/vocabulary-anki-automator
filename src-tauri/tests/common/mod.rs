@@ -4,8 +4,9 @@
 //! (`vocab_automator_lib::configure`), so commands run exactly as in the app,
 //! through the IPC layer. Everything outside the process is replaced: the
 //! config, the SQLite file and Anki's folders live in a temp dir, the
-//! providers are deterministic fakes, the clock is fixed, and setup's
-//! downloader and process runner only record what they were asked to do. A
+//! providers are deterministic fakes, the clock is fixed, setup's
+//! downloader and process runner only record what they were asked to do, and
+//! so does the Accessibility check, which never reaches the real API. A
 //! guard test (`tests/ipc.rs`) fails if the harness ever points at a real
 //! location.
 
@@ -14,7 +15,10 @@
 use std::{
     ffi::OsString,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use async_trait::async_trait;
@@ -28,6 +32,7 @@ use tauri::{
 };
 use tempfile::TempDir;
 use vocab_automator_lib::{
+    accessibility::Accessibility,
     config::{save_config_to, AppConfig},
     setup::{
         download::{DownloadBody, Downloader},
@@ -307,11 +312,64 @@ impl CommandRunner for RecordingRunner {
     }
 }
 
+/// A Mac whose Accessibility switch the test flips: records every prompt
+/// and every opening of System Settings, and calls no real API.
+#[derive(Clone)]
+pub struct RecordingAccessibility {
+    required: bool,
+    trusted: Arc<AtomicBool>,
+    calls: Arc<Mutex<Vec<&'static str>>>,
+}
+
+impl RecordingAccessibility {
+    /// `required: false` is a platform without the permission.
+    pub fn new(required: bool) -> Self {
+        Self {
+            required,
+            trusted: Arc::default(),
+            calls: Arc::default(),
+        }
+    }
+
+    /// The user flips the switch in System Settings.
+    pub fn set_trusted(&self, trusted: bool) {
+        self.trusted.store(trusted, Ordering::SeqCst);
+    }
+
+    /// `"prompt"` and `"open_settings"`, in call order.
+    pub fn calls(&self) -> Vec<&'static str> {
+        self.calls.lock().unwrap().clone()
+    }
+}
+
+impl Accessibility for RecordingAccessibility {
+    fn required(&self) -> bool {
+        self.required
+    }
+
+    fn is_trusted(&self) -> bool {
+        self.trusted.load(Ordering::SeqCst)
+    }
+
+    fn prompt(&self) -> bool {
+        self.calls.lock().unwrap().push("prompt");
+        self.is_trusted()
+    }
+
+    fn open_settings(&self) -> Result<(), String> {
+        self.calls.lock().unwrap().push("open_settings");
+        Ok(())
+    }
+}
+
 /// How a [`Harness`] starts.
 pub struct Options {
     pub config: AppConfig,
     /// `false` simulates a database that failed to open (Anki-only mode).
     pub with_store: bool,
+    /// Whether the simulated platform needs the Accessibility permission
+    /// (macOS); it starts switched off.
+    pub accessibility_required: bool,
 }
 
 impl Default for Options {
@@ -321,6 +379,7 @@ impl Default for Options {
         Self {
             config,
             with_store: true,
+            accessibility_required: true,
         }
     }
 }
@@ -332,6 +391,7 @@ pub struct Harness {
     pub providers: CallLog,
     pub downloader: RecordingDownloader,
     pub runner: RecordingRunner,
+    pub accessibility: RecordingAccessibility,
     events: Arc<Mutex<Vec<(String, Value)>>>,
 }
 
@@ -360,6 +420,7 @@ impl Harness {
         let providers = CallLog::default();
         let downloader = RecordingDownloader::default();
         let runner = RecordingRunner::default();
+        let accessibility = RecordingAccessibility::new(options.accessibility_required);
         let registry = fake_registry(&providers);
         let state = AppState::new(AppServices {
             config_path,
@@ -371,6 +432,7 @@ impl Harness {
                 downloader: Arc::new(downloader.clone()),
                 runner: Arc::new(runner.clone()),
             },
+            accessibility: Arc::new(accessibility.clone()),
         });
         let app = vocab_automator_lib::configure(mock_builder())
             .manage(state)
@@ -395,6 +457,7 @@ impl Harness {
             providers,
             downloader,
             runner,
+            accessibility,
             events,
         }
     }

@@ -3,8 +3,8 @@
 //!
 //! Everything that touches the outside world is injected through
 //! [`AppServices`]: where the config lives, the database, the enrichment
-//! providers, the clock, and Anki's folders plus the downloader and process
-//! runner used by setup. Production wiring is [`AppServices::production`];
+//! providers, the clock, Anki's folders plus the downloader and process
+//! runner used by setup, and the macOS Accessibility check. Production wiring is [`AppServices::production`];
 //! the `tauri::test` suites pass temp dirs and fakes, so no test can reach the
 //! network, a real Anki folder or the real config.
 //!
@@ -30,6 +30,7 @@ use vocab_core::{
 };
 
 use crate::{
+    accessibility::{Accessibility, SystemAccessibility},
     capture::{PendingCapture, ProviderFactory, StandardProviderFactory},
     config::{load_config_from, save_config_to, AppConfig, ConfigError},
     setup::SetupEnv,
@@ -44,12 +45,13 @@ pub struct AppServices {
     pub providers: Arc<dyn ProviderFactory>,
     pub clock: Arc<dyn Clock>,
     pub setup: SetupEnv,
+    pub accessibility: Arc<dyn Accessibility>,
 }
 
 impl AppServices {
     /// The real thing: `config_path`, the shared database at
-    /// [`default_db_path`], the standard providers, the system clock and the
-    /// platform's Anki folders.
+    /// [`default_db_path`], the standard providers, the system clock, the
+    /// platform's Anki folders and its Accessibility API.
     pub fn production(config_path: PathBuf) -> Self {
         let db_path = default_db_path();
         let store = Store::open(&db_path).map_err(|err| {
@@ -68,6 +70,7 @@ impl AppServices {
             providers: Arc::new(StandardProviderFactory::default()),
             clock: Arc::new(SystemClock),
             setup: SetupEnv::production(),
+            accessibility: Arc::new(SystemAccessibility),
         }
     }
 }
@@ -85,6 +88,7 @@ pub struct AppState {
     providers: Arc<dyn ProviderFactory>,
     clock: Arc<dyn Clock>,
     setup: SetupEnv,
+    accessibility: Arc<dyn Accessibility>,
 }
 
 impl AppState {
@@ -115,6 +119,7 @@ impl AppState {
             providers: services.providers,
             clock: services.clock,
             setup: services.setup,
+            accessibility: services.accessibility,
         }
     }
 
@@ -206,6 +211,10 @@ impl AppState {
 
     pub fn setup(&self) -> &SetupEnv {
         &self.setup
+    }
+
+    pub fn accessibility(&self) -> Arc<dyn Accessibility> {
+        self.accessibility.clone()
     }
 }
 
@@ -312,7 +321,7 @@ mod tests {
     use vocab_core::{time::FixedClock, Card};
 
     use super::*;
-    use crate::setup::SetupEnv;
+    use crate::{accessibility::testing::FakeAccessibility, setup::SetupEnv};
 
     fn pending(front: &str) -> PendingCapture {
         PendingCapture {
@@ -332,6 +341,7 @@ mod tests {
             providers: Arc::new(StandardProviderFactory::default()),
             clock: Arc::new(clock),
             setup: SetupEnv::unavailable("not needed"),
+            accessibility: Arc::new(FakeAccessibility::default()),
         })
     }
 

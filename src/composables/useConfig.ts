@@ -22,6 +22,7 @@ import {
   type FieldMapping,
   type HotkeyProfile,
   type LearnedLanguage,
+  type SetupAssistantState,
 } from '../api'
 import { normalizeLang } from '../domain/language'
 import { IS_MAC } from '../domain/shortcuts'
@@ -49,6 +50,7 @@ export function defaultConfig(): AppConfig {
     },
     consent: { anki_install_granted_at: null, ankiconnect_provision_granted_at: null },
     learning: { languages: [] },
+    setup_assistant: { closed_at: null, finished: false },
   }
 }
 
@@ -104,6 +106,7 @@ export function normalizeConfig(raw: unknown): AppConfig {
   const mapping = anki.field_mapping ?? null
   const consent = source.consent ?? {}
   const learning = source.learning ?? {}
+  const assistant = source.setup_assistant ?? {}
   const maxChars = Number(translation.max_chars)
 
   return {
@@ -157,6 +160,10 @@ export function normalizeConfig(raw: unknown): AppConfig {
           })
         : [],
     },
+    setup_assistant: {
+      closed_at: optionalText(assistant.closed_at),
+      finished: assistant.finished === true,
+    },
   }
 }
 
@@ -205,6 +212,10 @@ export function toSettingsPayload(config: AppConfig): AppConfig {
         create_reverse: language.create_reverse,
       })),
     },
+    setup_assistant: {
+      closed_at: config.setup_assistant.closed_at,
+      finished: config.setup_assistant.finished,
+    },
   }
 }
 
@@ -241,6 +252,15 @@ export interface ConfigStore {
   persistUiLang(lang: string): Promise<boolean>
   /** Takes the state returned by `grant_consent`; consent is not a form edit, so nothing turns dirty. */
   setConsent(consent: ConsentState): void
+  /** Takes the state returned by `close_setup_assistant`, like {@link ConfigStore.setConsent}. */
+  setSetupAssistant(state: SetupAssistantState): void
+  /**
+   * Applies `change` to the saved config and saves that at once, like
+   * {@link ConfigStore.persistUiLang}: unsaved edits elsewhere in the form are
+   * not sent along. The form gets the same change, so it shows the result
+   * without turning dirty over it. Resolves to the backend's error, or `null`.
+   */
+  persist(change: (config: AppConfig) => void): Promise<string | null>
 }
 
 export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
@@ -339,6 +359,31 @@ export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
     }
   }
 
+  async function persist(change: (config: AppConfig) => void): Promise<string | null> {
+    if (!loaded.value) return 'The settings have not been loaded yet.'
+    const stored = savedConfig()
+    change(stored)
+    const body = toSettingsPayload(stored)
+    try {
+      await applySettings(body)
+      snapshot.value = JSON.stringify(body)
+      change(config.value)
+      return null
+    } catch (err) {
+      await resyncSaved()
+      return errorMessage(err)
+    }
+  }
+
+  function setSetupAssistant(state: SetupAssistantState): void {
+    const copy = { closed_at: state.closed_at, finished: state.finished }
+    config.value.setup_assistant = copy
+    if (!loaded.value) return
+    const stored = savedConfig()
+    stored.setup_assistant = { ...copy }
+    snapshot.value = JSON.stringify(stored)
+  }
+
   function setConsent(consent: ConsentState): void {
     const copy = {
       anki_install_granted_at: consent.anki_install_granted_at,
@@ -371,6 +416,8 @@ export function useConfig(options: { isMac?: boolean } = {}): ConfigStore {
     revert,
     persistUiLang,
     setConsent,
+    setSetupAssistant,
+    persist,
   }
 }
 
