@@ -103,7 +103,7 @@ deploys. Set it up once in the Cloudflare dashboard:
    setup**.
 2. In **Set up builds and deployments**:
    - **Project name**: the start of the address, for example
-     `vocabulary-learn` for `https://vocabulary-learn.pages.dev/`.
+     `polywort-learn` for `https://polywort-learn.pages.dev/`.
    - **Production branch**: the branch with the demo, `wip/live-demo` until
      it is merged, then `main`.
    - **Framework preset**: None.
@@ -150,7 +150,7 @@ the curriculum JSON all come from its own folder.
 ```html
 <iframe
   src="https://your-demo-address/"
-  title="Vocabulary Learn – live demo"
+  title="Polywort Learn – live demo"
   width="100%"
   height="680"
   style="border: 1px solid #d1d1d6; border-radius: 12px"

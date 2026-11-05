@@ -25,7 +25,7 @@ const withoutWebCurriculum: Plugin = {
 const APP_ENTRY = '/src/main.ts'
 const DEMO_ENTRY = '/src/demo/main.ts'
 const DEMO_DESCRIPTION =
-  'Live demo of Vocabulary Learn: spaced-repetition reviews, exercises and lessons, running entirely in your browser.'
+  'Live demo of Polywort Learn: spaced-repetition reviews, exercises and lessons, running entirely in your browser.'
 
 // The demo's page loads the demo's entry instead of the app's, so nothing of
 // the demo reaches the other builds, and describes itself for link previews.
@@ -37,7 +37,7 @@ const demoEntry: Plugin = {
       if (!html.includes(APP_ENTRY)) throw new Error(`index.html no longer loads ${APP_ENTRY}`)
       const meta = [
         `<meta name="description" content="${DEMO_DESCRIPTION}" />`,
-        '<meta property="og:title" content="Vocabulary Learn – live demo" />',
+        '<meta property="og:title" content="Polywort Learn – live demo" />',
         `<meta property="og:description" content="${DEMO_DESCRIPTION}" />`,
       ]
       return html

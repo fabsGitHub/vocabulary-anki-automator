@@ -21,7 +21,7 @@ export const demoMessages = {
     failed: 'That did not work: {error}',
     about: 'About this demo',
     aboutApps:
-      'Vocabulary Learn is one of two desktop apps on a shared Rust core. Vocabulary Automator turns any word you select on your computer into a flashcard and sends it to Anki; Learn schedules those cards with spaced repetition (FSRS) and adds a daily goal, exercises, lessons, XP and streaks.',
+      'Polywort Learn is one of two desktop apps on a shared Rust core. Polywort turns any word you select on your computer into a flashcard and sends it to Anki; Polywort Learn schedules those cards with spaced repetition (FSRS) and adds a daily goal, exercises, lessons, XP and streaks.',
     aboutTech:
       'This browser version runs a TypeScript port of the core over IndexedDB instead of Rust over SQLite, held to the Rust code by golden test vectors. The demo’s history was played through the app’s own commands, and nothing you do here leaves your browser.',
     projectLink: 'Project page',
@@ -45,7 +45,7 @@ export const demoMessages = {
     failed: 'Das hat nicht geklappt: {error}',
     about: 'Über diese Demo',
     aboutApps:
-      'Vocabulary Learn ist eine von zwei Desktop-Apps auf einem gemeinsamen Rust-Kern. Vocabulary Automator macht aus jedem Wort, das du am Computer markierst, eine Karteikarte und schickt sie an Anki; Learn plant diese Karten mit Spaced Repetition (FSRS) und bringt Tagesziel, Übungen, Lektionen, XP und Streaks mit.',
+      'Polywort Learn ist eine von zwei Desktop-Apps auf einem gemeinsamen Rust-Kern. Polywort macht aus jedem Wort, das du am Computer markierst, eine Karteikarte und schickt sie an Anki; Polywort Learn plant diese Karten mit Spaced Repetition (FSRS) und bringt Tagesziel, Übungen, Lektionen, XP und Streaks mit.',
     aboutTech:
       'Diese Browser-Version führt statt Rust über SQLite eine TypeScript-Portierung des Kerns über IndexedDB aus, die Golden-Testvektoren an den Rust-Code binden. Die Vorgeschichte der Demo wurde mit den Befehlen der App selbst abgespielt, und nichts, was du hier tust, verlässt deinen Browser.',
     projectLink: 'Projektseite',
