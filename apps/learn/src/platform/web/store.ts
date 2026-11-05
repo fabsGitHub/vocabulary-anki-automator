@@ -45,6 +45,13 @@ export interface DailySessionRow {
   completed_at: number | null
 }
 
+/** `store::UnscheduledCapture`, `captured_at` in milliseconds. */
+export interface UnscheduledCapture {
+  card_id: number
+  front: string
+  captured_at: number
+}
+
 /** The columns `LearnedVocabularyPool::QUERY` selects. */
 export interface LearnedVocabularyRow {
   id: number
@@ -180,6 +187,23 @@ export class Store {
       (await this.captureRecords())
         .filter((record) => record.script_kind === 'chinese' && learned.has(record.id))
         .map((record) => record.front),
+    )
+  }
+
+  /**
+   * `list_unscheduled_captures`: every capture of any origin without an
+   * `srs_state` row, in capture order (`captured_at`, then id).
+   */
+  async listUnscheduledCaptures(): Promise<UnscheduledCapture[]> {
+    const scheduled = await this.srsStateCardIds()
+    const records = (await this.captureRecords()).filter((record) => !scheduled.has(record.id))
+    records.sort((a, b) => compareText(a.captured_at, b.captured_at) || a.id - b.id)
+    return records.map((record) =>
+      inRow('captures', record.id, () => ({
+        card_id: record.id,
+        front: record.front,
+        captured_at: parseInstantMillis(record.captured_at),
+      })),
     )
   }
 

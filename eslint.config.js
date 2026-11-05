@@ -108,6 +108,7 @@ export default [
       'crates/**/target/**',
       'apps/**/dist/**',
       'apps/**/dist-web/**',
+      'apps/**/dist-demo/**',
       'apps/**/src-tauri/gen/**',
       '.claude/**',
       'site/dist/**',

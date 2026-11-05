@@ -131,6 +131,34 @@ describe('a review session', () => {
     expect(find('[data-test="review-complete"]').exists()).toBe(true)
   })
 
+  it('starts a capture or import only when it is reached, and rates it as itself', async () => {
+    const platform = reviewPlatform()
+    platform.getDailyQueue.mockResolvedValue([
+      { kind: 'review', card_id: 1, due_date: '2026-10-31T08:00:00.000Z' },
+      { kind: 'new_capture', card_id: 2 },
+    ])
+    await mountReview(platform)
+    expect(find('[data-test="new-badge"]').exists()).toBe(false)
+
+    await click('[data-test="reveal"]')
+    await click('[data-test="rate-3"]')
+    expect(platform.startNewCapture).toHaveBeenCalledTimes(1)
+    expect(platform.startNewCapture).toHaveBeenCalledWith(2)
+    expect(platform.startNewCapture.mock.invocationCallOrder[0]).toBeGreaterThan(
+      platform.submitReviewRating.mock.invocationCallOrder[0],
+    )
+    expect(platform.startNewItem).not.toHaveBeenCalled()
+    expect(platform.getCard).toHaveBeenLastCalledWith(2)
+    expect(platform.previewRatings).toHaveBeenLastCalledWith(2)
+    expect(front()).toBe('serendipity')
+    expect(find('[data-test="new-badge"]').text()).toBe('New word')
+
+    await click('[data-test="reveal"]')
+    await click('[data-test="rate-4"]')
+    expect(platform.submitReviewRating).toHaveBeenLastCalledWith(2, 4)
+    expect(find('[data-test="review-complete"]').exists()).toBe(true)
+  })
+
   it('shows the front first and reveals meaning, pinyin, example and audio', async () => {
     await mountReview(reviewPlatform())
     expect(front()).toBe('学习')
@@ -374,16 +402,14 @@ describe('a review session', () => {
     const platform = fakePlatform()
     await mountReview(platform, { newGoal: 0 })
     expect(find('[data-test="review-empty"]').text()).toContain('All caught up')
-    expect(find('[data-test="review-empty"]').text()).toContain(
-      'Want to learn new characters today?',
-    )
+    expect(find('[data-test="review-empty"]').text()).toContain('Want to learn new words today?')
     await click('[data-test="change-goal"]')
     expect(wrapper!.emitted('change-goal')).toHaveLength(1)
   })
 
   it('does not offer a goal change when today has new words', async () => {
     await mountReview(fakePlatform(), { newGoal: 5 })
-    expect(find('[data-test="review-empty"]').text()).not.toContain('Want to learn new characters')
+    expect(find('[data-test="review-empty"]').text()).not.toContain('Want to learn new words')
     expect(find('[data-test="change-goal"]').exists()).toBe(false)
   })
 })

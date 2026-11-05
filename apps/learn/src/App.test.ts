@@ -55,7 +55,7 @@ describe('the daily prompt', () => {
     expect(prompt().exists()).toBe(true)
     expect(prompt().attributes('role')).toBe('dialog')
     expect(prompt().attributes('aria-modal')).toBe('true')
-    expect(prompt().text()).toContain('How many new characters do you want to learn today?')
+    expect(prompt().text()).toContain('How many new words do you want to learn today?')
     expect((countInput().element as HTMLInputElement).value).toBe('5')
     expect(document.activeElement).toBe(countInput().element)
     // Today's queue depends on the answer, so nothing behind the prompt has started.
@@ -71,7 +71,7 @@ describe('the daily prompt', () => {
     expect(prompt().exists()).toBe(false)
     expect(find('[data-test="review"]').exists()).toBe(true)
     expect(platform.getDailyQueue).toHaveBeenCalledTimes(1)
-    expect(find('header').text()).toContain('New characters today: 5')
+    expect(find('header').text()).toContain('New words today: 5')
 
     for (const tab of ['stats', 'practice', 'review']) await click(`[data-test="tab-${tab}"]`)
     window.dispatchEvent(new Event('focus'))
@@ -158,7 +158,7 @@ describe('the daily prompt', () => {
       fx.promptState({ session: fx.session({ requested_new_count: 8 }) }),
     )
     await mountApp(platform)
-    expect(find('header').text()).toContain('New characters today: 8')
+    expect(find('header').text()).toContain('New words today: 8')
     expect(platform.getDailyQueue).toHaveBeenCalledTimes(1)
 
     await openMenuAction()
@@ -173,7 +173,7 @@ describe('the daily prompt', () => {
     expect(platform.submitDailyQuota).toHaveBeenCalledWith(12)
     expect(prompt().exists()).toBe(false)
     expect(platform.getDailyQueue).toHaveBeenCalledTimes(2)
-    expect(find('header').text()).toContain('New characters today: 12')
+    expect(find('header').text()).toContain('New words today: 12')
   })
 
   it('suggests the default again when today was reviews only, and a dismissal keeps the queue', async () => {

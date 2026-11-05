@@ -56,7 +56,7 @@ import { statsSummary } from './gamification'
 import { encodeBase64, type CurriculumItem, storedCaptureToJson } from './model'
 import { LearnedVocabularyPool } from './pool'
 import { CARDS_PER_LESSON, completeLesson, recordExercise } from './progress'
-import { introduceNewItem, queueItemToJson } from './queue'
+import { introduceCapture, introduceNewItem, queueItemToJson } from './queue'
 import { lessonsFromStore } from './lessons'
 import { SrsScheduler, ratingPreviewToJson, reviewRating } from './scheduler'
 import { dailyQueue, rate, reviewResultToJson, trackCompletion } from './session'
@@ -164,6 +164,20 @@ export class WebAdapter implements PlatformAdapter {
       },
       { curriculum: true },
     )
+  }
+
+  startNewCapture(cardId: number): Promise<number> {
+    return this.command(() => {
+      const id = i64(cardId, 'cardId', 'start_new_capture')
+      return async (store, clock) => {
+        try {
+          return await introduceCapture(store, this.scheduler, id, clock)
+        } catch (err) {
+          if (err instanceof StoreError && err.kind === 'not_found') throw LearnError.noSuchCard(id)
+          throw err
+        }
+      }
+    })
   }
 
   getCard(cardId: number): Promise<StoredCapture> {

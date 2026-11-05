@@ -2,7 +2,7 @@
  * The daily onboarding prompt (Milestone L2) as the main window sees it.
  *
  * On mount the window asks `getDailyPromptState`; when `needs_prompt` is set,
- * "how many new characters today?" is shown before the normal UI renders,
+ * "how many new words today?" is shown before the normal UI renders,
  * because today's queue depends on the answer. The rules are the core's
  * (docs/architecture.md § 7.1), the UI only routes the answer:
  *
@@ -25,7 +25,7 @@ import type { DailySession, IsoDate, PlatformAdapter } from '../platform/types'
 
 /** The prompt's suggestion when today has no goal yet. */
 export const DEFAULT_NEW_COUNT = 5
-/** The range of new characters a day the prompt accepts. */
+/** The range of new words a day the prompt accepts. */
 export const MIN_NEW_COUNT = 0
 export const MAX_NEW_COUNT = 50
 /** The prompt's quick-pick buttons. */
@@ -93,7 +93,7 @@ export function useDailyPrompt(platform: PlatformAdapter, clock: Clock) {
     }
   }
 
-  /** "Start": today's quota of new characters. */
+  /** "Start": today's quota of new words. */
   function submit(newCount: number): Promise<void> {
     return answer(() => platform.submitDailyQuota(newCount), true)
   }

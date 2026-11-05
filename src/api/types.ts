@@ -185,6 +185,7 @@ export interface SetupAssistantState {
 export type QueueItem =
   | { kind: 'review'; card_id: number; due_date: string }
   | { kind: 'new'; hanzi: string; curriculum_order: number }
+  | { kind: 'new_capture'; card_id: number }
 
 /**
  * A card value an Anki field can be filled with (`anki_bridge::CardField`).

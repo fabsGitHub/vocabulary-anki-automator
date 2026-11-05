@@ -1,6 +1,6 @@
 //! `get_daily_prompt_state`, `submit_daily_quota`, `dismiss_daily_prompt`,
-//! `reopen_daily_prompt`, `get_daily_queue`, `start_new_item` (Milestones L2
-//! and L3).
+//! `reopen_daily_prompt`, `get_daily_queue`, `start_new_item`,
+//! `start_new_capture` (Milestones L2 and L3).
 //!
 //! The prompt's rules are vocab-core's (docs/architecture.md § 7.1): asked
 //! once per local day, and closing it without an answer means reviews only
@@ -57,7 +57,8 @@ pub async fn reopen_daily_prompt(state: State<'_, AppState>) -> Result<(), Error
     state.with_store(|store| srs::reopen_daily_prompt(store, &clock))
 }
 
-/// Today's queue: due reviews, then what is left of the new-word quota.
+/// Today's queue: due reviews, then what is left of the new-word quota
+/// (unstarted captures and imports, then curriculum words).
 #[tauri::command]
 pub async fn get_daily_queue(state: State<'_, AppState>) -> Result<Vec<QueueItem>, Error> {
     let clock = state.clock();
@@ -86,6 +87,20 @@ pub async fn start_new_item(state: State<'_, AppState>, hanzi: String) -> Result
         )
         .map_err(|err| match err {
             StoreError::NotFound(_) => Error::NotInCurriculum(hanzi.to_string()),
+            other => other.into(),
+        })
+    })
+}
+
+/// Starts learning the capture or Anki import `card_id` that the queue
+/// offered and returns its id, ready for its first rating. Idempotent, and
+/// it counts no progress: the first rating does.
+#[tauri::command]
+pub async fn start_new_capture(state: State<'_, AppState>, card_id: i64) -> Result<i64, Error> {
+    let clock = state.clock();
+    state.with_store(|store| {
+        srs::introduce_capture(store, state.scheduler(), card_id, &clock).map_err(|err| match err {
+            StoreError::NotFound(_) => Error::NoSuchCard(card_id),
             other => other.into(),
         })
     })

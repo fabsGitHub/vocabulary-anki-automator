@@ -12,7 +12,8 @@
  * today's goal, after which the review rebuilds its queue, and opens the
  * credits and licenses of the bundled data. While the prompt or the credits
  * are open, everything behind them is inert: out of reach of the keyboard,
- * the pointer and assistive technology.
+ * the pointer and assistive technology. The `banner` slot above the header
+ * is inert with it; the live demo puts its bar there (src/demo).
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -41,7 +42,8 @@ const TABS: { id: TabId; label: MessageKey }[] = [
 ]
 
 const { t, locale } = useI18n()
-const prompt = useDailyPrompt(usePlatform(), useClock())
+const platform = usePlatform()
+const prompt = useDailyPrompt(platform, useClock())
 const {
   phase,
   loadError,
@@ -123,6 +125,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', onWindowFocus))
 <template>
   <div class="view learn-shell">
     <div class="learn-body" :inert="covered || undefined" data-test="app-body">
+      <slot name="banner" />
       <header class="mac-header">
         <div class="header-titles">
           <h1>{{ t('app.title') }}</h1>
@@ -224,6 +227,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', onWindowFocus))
       :initial-count="suggestedCount"
       :busy="busy"
       :error="actionError"
+      :web="platform.capabilities.kind === 'web'"
       @start="prompt.submit($event)"
       @dismiss="prompt.dismiss()"
     />

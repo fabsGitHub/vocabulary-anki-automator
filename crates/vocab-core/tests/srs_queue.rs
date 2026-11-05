@@ -1,5 +1,6 @@
 //! G+ tests for the daily queue (`vocab_core::srs`, docs/architecture.md
-//! § 7.1, Milestone L3) and for introducing curriculum words into it.
+//! § 7.1, Milestone L3) and for introducing curriculum words, captures and
+//! imports into it.
 //!
 //! The pure builder gets fixture rows in deliberately scrambled order, so the
 //! assertions are about the order it produces, not the order it was handed.
@@ -11,10 +12,10 @@ use std::collections::HashSet;
 use chrono::{DateTime, Duration, FixedOffset, NaiveDate, TimeZone, Utc};
 use vocab_core::{
     srs::{
-        build_daily_queue, build_daily_queue_from, introduce_new_item, submit_review, QueueItem,
-        ReviewRating, SrsScheduler,
+        build_daily_queue, build_daily_queue_from, introduce_capture, introduce_new_item,
+        submit_review, QueueItem, ReviewRating, SrsScheduler,
     },
-    store::{SrsStateRow, Store, StoreError},
+    store::{SrsStateRow, Store, StoreError, UnscheduledCapture},
     time::{Clock, FixedClock},
     CaptureOrigin, Card, CurriculumItem, ScriptMetadata, ScriptVariant,
 };
@@ -82,6 +83,18 @@ fn new(hanzi: &str, curriculum_order: i64) -> QueueItem {
     }
 }
 
+fn new_capture(card_id: i64) -> QueueItem {
+    QueueItem::NewCapture { card_id }
+}
+
+fn unscheduled(card_id: i64, front: &str, captured_at: &str) -> UnscheduledCapture {
+    UnscheduledCapture {
+        card_id,
+        front: front.into(),
+        captured_at: at(captured_at),
+    }
+}
+
 fn learned(hanzi: &[&str]) -> HashSet<String> {
     hanzi.iter().map(|h| (*h).to_owned()).collect()
 }
@@ -118,7 +131,7 @@ mod pure_builder {
             due_state(2, at("2026-10-31T09:00:00.000Z")),
             due_state(1, at("2026-10-30T09:00:00.000Z")),
         ];
-        let queue = build_daily_queue_from(&due, &scrambled_curriculum(), &learned(&[]), 2);
+        let queue = build_daily_queue_from(&due, &[], &scrambled_curriculum(), &learned(&[]), 2);
         assert_eq!(
             queue,
             [
@@ -140,7 +153,7 @@ mod pure_builder {
             due_state(6, at("2026-10-31T12:00:00.000Z")),
             due_state(3, at("2026-10-01T00:00:00.000Z")),
         ];
-        let queue = build_daily_queue_from(&due, &[], &learned(&[]), 3);
+        let queue = build_daily_queue_from(&due, &[], &[], &learned(&[]), 3);
         assert_eq!(
             queue,
             [
@@ -158,7 +171,7 @@ mod pure_builder {
     fn new_items_follow_strict_curriculum_order_whatever_the_input_order() {
         let curriculum = scrambled_curriculum();
         assert_eq!(
-            build_daily_queue_from(&[], &curriculum, &learned(&[]), 6),
+            build_daily_queue_from(&[], &[], &curriculum, &learned(&[]), 6),
             [
                 new("我", 1),
                 new("是", 2),
@@ -169,13 +182,13 @@ mod pure_builder {
             ]
         );
         assert_eq!(
-            build_daily_queue_from(&[], &curriculum, &learned(&[]), 3),
+            build_daily_queue_from(&[], &[], &curriculum, &learned(&[]), 3),
             [new("我", 1), new("是", 2), new("你好", 5)]
         );
         let mut reversed = curriculum;
         reversed.reverse();
         assert_eq!(
-            build_daily_queue_from(&[], &reversed, &learned(&[]), 3),
+            build_daily_queue_from(&[], &[], &reversed, &learned(&[]), 3),
             [new("我", 1), new("是", 2), new("你好", 5)]
         );
     }
@@ -184,11 +197,105 @@ mod pure_builder {
     fn learned_hanzi_are_skipped_even_when_they_come_first() {
         let queue = build_daily_queue_from(
             &[],
+            &[],
             &scrambled_curriculum(),
             &learned(&["我", "你好", "not in the curriculum"]),
             3,
         );
         assert_eq!(queue, [new("是", 2), new("中文", 7), new("好", 12)]);
+    }
+
+    /// Captures and imports in neither capture nor id order: two share an
+    /// instant, two are a millisecond apart.
+    fn scrambled_captures() -> [UnscheduledCapture; 4] {
+        [
+            unscheduled(21, "Haus", "2026-10-20T08:00:00.000Z"),
+            unscheduled(30, "tree", "2026-10-02T08:00:00.001Z"),
+            unscheduled(17, "电脑包", "2026-10-20T08:00:00.000Z"),
+            unscheduled(25, "Katze", "2026-10-02T08:00:00.000Z"),
+        ]
+    }
+
+    #[test]
+    fn unstarted_captures_come_after_the_reviews_and_before_the_curriculum() {
+        let due = [due_state(1, at("2026-10-31T09:00:00.000Z"))];
+        assert_eq!(
+            build_daily_queue_from(
+                &due,
+                &scrambled_captures(),
+                &scrambled_curriculum(),
+                &learned(&[]),
+                6
+            ),
+            [
+                review(1, "2026-10-31T09:00:00.000Z"),
+                new_capture(25),
+                new_capture(30),
+                new_capture(17),
+                new_capture(21),
+                new("我", 1),
+                new("是", 2),
+            ]
+        );
+    }
+
+    #[test]
+    fn captures_and_curriculum_words_share_one_quota() {
+        let all = [
+            new_capture(25),
+            new_capture(30),
+            new_capture(17),
+            new_capture(21),
+            new("我", 1),
+        ];
+        for quota in 0..=5 {
+            assert_eq!(
+                build_daily_queue_from(
+                    &[],
+                    &scrambled_captures(),
+                    &scrambled_curriculum(),
+                    &learned(&[]),
+                    quota
+                ),
+                all[..quota as usize],
+                "quota {quota}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_captured_curriculum_word_waits_for_its_curriculum_turn() {
+        let captures = [
+            unscheduled(12, "学习", "2026-09-01T08:00:00.000Z"),
+            unscheduled(13, "我", "2026-09-02T08:00:00.000Z"),
+            unscheduled(14, "Haus", "2026-10-01T08:00:00.000Z"),
+        ];
+        assert_eq!(
+            build_daily_queue_from(&[], &captures, &scrambled_curriculum(), &learned(&[]), 3),
+            [new_capture(14), new("我", 1), new("是", 2)]
+        );
+        // What makes a front a curriculum word is the curriculum itself.
+        assert_eq!(
+            build_daily_queue_from(&[], &captures, &[], &learned(&[]), 3),
+            [new_capture(12), new_capture(13), new_capture(14)]
+        );
+    }
+
+    /// Every capture is a card of its own: a learned card with the same front
+    /// does not hide it.
+    #[test]
+    fn learned_hanzi_hide_no_capture() {
+        let captures = [unscheduled(5, "电脑包", "2026-10-01T08:00:00.000Z")];
+        assert_eq!(
+            build_daily_queue_from(
+                &[],
+                &captures,
+                &scrambled_curriculum(),
+                &learned(&["电脑包", "我"]),
+                2
+            ),
+            [new_capture(5), new("是", 2)]
+        );
     }
 
     #[test]
@@ -197,13 +304,15 @@ mod pure_builder {
         let remaining = [new("你好", 5), new("中文", 7), new("学习", 30)];
         for quota in [3, 4, 100, u32::MAX] {
             assert_eq!(
-                build_daily_queue_from(&[], &scrambled_curriculum(), &learned, quota),
+                build_daily_queue_from(&[], &[], &scrambled_curriculum(), &learned, quota),
                 remaining,
                 "quota {quota}"
             );
         }
         let everything = learned_all(&scrambled_curriculum());
-        assert!(build_daily_queue_from(&[], &scrambled_curriculum(), &everything, 5).is_empty());
+        assert!(
+            build_daily_queue_from(&[], &[], &scrambled_curriculum(), &everything, 5).is_empty()
+        );
     }
 
     fn learned_all(curriculum: &[CurriculumItem]) -> HashSet<String> {
@@ -214,10 +323,10 @@ mod pure_builder {
     fn an_empty_curriculum_leaves_only_the_reviews() {
         let due = [due_state(1, at("2026-10-31T09:00:00.000Z"))];
         assert_eq!(
-            build_daily_queue_from(&due, &[], &learned(&[]), 10),
+            build_daily_queue_from(&due, &[], &[], &learned(&[]), 10),
             [review(1, "2026-10-31T09:00:00.000Z")]
         );
-        assert!(build_daily_queue_from(&[], &[], &learned(&[]), 10).is_empty());
+        assert!(build_daily_queue_from(&[], &[], &[], &learned(&[]), 10).is_empty());
     }
 
     #[test]
@@ -227,7 +336,7 @@ mod pure_builder {
             due_state(1, at("2026-10-31T08:00:00.000Z")),
         ];
         let curriculum = scrambled_curriculum();
-        let reviews_only = build_daily_queue_from(&due, &curriculum, &learned(&[]), 0);
+        let reviews_only = build_daily_queue_from(&due, &[], &curriculum, &learned(&[]), 0);
         assert_eq!(
             reviews_only,
             [
@@ -236,7 +345,7 @@ mod pure_builder {
             ]
         );
         for quota in [1, 4] {
-            let queue = build_daily_queue_from(&due, &curriculum, &learned(&[]), quota);
+            let queue = build_daily_queue_from(&due, &[], &curriculum, &learned(&[]), quota);
             assert_eq!(queue[..2], reviews_only[..], "quota {quota}");
             assert_eq!(queue.len(), 2 + quota as usize, "quota {quota}");
         }
@@ -385,6 +494,77 @@ mod store_backed {
                 card_id,
                 due_date: outcome.next.due_date,
             }]
+        );
+    }
+
+    #[test]
+    fn unstarted_captures_and_imports_come_before_the_curriculum() {
+        let store = seeded_store(&scrambled_curriculum());
+        let clock = FixedClock::utc(at("2026-10-31T08:00:00.000Z"));
+        let house = insert(
+            &store,
+            &Card::new("house", "Haus", "en", "de", at("2026-10-20T08:00:00Z")),
+        );
+        let tree = store
+            .insert_capture(
+                &Card::new("Baum", "tree", "de", "en", at("2026-10-02T08:00:00Z")),
+                CaptureOrigin::AnkiImport,
+                true,
+            )
+            .unwrap();
+        // A curriculum word waits for its turn (学习 comes 30th), and a
+        // scheduled card is a review.
+        let study = insert(&store, &chinese_card("学习", at("2026-09-01T08:00:00Z")));
+        let learned = insert(&store, &chinese_card("我", at("2026-09-01T08:00:00Z")));
+        store
+            .upsert_srs_state(&due_state(learned, at("2026-10-31T10:00:00.000Z")))
+            .unwrap();
+
+        assert_eq!(
+            store.list_unscheduled_captures().unwrap(),
+            [
+                unscheduled(study, "学习", "2026-09-01T08:00:00.000Z"),
+                unscheduled(tree, "Baum", "2026-10-02T08:00:00.000Z"),
+                unscheduled(house, "house", "2026-10-20T08:00:00.000Z"),
+            ]
+        );
+        assert_eq!(
+            build_daily_queue(&store, 3, &clock).unwrap(),
+            [
+                review(learned, "2026-10-31T10:00:00.000Z"),
+                new_capture(tree),
+                new_capture(house),
+                new("是", 2),
+            ]
+        );
+    }
+
+    #[test]
+    fn starting_a_capture_turns_its_new_item_into_a_review() {
+        let store = seeded_store(&scrambled_curriculum());
+        let scheduler = SrsScheduler::default();
+        let clock = FixedClock::utc(at("2026-10-31T08:00:00.000Z"));
+        let house = insert(
+            &store,
+            &Card::new("house", "Haus", "en", "de", at("2026-10-20T08:00:00Z")),
+        );
+        assert_eq!(
+            build_daily_queue(&store, 2, &clock).unwrap(),
+            [new_capture(house), new("我", 1)]
+        );
+
+        assert_eq!(
+            introduce_capture(&store, &scheduler, house, &clock).unwrap(),
+            house
+        );
+        assert!(store.list_unscheduled_captures().unwrap().is_empty());
+        assert_eq!(
+            build_daily_queue(&store, 2, &clock).unwrap(),
+            [
+                review(house, "2026-10-31T08:00:00.000Z"),
+                new("我", 1),
+                new("是", 2),
+            ]
         );
     }
 }
@@ -600,6 +780,103 @@ mod introducing {
     }
 
     #[test]
+    fn an_imported_curriculum_word_is_adopted_when_its_turn_comes() {
+        let store = store_with(&[word()]);
+        let scheduler = SrsScheduler::default();
+        let clock = clock();
+        let import = store
+            .insert_capture(
+                &chinese_card("学习", at("2026-10-01T00:00:00Z")),
+                CaptureOrigin::AnkiImport,
+                true,
+            )
+            .unwrap();
+        assert_eq!(
+            build_daily_queue(&store, 5, &clock).unwrap(),
+            [QueueItem::New {
+                hanzi: "学习".into(),
+                curriculum_order: 3
+            }]
+        );
+        assert_eq!(
+            introduce_new_item(&store, &scheduler, "学习", "de", &clock).unwrap(),
+            import
+        );
+        assert_eq!(
+            store.get_capture(import).unwrap().unwrap().origin,
+            CaptureOrigin::AnkiImport
+        );
+        assert_eq!(store.list_captures(None).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_capture_starts_with_a_new_state_and_keeps_what_was_captured() {
+        let store = store_with(&[word()]);
+        let scheduler = SrsScheduler::default();
+        let clock = clock();
+        let mut card = Card::new("house", "Haus", "en", "de", at("2026-10-20T08:00:00Z"));
+        card.example_source = "The house is big.".into();
+        card.example_target = "Das Haus ist groß.".into();
+        let id = store
+            .insert_capture(&card, CaptureOrigin::AnkiImport, true)
+            .unwrap();
+
+        assert_eq!(
+            introduce_capture(&store, &scheduler, id, &clock).unwrap(),
+            id
+        );
+
+        assert_eq!(
+            store.get_srs_state(id).unwrap(),
+            Some(scheduler.initial_state(id, clock.now()))
+        );
+        assert_eq!(
+            store.get_srs_state(id).unwrap().unwrap().due_date,
+            at("2026-10-31T08:00:00.000Z")
+        );
+        let stored = store.get_capture(id).unwrap().unwrap();
+        assert_eq!(stored.card, card);
+        assert_eq!(stored.origin, CaptureOrigin::AnkiImport);
+        assert!(stored.synced_to_anki);
+        assert_eq!(store.list_captures(None).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn starting_a_capture_again_returns_it_and_keeps_its_progress() {
+        let store = store_with(&[word()]);
+        let scheduler = SrsScheduler::default();
+        let clock = clock();
+        let id = store
+            .insert_capture(
+                &Card::new("house", "Haus", "en", "de", at("2026-10-20T08:00:00Z")),
+                CaptureOrigin::Capture,
+                false,
+            )
+            .unwrap();
+        introduce_capture(&store, &scheduler, id, &clock).unwrap();
+        submit_review(&store, &scheduler, id, ReviewRating::Good, &clock).unwrap();
+        let reviewed = store.get_srs_state(id).unwrap();
+
+        clock.advance(Duration::days(1));
+        assert_eq!(
+            introduce_capture(&store, &scheduler, id, &clock).unwrap(),
+            id
+        );
+        assert_eq!(store.get_srs_state(id).unwrap(), reviewed);
+        assert_eq!(store.count_srs_states().unwrap(), 1);
+    }
+
+    #[test]
+    fn starting_a_capture_that_does_not_exist_writes_nothing() {
+        let store = store_with(&[word()]);
+        assert!(matches!(
+            introduce_capture(&store, &SrsScheduler::default(), 42, &clock()),
+            Err(StoreError::NotFound(message)) if message == "capture 42"
+        ));
+        assert_eq!(store.count_srs_states().unwrap(), 0);
+    }
+
+    #[test]
     fn a_word_that_is_neither_captured_nor_in_the_curriculum_is_not_found() {
         let store = store_with(&[word()]);
         for hanzi in ["没有", " 学习", ""] {
@@ -618,12 +895,17 @@ mod introducing {
 
 #[test]
 fn queue_items_serialize_in_the_documented_shape() {
-    let items = [review(7, "2026-10-31T09:00:00.000Z"), new("学习", 3)];
+    let items = [
+        review(7, "2026-10-31T09:00:00.000Z"),
+        new_capture(12),
+        new("学习", 3),
+    ];
     let json = serde_json::to_value(&items).unwrap();
     assert_eq!(
         json,
         serde_json::json!([
             { "kind": "review", "card_id": 7, "due_date": "2026-10-31T09:00:00Z" },
+            { "kind": "new_capture", "card_id": 12 },
             { "kind": "new", "hanzi": "学习", "curriculum_order": 3 }
         ])
     );

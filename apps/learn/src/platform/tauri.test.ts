@@ -64,6 +64,12 @@ const CALLS: Record<Exclude<keyof PlatformAdapter, 'capabilities'>, Call> = {
     args: { hanzi: '学习' },
     reply: 12,
   },
+  startNewCapture: {
+    run: (a) => a.startNewCapture(14),
+    command: 'start_new_capture',
+    args: { cardId: 14 },
+    reply: 14,
+  },
   getCard: {
     run: (a) => a.getCard(12),
     command: 'get_card',

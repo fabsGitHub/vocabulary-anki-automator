@@ -54,11 +54,14 @@ use vocab_core::{
     rng::Mulberry32,
     srs::{
         build_daily_queue, build_daily_queue_from, daily_prompt_state, dismiss_daily_prompt,
-        fsrs_card_from_state, introduce_new_item, record_session_progress, reopen_daily_prompt,
-        submit_daily_quota, submit_review, QueueItem, ReviewRating, SessionProgress, SrsScheduler,
-        LAST_PROMPTED_KEY,
+        fsrs_card_from_state, introduce_capture, introduce_new_item, record_session_progress,
+        reopen_daily_prompt, submit_daily_quota, submit_review, QueueItem, ReviewRating,
+        SessionProgress, SrsScheduler, LAST_PROMPTED_KEY,
     },
-    store::{curriculum_fingerprint, DailySessionRow, SrsStateRow, Store, StoreError, StoreResult},
+    store::{
+        curriculum_fingerprint, DailySessionRow, SrsStateRow, Store, StoreError, StoreResult,
+        UnscheduledCapture,
+    },
     time::{self, format_date, local_day_bounds, Clock, FixedClock},
     CaptureOrigin, Card, CurriculumItem, ScriptMetadata, ScriptVariant, StoredCapture,
 };
@@ -243,6 +246,26 @@ fn scrambled_curriculum() -> Vec<CurriculumItem> {
         curriculum_item("中文", 7),
         curriculum_item("是", 2),
         curriculum_item("好", 12),
+    ]
+}
+
+fn unscheduled(card_id: i64, front: &str, at: &str) -> UnscheduledCapture {
+    UnscheduledCapture {
+        card_id,
+        front: front.into(),
+        captured_at: instant(at),
+    }
+}
+
+/// Captures nobody started, in neither capture nor id order: two share an
+/// instant, two are a millisecond apart, and 学习 is a curriculum word.
+fn scrambled_unscheduled() -> Vec<UnscheduledCapture> {
+    vec![
+        unscheduled(21, "Haus", "2026-10-20T08:00:00.000Z"),
+        unscheduled(12, "学习", "2026-09-01T08:00:00.000Z"),
+        unscheduled(30, "tree", "2026-10-02T08:00:00.001Z"),
+        unscheduled(17, "电脑包", "2026-10-20T08:00:00.000Z"),
+        unscheduled(25, "Katze", "2026-10-02T08:00:00.000Z"),
     ]
 }
 
@@ -1153,9 +1176,15 @@ fn queue_cases() -> Value {
     let everything: Vec<&str> = curriculum.iter().map(|item| item.hanzi.as_str()).collect();
     let mut reversed = curriculum.clone();
     reversed.reverse();
+    let captures = scrambled_unscheduled();
+    let captured_curriculum = [
+        unscheduled(12, "学习", "2026-09-01T08:00:00.000Z"),
+        unscheduled(13, "我", "2026-09-02T08:00:00.000Z"),
+    ];
     type Case<'a> = (
         &'a str,
         &'a [SrsStateRow],
+        &'a [UnscheduledCapture],
         &'a [CurriculumItem],
         Vec<&'a str>,
         u32,
@@ -1164,15 +1193,24 @@ fn queue_cases() -> Value {
         (
             "reviews first, by due date then card id",
             &due,
+            &[],
             &curriculum,
             vec![],
             2,
         ),
-        ("a zero quota is reviews only", &due, &curriculum, vec![], 0),
-        ("strict curriculum order", &[], &curriculum, vec![], 6),
-        ("reversed input, same order", &[], &reversed, vec![], 3),
+        (
+            "a zero quota is reviews only",
+            &due,
+            &captures,
+            &curriculum,
+            vec![],
+            0,
+        ),
+        ("strict curriculum order", &[], &[], &curriculum, vec![], 6),
+        ("reversed input, same order", &[], &[], &reversed, vec![], 3),
         (
             "learned hanzi are skipped",
+            &[],
             &[],
             &curriculum,
             vec!["我", "你好", "nope"],
@@ -1181,6 +1219,7 @@ fn queue_cases() -> Value {
         (
             "quota beyond the curriculum",
             &[],
+            &[],
             &curriculum,
             vec!["我", "是", "好"],
             100,
@@ -1188,27 +1227,76 @@ fn queue_cases() -> Value {
         (
             "the largest quota",
             &due[..2],
+            &captures,
             &curriculum,
             vec![],
             u32::MAX,
         ),
-        ("everything learned", &due[..1], &curriculum, everything, 5),
-        ("an empty curriculum", &due, &[], vec![], 10),
-        ("nothing at all", &[], &[], vec![], 10),
+        (
+            "everything learned",
+            &due[..1],
+            &[],
+            &curriculum,
+            everything,
+            5,
+        ),
+        ("an empty curriculum", &due, &[], &[], vec![], 10),
+        ("nothing at all", &[], &[], &[], vec![], 10),
+        (
+            "captures first, by capture time then card id",
+            &due,
+            &captures,
+            &curriculum,
+            vec![],
+            6,
+        ),
+        (
+            "captures can use up the quota",
+            &[],
+            &captures,
+            &curriculum,
+            vec![],
+            3,
+        ),
+        (
+            "captured curriculum words wait for their turn",
+            &[],
+            &captured_curriculum,
+            &curriculum,
+            vec![],
+            6,
+        ),
+        (
+            "learned hanzi hide no capture",
+            &[],
+            &captures,
+            &curriculum,
+            vec!["电脑包", "Haus", "我"],
+            5,
+        ),
+        (
+            "captures without a curriculum",
+            &[],
+            &captures,
+            &[],
+            vec![],
+            10,
+        ),
     ];
     let cases: Vec<Value> = cases
         .into_iter()
-        .map(|(name, due, curriculum, learned, quota)| {
+        .map(|(name, due, unscheduled, curriculum, learned, quota)| {
             let mut learned: Vec<String> = learned.into_iter().map(str::to_owned).collect();
             learned.sort();
             let set = learned.iter().cloned().collect();
             json!({
                 "name": name,
                 "due": due,
+                "unscheduled": unscheduled,
                 "curriculum": curriculum,
                 "learned": learned,
                 "quota": quota,
-                "queue": build_daily_queue_from(due, curriculum, &set, quota),
+                "queue": build_daily_queue_from(due, unscheduled, curriculum, &set, quota),
             })
         })
         .collect();
@@ -2255,6 +2343,14 @@ impl Runner {
         id
     }
 
+    fn introduce_capture(&mut self, card_id: i64) {
+        let result = introduce_capture(&self.store, &self.scheduler, card_id, &self.clock);
+        self.record(
+            json!({ "op": "introduce_capture", "card_id": card_id }),
+            outcome(result),
+        );
+    }
+
     fn submit_review(&mut self, card_id: i64, given: u8) {
         let result = submit_review(
             &self.store,
@@ -2304,6 +2400,14 @@ impl Runner {
     fn list_captures(&mut self) {
         let result = self.store.list_captures(None);
         self.record(json!({ "op": "list_captures" }), outcome(result));
+    }
+
+    fn list_unscheduled_captures(&mut self) {
+        let result = self.store.list_unscheduled_captures();
+        self.record(
+            json!({ "op": "list_unscheduled_captures" }),
+            outcome(result),
+        );
     }
 
     fn learned_chinese_fronts(&mut self) {
@@ -2419,6 +2523,7 @@ fn scenarios() -> Value {
     }
     all.push(due_order_scenario());
     all.push(queue_learning_scenario());
+    all.push(queue_captures_scenario());
     all.push(gamification_scenario());
     all.push(freezes_at_completion_scenario());
     all.push(stats_spend_freezes_scenario());
@@ -2749,6 +2854,75 @@ fn queue_learning_scenario() -> Value {
     run.finish()
 }
 
+/// Captures and Anki imports nobody started: offered before the curriculum,
+/// oldest first, from the same quota. An import of a curriculum word waits
+/// for that word's turn and is adopted then; starting a capture gives it a
+/// new state once, which moves it to the reviews and into the pool.
+fn queue_captures_scenario() -> Value {
+    let mut run = Runner::new(
+        "captures and imports in the queue",
+        instant("2026-10-31T08:00:00.000456Z"),
+        3600,
+    );
+    run.replace_curriculum(&scrambled_curriculum());
+    let house = run.insert_capture(
+        &captured_at(plain("house", "Haus", "en", "de"), "2026-10-20T08:00:00Z"),
+        CaptureOrigin::Capture,
+    );
+    let tree = run.insert_capture(
+        &captured_at(plain("Baum", "tree", "de", "en"), "2026-10-02T08:00:00Z"),
+        CaptureOrigin::AnkiImport,
+    );
+    let bag = run.insert_capture(
+        &captured_at(
+            chinese("电脑包", "laptop bag", "en", "diàn nǎo bāo"),
+            "2026-10-20T08:00:00Z",
+        ),
+        CaptureOrigin::AnkiImport,
+    );
+    let study = run.insert_capture(
+        &captured_at(
+            chinese("学习", "lernen", "de", "xué xí"),
+            "2026-09-01T08:00:00Z",
+        ),
+        CaptureOrigin::AnkiImport,
+    );
+    let learned = run.insert_capture(
+        &captured_at(chinese("我", "ich", "de", "wǒ"), "2026-09-01T08:00:00Z"),
+        CaptureOrigin::Capture,
+    );
+    run.upsert_srs_state(&due_state(learned, instant("2026-10-31T10:00:00.000Z")));
+
+    run.list_unscheduled_captures();
+    run.build_daily_queue(0);
+    run.build_daily_queue(2);
+    run.build_daily_queue(5);
+    run.build_daily_queue(99);
+
+    run.introduce_capture(tree);
+    run.introduce_capture(tree);
+    run.get_srs_state(tree);
+    run.get_capture(tree);
+    run.list_unscheduled_captures();
+    run.build_daily_queue(2);
+    run.submit_review(tree, 3);
+    run.advance(Duration::minutes(5));
+    run.introduce_capture(tree);
+    run.get_srs_state(tree);
+    run.introduce_capture(9_999);
+    run.introduce_capture(bag);
+    run.load_pool();
+
+    run.introduce_new_item("学习", "de");
+    run.get_srs_state(study);
+    run.list_unscheduled_captures();
+    run.build_daily_queue(99);
+    run.delete_capture(house);
+    run.list_unscheduled_captures();
+    run.build_daily_queue(1);
+    run.finish()
+}
+
 /// Streaks, freezes and the session bonus in Tokyo, where the local date
 /// runs nine hours ahead of the UTC one.
 fn gamification_scenario() -> Value {
@@ -3019,10 +3193,12 @@ mod learn {
         let (_, end_of_today) = local_day_bounds(today, clock.local_offset());
         let due = store.list_srs_due_before(end_of_today)?;
         let new_quota = remaining_new_quota(store.get_daily_session(today)?.as_ref(), &due);
+        let unscheduled = store.list_unscheduled_captures()?;
         let curriculum = store.curriculum_in_order()?;
         let learned_hanzi = store.learned_chinese_fronts()?;
         Ok(build_daily_queue_from(
             &due,
+            &unscheduled,
             &curriculum,
             &learned_hanzi,
             new_quota,
@@ -3122,6 +3298,19 @@ mod learn {
         let hanzi = hanzi.trim();
         introduce_new_item(store, scheduler, hanzi, meaning_lang, clock).map_err(|err| match err {
             StoreError::NotFound(_) => LearnError::NotInCurriculum(hanzi.to_owned()),
+            other => other.into(),
+        })
+    }
+
+    /// `commands::daily::start_new_capture`: an unknown id is no card.
+    pub fn start_new_capture(
+        store: &Store,
+        scheduler: &SrsScheduler,
+        card_id: i64,
+        clock: &dyn Clock,
+    ) -> LearnResult<i64> {
+        introduce_capture(store, scheduler, card_id, clock).map_err(|err| match err {
+            StoreError::NotFound(_) => LearnError::NoSuchCard(card_id),
             other => other.into(),
         })
     }
@@ -3253,6 +3442,12 @@ impl Learn {
         id
     }
 
+    fn start_new_capture(&mut self, card_id: i64) {
+        let result =
+            learn::start_new_capture(self.store(), &self.run.scheduler, card_id, &self.run.clock);
+        self.command("startNewCapture", json!([card_id]), result);
+    }
+
     fn capture(&self, card_id: i64) -> LearnResult<StoredCapture> {
         self.store()
             .get_capture(card_id)?
@@ -3381,6 +3576,10 @@ fn adapter_scenarios() -> Value {
     learn.run.replace_curriculum(&curriculum);
     // Captured in Automator before Learn ever ran: one curriculum word that
     // was never scheduled, and clipboard captures with sentences for lessons.
+    // The queue offers the clipboard captures first, but this scenario starts
+    // curriculum words directly and leaves the captures unstarted, so they
+    // must stay out of reviews and exercises; `adapter_captures_scenario`
+    // starts captures.
     let automator = learn.run.insert_capture(
         &with_audio(captured_at(
             chinese("好", "gut", "de", "hǎo"),
@@ -3530,7 +3729,102 @@ fn adapter_scenarios() -> Value {
     learn.get_daily_queue();
     learn.get_stats();
 
-    vec![learn.finish(&curriculum)].into()
+    vec![
+        learn.finish(&curriculum),
+        adapter_captures_scenario(&curriculum),
+    ]
+    .into()
+}
+
+/// Captures and Anki imports through Learn's commands: the queue offers them
+/// before the curriculum from the same quota, `startNewCapture` starts one
+/// once, its first rating is one of the day's new items, and from then on it
+/// is learned vocabulary. An imported curriculum word waits for its turn and
+/// is adopted then.
+fn adapter_captures_scenario(curriculum: &[CurriculumItem]) -> Value {
+    let berlin = 3600;
+    let mut learn = Learn::new(
+        "captures and imports in Learn at UTC+1",
+        local(offset(berlin), "2026-11-02 08:00:00.000"),
+        berlin,
+        "en",
+    );
+    learn.run.replace_curriculum(curriculum);
+    let import = learn.run.insert_capture(
+        &captured_at(
+            with_example(
+                plain("Baum", "tree", "de", "en"),
+                "Der Baum ist alt.",
+                "The tree is old.",
+            ),
+            "2026-10-25T09:00:00Z",
+        ),
+        CaptureOrigin::AnkiImport,
+    );
+    let capture = learn.run.insert_capture(
+        &captured_at(
+            with_example(
+                plain("house", "Haus", "en", "de"),
+                "The house is big.",
+                "Das Haus ist groß.",
+            ),
+            "2026-10-24T09:00:00Z",
+        ),
+        CaptureOrigin::Capture,
+    );
+    let word = learn.run.insert_capture(
+        &with_audio(captured_at(
+            chinese("电脑包", "laptop bag", "en", "diàn nǎo bāo"),
+            "2026-10-26T09:00:00Z",
+        )),
+        CaptureOrigin::Capture,
+    );
+    let hsk = learn.run.insert_capture(
+        &captured_at(chinese("你", "you", "en", "nǐ"), "2026-10-01T09:00:00Z"),
+        CaptureOrigin::AnkiImport,
+    );
+
+    learn.get_daily_queue();
+    learn.submit_daily_quota(4);
+    learn.get_daily_queue();
+    learn.start_new_capture(capture);
+    learn.start_new_capture(capture);
+    learn.get_daily_queue();
+    learn.get_card(capture);
+    learn.preview_ratings(capture);
+    learn.run.advance(Duration::seconds(30));
+    learn.submit_review_rating(capture, 3);
+    learn.get_daily_queue();
+    learn.start_new_capture(import);
+    learn.submit_review_rating(import, 4);
+    learn.start_new_capture(word);
+    learn.get_card_audio(word);
+    learn.submit_review_rating(word, 3);
+    learn.get_daily_queue();
+    if let Some(id) = learn.start_new_item("我") {
+        learn.submit_review_rating(id, 3);
+    }
+    learn.get_daily_queue();
+    learn.start_new_capture(9_999);
+    learn.list_learned_cards();
+    for (card_id, kind) in [
+        (word, ExerciseKind::MultipleChoice),
+        (import, ExerciseKind::MultipleChoice),
+        (capture, ExerciseKind::SentenceBuilder),
+    ] {
+        learn.next_exercise(card_id, kind, 3);
+    }
+    learn.get_stats();
+
+    // The next day the curriculum reaches the imported 你, which is adopted.
+    learn.run.set_local("2026-11-03 08:00:00.000");
+    learn.submit_daily_quota(2);
+    learn.get_daily_queue();
+    learn.start_new_item("你");
+    learn.get_card(hsk);
+    learn.get_daily_queue();
+    learn.get_stats();
+    learn.finish(curriculum)
 }
 
 // ---------------------------------------------------------------------------

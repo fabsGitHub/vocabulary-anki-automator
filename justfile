@@ -52,6 +52,11 @@ learn-dev:
 learn-web:
     npm run learn:dev:web
 
+# Learn: the public live demo (docs/live-demo.md), the web build started with a
+# made-up history in its own database.
+learn-demo:
+    npm run learn:dev:demo
+
 # Chains the fast test tiers; the same script CI and the pre-commit hook run.
 check-all:
     ./scripts/run-all-checks.sh

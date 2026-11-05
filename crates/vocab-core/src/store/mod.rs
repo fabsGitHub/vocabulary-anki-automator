@@ -42,6 +42,7 @@ use std::{
 
 use rusqlite::{Connection, ErrorCode, TransactionBehavior};
 
+pub use captures::UnscheduledCapture;
 pub use curriculum::{curriculum_fingerprint, CURRICULUM_FINGERPRINT_KEY};
 pub use progress::DailySessionRow;
 pub use reviews::{ReviewLogRow, SrsStateRow};

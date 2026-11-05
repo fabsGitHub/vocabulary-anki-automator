@@ -289,6 +289,7 @@ pub const COMMANDS: &[(&str, &str, &[&str])] = &[
     ("reopenDailyPrompt", "reopen_daily_prompt", &[]),
     ("getDailyQueue", "get_daily_queue", &[]),
     ("startNewItem", "start_new_item", &["hanzi"]),
+    ("startNewCapture", "start_new_capture", &["cardId"]),
     ("getCard", "get_card", &["cardId"]),
     ("previewRatings", "preview_ratings", &["cardId"]),
     (

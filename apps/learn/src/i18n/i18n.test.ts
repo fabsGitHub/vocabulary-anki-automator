@@ -34,12 +34,14 @@ const KEYS = Object.keys(MESSAGES.en)
 const placeholders = (message: string) =>
   [...message.matchAll(/\{\s*([A-Za-z_]\w*)\s*\}/g)].map((match) => match[1]).sort()
 
-/** Every `.vue`/`.ts` source of the UI, as text. */
-const SOURCES = import.meta.glob(['../**/*.vue', '../**/*.ts', '!../**/*.test.ts', '!../test/**'], {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>
+/**
+ * Every `.vue`/`.ts` source of the UI, as text. The live demo's components
+ * look up messages of their own (`../demo/messages.ts`), which its tests check.
+ */
+const SOURCES = import.meta.glob(
+  ['../**/*.vue', '../**/*.ts', '!../**/*.test.ts', '!../test/**', '!../demo/**'],
+  { query: '?raw', import: 'default', eager: true },
+) as Record<string, string>
 
 afterEach(() => {
   window.localStorage.clear()

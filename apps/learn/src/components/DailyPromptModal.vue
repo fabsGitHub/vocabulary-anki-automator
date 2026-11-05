@@ -1,6 +1,10 @@
 <script setup lang="ts">
 /**
- * "How many new characters do you want to learn today?" (Milestone L2).
+ * "How many new words do you want to learn today?" (Milestone L2).
+ *
+ * The intro says where new words come from: captures and Anki imports first,
+ * then the HSK word list (docs/architecture.md § 7.1). The web build has no
+ * captures or imports (`web`), so it names only the word list.
  *
  * It only collects the answer: "Start" emits the count (0–50), "Not today"
  * (also Esc) emits a dismissal, which the core records as reviews only for
@@ -19,6 +23,7 @@ const props = defineProps<{
   initialCount: number
   busy: boolean
   error: string | null
+  web?: boolean
 }>()
 
 const emit = defineEmits<{ start: [count: number]; dismiss: [] }>()
@@ -105,7 +110,9 @@ onBeforeUnmount(() => returnFocus?.focus())
         </header>
 
         <div class="modal-body prompt-body">
-          <p id="daily-prompt-intro" class="input-hint">{{ t('prompt.intro') }}</p>
+          <p id="daily-prompt-intro" class="input-hint">
+            {{ t(web ? 'prompt.introWeb' : 'prompt.intro') }}
+          </p>
 
           <div class="field-group">
             <label for="daily-prompt-count">{{ t('prompt.countLabel') }}</label>

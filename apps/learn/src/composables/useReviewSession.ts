@@ -2,14 +2,15 @@
  * One pass over today's queue (Milestone L3): the review view's state.
  *
  * The queue is walked in the order `getDailyQueue` returns it: every due
- * review first, then today's new words. A new word is introduced with
- * `startNewItem` when the pass reaches it, never earlier, and is then
- * reviewed like any card; the call is idempotent, so a retry or a rebuilt
- * queue never duplicates it. Progress, XP and the streak are the backend's
- * business (docs/architecture.md § 7.1 and § 7.3): it counts a card's first
- * review as a new item and every other review as a review. This state only
- * adds up the `xp_awarded` of each rating and keeps the latest streak for
- * the summary.
+ * review first, then today's new items, unstarted captures and Anki imports
+ * before curriculum words. A new item is started when the pass reaches it,
+ * never earlier (`startNewCapture` for a capture, `startNewItem` for a
+ * curriculum word), and is then reviewed like any card; both calls are
+ * idempotent, so a retry or a rebuilt queue never duplicates it. Progress,
+ * XP and the streak are the backend's business (docs/architecture.md § 7.1
+ * and § 7.3): it counts a card's first review as a new item and every other
+ * review as a review. This state only adds up the `xp_awarded` of each
+ * rating and keeps the latest streak for the summary.
  *
  * A pass ends after its last item. Cards that came due again meanwhile
  * (learning steps, "Again") are picked up by starting a new pass over a
@@ -66,7 +67,22 @@ export function useReviewSession(platform: PlatformAdapter, clock: Clock) {
   let pass = 0
 
   const total = computed(() => queue.value.length)
-  const isNew = computed(() => current.value?.item.kind === 'new')
+  const isNew = computed(() => {
+    const kind = current.value?.item.kind
+    return kind === 'new' || kind === 'new_capture'
+  })
+
+  /** The card id of `item`, starting it first when it is new. */
+  function cardOf(item: QueueItem): Promise<number> {
+    switch (item.kind) {
+      case 'new':
+        return platform.startNewItem(item.hanzi)
+      case 'new_capture':
+        return platform.startNewCapture(item.card_id)
+      case 'review':
+        return Promise.resolve(item.card_id)
+    }
+  }
 
   /** Starts a pass over a freshly built queue. */
   async function start(): Promise<void> {
@@ -105,7 +121,7 @@ export function useReviewSession(platform: PlatformAdapter, clock: Clock) {
     busy.value = true
     error.value = null
     try {
-      const cardId = item.kind === 'new' ? await platform.startNewItem(item.hanzi) : item.card_id
+      const cardId = await cardOf(item)
       const [capture, previews] = await Promise.all([
         platform.getCard(cardId),
         // The intervals only label the buttons (the core itself has none for

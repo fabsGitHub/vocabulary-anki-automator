@@ -7,7 +7,7 @@ import DailyPromptModal from './DailyPromptModal.vue'
 let wrapper: VueWrapper | null = null
 
 function mountPrompt(
-  props: Partial<{ initialCount: number; busy: boolean; error: string | null }>,
+  props: Partial<{ initialCount: number; busy: boolean; error: string | null; web: boolean }>,
 ) {
   wrapper = mount(DailyPromptModal, {
     props: { initialCount: 5, busy: false, error: null, ...props },
@@ -81,10 +81,24 @@ describe('the daily prompt dialog', () => {
     expect(wrapper!.emitted('dismiss')).toHaveLength(1)
   })
 
+  it('says where new words come from: captures and imports first, then the HSK list', () => {
+    mountPrompt({})
+    const intro = find('#daily-prompt-intro').text()
+    expect(intro).toContain('captured in the Automator or imported from Anki, oldest first')
+    expect(intro).toContain('then the HSK word list in order')
+    wrapper!.unmount()
+
+    // The web build has neither, so it names the word list alone.
+    mountPrompt({ web: true })
+    expect(find('#daily-prompt-intro').text()).toBe(
+      'New words come from the HSK word list, in order. Cards that are due for review always come first.',
+    )
+  })
+
   it('is fully translated', () => {
     setLocale('de')
     mountPrompt({ error: 'kaputt' })
-    expect(wrapper!.text()).toContain('Wie viele neue Schriftzeichen möchtest du heute lernen?')
+    expect(wrapper!.text()).toContain('Wie viele neue Wörter möchtest du heute lernen?')
     expect(find('[data-test="prompt-dismiss"]').text()).toBe('Heute nicht')
     expect(find('[data-test="prompt-error"]').text()).toContain('kaputt')
     expect(find('[data-test="not-today-hint"]').text()).toContain('nur Wiederholungen')

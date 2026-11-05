@@ -41,6 +41,10 @@
 //!   whatever the note carried. Their `script_kind` is then `chinese`, so
 //!   the daily queue adopts an imported word when its curriculum turn comes
 //!   (§ 7.1) instead of inserting it again.
+//! - *Imports start fresh in Learn.* They are stored without an `srs_state`
+//!   row, Anki's review state is not read, and the daily queue offers an
+//!   imported word the curriculum does not have as a new card, before the
+//!   curriculum words and from the same quota (§ 7.1).
 //! - Notes are read and annotated before the store is touched; the inserts
 //!   then run in one transaction, with a savepoint per note so that one bad
 //!   note does not undo the others.

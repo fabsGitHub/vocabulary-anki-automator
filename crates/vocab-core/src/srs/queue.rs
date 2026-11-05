@@ -1,18 +1,23 @@
-//! The daily queue (Milestone L3) and the two writes a session makes with its
-//! items: introducing a new curriculum word and submitting a review.
+//! The daily queue (Milestone L3) and the writes a session makes with its
+//! items: starting a new card and submitting a review.
 //!
 //! Reviews come first, all of them: they are what FSRS spaced against
 //! forgetting, and skipping them would let intervals overrun. "Due today" ends
 //! at the end of the learner's local day, not at the current instant, so a
-//! card that falls due this evening is already in the morning's queue. New
-//! words follow in strict `curriculum_order`, skipping every hanzi the learner
-//! has already learned (a Chinese card with an `srs_state` row), so the
-//! curriculum never teaches a word twice. A word captured in Automator but
-//! never scheduled is still offered when its turn comes, and
-//! [`introduce_new_item`] then adopts that capture instead of duplicating it;
-//! otherwise such a word would be neither new nor due and would never reach
-//! a review. A quota of zero is not a mode of its own: it takes zero new
-//! words from the same sequence.
+//! card that falls due this evening is already in the morning's queue.
+//!
+//! New items follow, from one quota and two sources. First the learner's own
+//! cards: every capture or Anki import without an `srs_state` row that is no
+//! curriculum word, oldest capture first, which [`introduce_capture`] starts.
+//! Then curriculum words in strict `curriculum_order`, skipping every hanzi
+//! the learner has already learned (a Chinese card with an `srs_state` row),
+//! so the curriculum never teaches a word twice. A capture whose front is a
+//! curriculum word is left to the curriculum: it is offered when that word's
+//! turn comes, and [`introduce_new_item`] then adopts the Chinese capture
+//! instead of duplicating it, so an imported HSK deck is learned in
+//! curriculum order. Without these two paths an unscheduled card would be
+//! neither new nor due and would never reach a review. A quota of zero is not
+//! a mode of its own: it takes zero new items from the same sequence.
 //!
 //! The queue builder sorts its inputs itself, so the order is a property of
 //! [`build_daily_queue_from`] (and of the TypeScript port tested against it),
@@ -27,7 +32,7 @@ use super::{LocalNow, ReviewOutcome, ReviewRating, SrsScheduler};
 use crate::{
     language::normalize_lang,
     model::{CaptureOrigin, Card, CurriculumItem, ScriptMetadata, ScriptVariant},
-    store::{SrsStateRow, Store, StoreError, StoreResult},
+    store::{SrsStateRow, Store, StoreError, StoreResult, UnscheduledCapture},
     time::Clock,
 };
 
@@ -52,19 +57,33 @@ pub enum QueueItem {
         hanzi: String,
         curriculum_order: i64,
     },
+    /// A capture or Anki import nobody has started yet: start it with
+    /// [`introduce_capture`].
+    NewCapture { card_id: i64 },
 }
 
 /// The queue for one day, from rows already loaded: every state in `due`, by
-/// `due_date` and then `card_id`, followed by the first `new_quota` items of
-/// `curriculum` in `curriculum_order` whose hanzi is not in `learned_hanzi`.
+/// `due_date` and then `card_id`, followed by the first `new_quota` new
+/// items. Those are the captures in `unscheduled` whose front is not the
+/// hanzi of a `curriculum` item, by `captured_at` and then `card_id`, and
+/// after them the items of `curriculum` in `curriculum_order` whose hanzi is
+/// not in `learned_hanzi`.
 pub fn build_daily_queue_from(
     due: &[SrsStateRow],
+    unscheduled: &[UnscheduledCapture],
     curriculum: &[CurriculumItem],
     learned_hanzi: &HashSet<String>,
     new_quota: u32,
 ) -> Vec<QueueItem> {
     let mut reviews: Vec<&SrsStateRow> = due.iter().collect();
     reviews.sort_by_key(|state| (state.due_date, state.card_id));
+    let curriculum_words: HashSet<&str> =
+        curriculum.iter().map(|item| item.hanzi.as_str()).collect();
+    let mut captures: Vec<&UnscheduledCapture> = unscheduled
+        .iter()
+        .filter(|capture| !curriculum_words.contains(capture.front.as_str()))
+        .collect();
+    captures.sort_by_key(|capture| (capture.captured_at, capture.card_id));
     let mut in_order: Vec<&CurriculumItem> = curriculum.iter().collect();
     in_order.sort_by_key(|item| item.curriculum_order);
     let new_quota = usize::try_from(new_quota).unwrap_or(usize::MAX);
@@ -73,19 +92,24 @@ pub fn build_daily_queue_from(
         card_id: state.card_id,
         due_date: state.due_date,
     });
-    let new_items = in_order
+    let captures = captures.into_iter().map(|capture| QueueItem::NewCapture {
+        card_id: capture.card_id,
+    });
+    let words = in_order
         .into_iter()
         .filter(|item| !learned_hanzi.contains(&item.hanzi))
-        .take(new_quota)
         .map(|item| QueueItem::New {
             hanzi: item.hanzi.clone(),
             curriculum_order: item.curriculum_order,
         });
-    reviews.chain(new_items).collect()
+    reviews
+        .chain(captures.chain(words).take(new_quota))
+        .collect()
 }
 
 /// Today's queue from the store: every state due before the end of the
-/// user's local day, then up to `new_quota` new curriculum words (see
+/// user's local day, then up to `new_quota` new items, the captures and
+/// imports without an `srs_state` row before the curriculum words (see
 /// [`build_daily_queue_from`]). The front of every Chinese capture with an
 /// `srs_state` row counts as a learned hanzi.
 pub fn build_daily_queue(
@@ -93,11 +117,15 @@ pub fn build_daily_queue(
     new_quota: u32,
     clock: &dyn Clock,
 ) -> StoreResult<Vec<QueueItem>> {
+    // The due states are read first: a card started between the two reads
+    // then misses this queue instead of appearing in it twice.
     let due = due_today(store, &LocalNow::read(clock))?;
+    let unscheduled = store.list_unscheduled_captures()?;
     let curriculum = store.curriculum_in_order()?;
     let learned_hanzi = store.learned_chinese_fronts()?;
     Ok(build_daily_queue_from(
         &due,
+        &unscheduled,
         &curriculum,
         &learned_hanzi,
         new_quota,
@@ -146,6 +174,30 @@ pub fn introduce_new_item(
         let card = curriculum_card(&item, target_lang, now.at);
         let card_id = store.insert_capture(&card, CaptureOrigin::Curriculum, false)?;
         store.upsert_srs_state(&scheduler.initial_state(card_id, now.at))?;
+        Ok(card_id)
+    })
+}
+
+/// Starts learning the stored card `card_id`, a capture or import the queue
+/// offered as [`QueueItem::NewCapture`], and returns its id: it gets a `new`
+/// `srs_state` row due now and keeps its content as it was captured.
+///
+/// Idempotent: a card that has a state already keeps it. Fails with
+/// [`StoreError::NotFound`] when no capture has this id.
+pub fn introduce_capture(
+    store: &Store,
+    scheduler: &SrsScheduler,
+    card_id: i64,
+    clock: &dyn Clock,
+) -> StoreResult<i64> {
+    let now = LocalNow::read(clock);
+    store.with_transaction(|store| {
+        if store.get_capture(card_id)?.is_none() {
+            return Err(StoreError::NotFound(format!("capture {card_id}")));
+        }
+        if store.get_srs_state(card_id)?.is_none() {
+            store.upsert_srs_state(&scheduler.initial_state(card_id, now.at))?;
+        }
         Ok(card_id)
     })
 }

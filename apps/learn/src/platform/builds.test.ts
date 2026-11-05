@@ -4,13 +4,14 @@
  * Every way of serving or building Learn gets the platform it is for
  * (decision 10, docs/architecture.md § 10). `vite.config.ts` fixes
  * `__LEARN_PLATFORM__` from Vite's mode and selects the web adapter only in
- * `--mode web`, so a browser script that forgets the flag serves the Tauri
- * adapter, whose every call fails outside the desktop app.
+ * `--mode web` (and `--mode demo`, the live demo built on it), so a browser
+ * script that forgets the flag serves the Tauri adapter, whose every call
+ * fails outside the desktop app.
  *
  * The desktop side is what Tauri itself runs (`tauri.conf.json`'s
  * `beforeDevCommand` and `beforeBuildCommand`); the browser side is what
- * `just learn-web` and CI run. The config is Node code (Vite and esbuild do
- * not load under jsdom), hence the Node environment.
+ * `just learn-web`, `just learn-demo` and CI run. The config is Node code
+ * (Vite and esbuild do not load under jsdom), hence the Node environment.
  */
 
 import { build, type Rollup, type UserConfig } from 'vite'
@@ -66,8 +67,28 @@ function recipeNpmRun(recipe: string): string {
   return /npm run \S+/.exec(body?.[1] ?? '')?.[0] ?? `(no npm run in just ${recipe})`
 }
 
-/** The files `npm run <script>` builds, in memory: Vite with Learn's config, nothing written. */
-async function builtFiles(npmRun: string): Promise<string[]> {
+/** A built file: its name and its text (a binary asset's text is empty). */
+interface BuiltFile {
+  name: string
+  text: string
+}
+
+const builds = new Map<string, Promise<BuiltFile[]>>()
+
+/**
+ * The files `npm run <script>` builds, in memory: Vite with Learn's config,
+ * nothing written. Each script is built once per test run.
+ */
+function builtFiles(npmRun: string): Promise<BuiltFile[]> {
+  let files = builds.get(npmRun)
+  if (files === undefined) {
+    files = buildInMemory(npmRun)
+    builds.set(npmRun, files)
+  }
+  return files
+}
+
+async function buildInMemory(npmRun: string): Promise<BuiltFile[]> {
   const env = viteEnvOf(npmRun)
   const config = learnViteConfig(env)
   const result = await build({
@@ -78,7 +99,17 @@ async function builtFiles(npmRun: string): Promise<string[]> {
     build: { ...config.build, write: false },
   })
   const outputs = (Array.isArray(result) ? result : [result]) as Rollup.RollupOutput[]
-  return outputs.flatMap((output) => output.output.map((file) => file.fileName))
+  return outputs.flatMap((output) =>
+    output.output.map((file) => ({
+      name: file.fileName,
+      text: file.type === 'chunk' ? file.code : typeof file.source === 'string' ? file.source : '',
+    })),
+  )
+}
+
+/** Whether any built file's text contains `needle`. */
+function mentions(files: BuiltFile[], needle: string): boolean {
+  return files.some((file) => file.text.includes(needle))
 }
 
 describe("Learn's builds", () => {
@@ -105,8 +136,28 @@ describe("Learn's builds", () => {
   it('ship the curriculum JSON only in the web build', async () => {
     // The desktop app compiles it into its binary; only the web adapter
     // fetches it, and the desktop build drops that adapter's code.
-    const hasCurriculum = (files: string[]) => files.some((file) => file.includes('hsk_curriculum'))
+    const hasCurriculum = (files: BuiltFile[]) =>
+      files.some((file) => file.name.includes('hsk_curriculum'))
     expect(hasCurriculum(await builtFiles(tauriConf.build.beforeBuildCommand.script))).toBe(false)
     expect(hasCurriculum(await builtFiles('npm run learn:build:web'))).toBe(true)
   }, 60_000)
+
+  it('give the live demo the web platform, its own entry and its own output directory', async () => {
+    expect(platformOf(recipeNpmRun('learn-demo'))).toBe('web')
+    expect(platformOf('npm run learn:build:demo')).toBe('web')
+    expect(learnViteConfig(viteEnvOf('npm run learn:build:demo')).build.outDir).toBe('dist-demo')
+    expect(viteEnvOf('npm run learn:preview:demo').mode).toBe('demo')
+
+    const demo = await builtFiles('npm run learn:build:demo')
+    expect(demo.some((file) => file.name.includes('hsk_curriculum'))).toBe(true)
+    const page = demo.find((file) => file.name === 'index.html')?.text ?? ''
+    expect(page).toContain('<meta name="description"')
+    // Relative asset paths: the demo works from any folder of any host.
+    expect(page).toMatch(/src="\.\/assets\//)
+    // The demo's database name is in the demo, and nowhere else.
+    expect(mentions(demo, 'vocab-learn-demo')).toBe(true)
+    expect(mentions(await builtFiles('npm run learn:build:web'), 'vocab-learn-demo')).toBe(false)
+    const desktop = await builtFiles(tauriConf.build.beforeBuildCommand.script)
+    expect(mentions(desktop, 'vocab-learn-demo')).toBe(false)
+  }, 90_000)
 })

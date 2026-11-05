@@ -440,14 +440,14 @@ fn import_adds_new_chinese_words_and_skips_known_fronts() {
             "version": 6,
             "params": { "query": "\"deck:Chinese::HSK\"" }
         }),
-        ok(json!([11, 12, 13, 14, 15, 16, 17])),
+        ok(json!([11, 12, 13, 14, 15, 16, 17, 18])),
     );
     answer_exactly(
         &server,
         json!({
             "action": "notesInfo",
             "version": 6,
-            "params": { "notes": [11, 12, 13, 14, 15, 16, 17] }
+            "params": { "notes": [11, 12, 13, 14, 15, 16, 17, 18] }
         }),
         ok(json!([
             chinese_note(11, "学习", "xué xí", "lernen", ""),
@@ -475,7 +475,9 @@ fn import_adds_new_chinese_words_and_skips_known_fronts() {
             ),
             chinese_note(15, "Haus", "", "house", ""),
             chinese_note(16, "空", "kōng", "", ""),
-            {}
+            {},
+            // No HSK word.
+            chinese_note(18, "电脑包", "", "Laptoptasche", ""),
         ])),
     );
     let harness = Harness::with(Options {
@@ -497,8 +499,8 @@ fn import_adds_new_chinese_words_and_skips_known_fronts() {
     assert_eq!(
         report,
         json!({
-            "attempted": 6,
-            "succeeded": 2,
+            "attempted": 7,
+            "succeeded": 3,
             "skipped": 2,
             "failed": [
                 {
@@ -518,7 +520,7 @@ fn import_adds_new_chinese_words_and_skips_known_fronts() {
     let imported = store
         .list_captures(Some(CaptureOrigin::AnkiImport))
         .unwrap();
-    assert_eq!(imported.len(), 2);
+    assert_eq!(imported.len(), 3);
     let bank = &imported[0];
     assert!(bank.synced_to_anki, "it came from Anki");
     let mut expected = Card::new("银行", "Bank", "zh-CN", "de", start_time());
@@ -538,9 +540,34 @@ fn import_adds_new_chinese_words_and_skips_known_fronts() {
         "the reverse note, the right way round"
     );
     assert_eq!(friend.card.example_source, "我们是朋友。");
+    let bag = &imported[2];
+    assert!(
+        matches!(
+            bag.card.script_metadata,
+            ScriptMetadata::Chinese {
+                hsk_level: None,
+                ..
+            }
+        ),
+        "{:?}",
+        bag.card.script_metadata
+    );
     assert_eq!(store.count_srs_states().unwrap(), 0, "nothing is scheduled");
 
-    // When the curriculum reaches an imported word, the queue adopts it.
+    // The import that is no HSK word starts today's new items; the others
+    // wait for their curriculum turn, which adopts them.
+    harness.call("submit_daily_quota", json!({ "newCount": 2 }));
+    let queue = harness.call("get_daily_queue", json!({}));
+    assert_eq!(queue.as_array().unwrap().len(), 2, "{queue}");
+    assert_eq!(
+        queue[0],
+        json!({ "kind": "new_capture", "card_id": bag.id })
+    );
+    assert_eq!(queue[1]["kind"], "new");
+    assert_eq!(
+        harness.call("start_new_capture", json!({ "cardId": bag.id })),
+        bag.id
+    );
     assert_eq!(
         harness.call("start_new_item", json!({ "hanzi": "银行" })),
         bank.id

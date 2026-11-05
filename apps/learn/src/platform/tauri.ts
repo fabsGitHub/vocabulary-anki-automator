@@ -72,6 +72,10 @@ export class TauriAdapter implements PlatformAdapter {
     return call('start_new_item', { hanzi })
   }
 
+  startNewCapture(cardId: number): Promise<number> {
+    return call('start_new_capture', { cardId })
+  }
+
   getCard(cardId: number): Promise<StoredCapture> {
     return call('get_card', { cardId })
   }

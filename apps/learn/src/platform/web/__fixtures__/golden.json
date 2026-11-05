@@ -452,19 +452,16 @@
           "result": {
             "ok": [
               {
-                "curriculum_order": 0,
-                "hanzi": "我",
-                "kind": "new"
+                "card_id": 2,
+                "kind": "new_capture"
               },
               {
-                "curriculum_order": 1,
-                "hanzi": "你",
-                "kind": "new"
+                "card_id": 3,
+                "kind": "new_capture"
               },
               {
-                "curriculum_order": 2,
-                "hanzi": "好",
-                "kind": "new"
+                "card_id": 4,
+                "kind": "new_capture"
               }
             ]
           }
@@ -494,14 +491,12 @@
                 "kind": "review"
               },
               {
-                "curriculum_order": 1,
-                "hanzi": "你",
-                "kind": "new"
+                "card_id": 2,
+                "kind": "new_capture"
               },
               {
-                "curriculum_order": 2,
-                "hanzi": "好",
-                "kind": "new"
+                "card_id": 3,
+                "kind": "new_capture"
               }
             ]
           }
@@ -623,14 +618,12 @@
                 "kind": "review"
               },
               {
-                "curriculum_order": 1,
-                "hanzi": "你",
-                "kind": "new"
+                "card_id": 2,
+                "kind": "new_capture"
               },
               {
-                "curriculum_order": 2,
-                "hanzi": "好",
-                "kind": "new"
+                "card_id": 3,
+                "kind": "new_capture"
               }
             ]
           }
@@ -691,9 +684,8 @@
                 "kind": "review"
               },
               {
-                "curriculum_order": 2,
-                "hanzi": "好",
-                "kind": "new"
+                "card_id": 2,
+                "kind": "new_capture"
               }
             ]
           }
@@ -2348,14 +2340,12 @@
                 "kind": "review"
               },
               {
-                "curriculum_order": 3,
-                "hanzi": "是",
-                "kind": "new"
+                "card_id": 2,
+                "kind": "new_capture"
               },
               {
-                "curriculum_order": 5,
-                "hanzi": "中文",
-                "kind": "new"
+                "card_id": 3,
+                "kind": "new_capture"
               }
             ]
           }
@@ -2388,9 +2378,8 @@
                 "kind": "review"
               },
               {
-                "curriculum_order": 3,
-                "hanzi": "是",
-                "kind": "new"
+                "card_id": 2,
+                "kind": "new_capture"
               }
             ]
           }
@@ -2483,9 +2472,8 @@
                 "kind": "review"
               },
               {
-                "curriculum_order": 3,
-                "hanzi": "是",
-                "kind": "new"
+                "card_id": 2,
+                "kind": "new_capture"
               }
             ]
           }
@@ -2505,6 +2493,1112 @@
               },
               "xp_today": 15,
               "xp_total": 310
+            }
+          }
+        }
+      ]
+    },
+    {
+      "curriculum": [
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 0,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": "我是老师。",
+          "example_sentence_target": "Sentence with 我.",
+          "frequency": 0,
+          "hanzi": "我",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": null,
+          "meaning_en": "我 (en)",
+          "pinyin": "pinyin of 我",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 1,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": "你好！",
+          "example_sentence_target": "Sentence with 你.",
+          "frequency": 10,
+          "hanzi": "你",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": null,
+          "meaning_en": "你 (en)",
+          "pinyin": "pinyin of 你",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 2,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 20,
+          "hanzi": "好",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": null,
+          "meaning_en": "好 (en)",
+          "pinyin": "pinyin of 好",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 3,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 30,
+          "hanzi": "是",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": null,
+          "meaning_en": "是 (en)",
+          "pinyin": "pinyin of 是",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 4,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": "我学习中文。",
+          "example_sentence_target": "Sentence with 学习.",
+          "frequency": 40,
+          "hanzi": "学习",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "lernen",
+          "meaning_en": "学习 (en)",
+          "pinyin": "pinyin of 学习",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 5,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 50,
+          "hanzi": "中文",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": null,
+          "meaning_en": "中文 (en)",
+          "pinyin": "pinyin of 中文",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 6,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 60,
+          "hanzi": "朋友",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": null,
+          "meaning_en": "朋友 (en)",
+          "pinyin": "pinyin of 朋友",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 7,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 70,
+          "hanzi": "老师",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": null,
+          "meaning_en": "老师 (en)",
+          "pinyin": "pinyin of 老师",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        }
+      ],
+      "meaning_lang": "en",
+      "name": "captures and imports in Learn at UTC+1",
+      "offset_seconds": 3600,
+      "start": "2026-11-02T07:00:00Z",
+      "steps": [
+        {
+          "items": [
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 0,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": "我是老师。",
+              "example_sentence_target": "Sentence with 我.",
+              "frequency": 0,
+              "hanzi": "我",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": null,
+              "meaning_en": "我 (en)",
+              "pinyin": "pinyin of 我",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 1,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": "你好！",
+              "example_sentence_target": "Sentence with 你.",
+              "frequency": 10,
+              "hanzi": "你",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": null,
+              "meaning_en": "你 (en)",
+              "pinyin": "pinyin of 你",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 2,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 20,
+              "hanzi": "好",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": null,
+              "meaning_en": "好 (en)",
+              "pinyin": "pinyin of 好",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 3,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 30,
+              "hanzi": "是",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": null,
+              "meaning_en": "是 (en)",
+              "pinyin": "pinyin of 是",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 4,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": "我学习中文。",
+              "example_sentence_target": "Sentence with 学习.",
+              "frequency": 40,
+              "hanzi": "学习",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": "lernen",
+              "meaning_en": "学习 (en)",
+              "pinyin": "pinyin of 学习",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 5,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 50,
+              "hanzi": "中文",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": null,
+              "meaning_en": "中文 (en)",
+              "pinyin": "pinyin of 中文",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 6,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 60,
+              "hanzi": "朋友",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": null,
+              "meaning_en": "朋友 (en)",
+              "pinyin": "pinyin of 朋友",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 7,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 70,
+              "hanzi": "老师",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": null,
+              "meaning_en": "老师 (en)",
+              "pinyin": "pinyin of 老师",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            }
+          ],
+          "op": "replace_curriculum",
+          "result": {
+            "ok": null
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "tree",
+            "captured_at": "2026-10-25T09:00:00Z",
+            "example_source": "Der Baum ist alt.",
+            "example_target": "The tree is old.",
+            "front": "Baum",
+            "notes": "",
+            "script_metadata": {
+              "kind": "none"
+            },
+            "source_lang": "de",
+            "tags": [],
+            "target_lang": "en"
+          },
+          "op": "insert_capture",
+          "origin": "anki_import",
+          "result": {
+            "ok": 1
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "Haus",
+            "captured_at": "2026-10-24T09:00:00Z",
+            "example_source": "The house is big.",
+            "example_target": "Das Haus ist groß.",
+            "front": "house",
+            "notes": "",
+            "script_metadata": {
+              "kind": "none"
+            },
+            "source_lang": "en",
+            "tags": [],
+            "target_lang": "de"
+          },
+          "op": "insert_capture",
+          "origin": "capture",
+          "result": {
+            "ok": 2
+          }
+        },
+        {
+          "card": {
+            "audio_front": "//uQAA==",
+            "back": "laptop bag",
+            "captured_at": "2026-10-26T09:00:00Z",
+            "example_source": "",
+            "example_target": "",
+            "front": "电脑包",
+            "notes": "",
+            "script_metadata": {
+              "hsk_level": 1,
+              "kind": "chinese",
+              "pinyin": "diàn nǎo bāo",
+              "script_variant": "simplified"
+            },
+            "source_lang": "zh-CN",
+            "tags": [],
+            "target_lang": "en"
+          },
+          "op": "insert_capture",
+          "origin": "capture",
+          "result": {
+            "ok": 3
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "you",
+            "captured_at": "2026-10-01T09:00:00Z",
+            "example_source": "",
+            "example_target": "",
+            "front": "你",
+            "notes": "",
+            "script_metadata": {
+              "hsk_level": 1,
+              "kind": "chinese",
+              "pinyin": "nǐ",
+              "script_variant": "simplified"
+            },
+            "source_lang": "zh-CN",
+            "tags": [],
+            "target_lang": "en"
+          },
+          "op": "insert_capture",
+          "origin": "anki_import",
+          "result": {
+            "ok": 4
+          }
+        },
+        {
+          "args": [],
+          "command": "getDailyQueue",
+          "result": {
+            "ok": []
+          }
+        },
+        {
+          "args": [4],
+          "command": "submitDailyQuota",
+          "result": {
+            "ok": {
+              "completed_at": null,
+              "new_items_completed": 0,
+              "requested_new_count": 4,
+              "reviews_completed": 0,
+              "reviews_due_count": 0,
+              "session_date": "2026-11-02"
+            }
+          }
+        },
+        {
+          "args": [],
+          "command": "getDailyQueue",
+          "result": {
+            "ok": [
+              {
+                "card_id": 2,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 1,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 3,
+                "kind": "new_capture"
+              },
+              {
+                "curriculum_order": 0,
+                "hanzi": "我",
+                "kind": "new"
+              }
+            ]
+          }
+        },
+        {
+          "args": [2],
+          "command": "startNewCapture",
+          "result": {
+            "ok": 2
+          }
+        },
+        {
+          "args": [2],
+          "command": "startNewCapture",
+          "result": {
+            "ok": 2
+          }
+        },
+        {
+          "args": [],
+          "command": "getDailyQueue",
+          "result": {
+            "ok": [
+              {
+                "card_id": 2,
+                "due_date": "2026-11-02T07:00:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 1,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 3,
+                "kind": "new_capture"
+              },
+              {
+                "curriculum_order": 0,
+                "hanzi": "我",
+                "kind": "new"
+              }
+            ]
+          }
+        },
+        {
+          "args": [2],
+          "command": "getCard",
+          "result": {
+            "ok": {
+              "card": {
+                "audio_front": null,
+                "back": "Haus",
+                "captured_at": "2026-10-24T09:00:00Z",
+                "example_source": "The house is big.",
+                "example_target": "Das Haus ist groß.",
+                "front": "house",
+                "notes": "",
+                "script_metadata": {
+                  "kind": "none"
+                },
+                "source_lang": "en",
+                "tags": [],
+                "target_lang": "de"
+              },
+              "id": 2,
+              "origin": "capture",
+              "synced_to_anki": false
+            }
+          }
+        },
+        {
+          "args": [2],
+          "command": "previewRatings",
+          "result": {
+            "ok": [
+              {
+                "due_date": "2026-11-02T07:01:00Z",
+                "interval_days": 0,
+                "rating": 1
+              },
+              {
+                "due_date": "2026-11-02T07:05:00Z",
+                "interval_days": 0,
+                "rating": 2
+              },
+              {
+                "due_date": "2026-11-02T07:10:00Z",
+                "interval_days": 0,
+                "rating": 3
+              },
+              {
+                "due_date": "2026-11-17T07:00:00Z",
+                "interval_days": 15,
+                "rating": 4
+              }
+            ]
+          }
+        },
+        {
+          "now": "2026-11-02T07:00:30Z",
+          "op": "set_clock"
+        },
+        {
+          "args": [2, 3],
+          "command": "submitReviewRating",
+          "result": {
+            "ok": {
+              "next": {
+                "algorithm": "fsrs",
+                "card_id": 2,
+                "difficulty": 5.314577829570867,
+                "due_date": "2026-11-02T07:10:30Z",
+                "elapsed_days": 0,
+                "fsrs_state": "learning",
+                "interval_days": 0,
+                "lapses": 0,
+                "last_rating": 3,
+                "last_reviewed_at": "2026-11-02T07:00:30Z",
+                "repetitions": 1,
+                "stability": 3.1262
+              },
+              "session": {
+                "completed_at": null,
+                "new_items_completed": 1,
+                "requested_new_count": 4,
+                "reviews_completed": 0,
+                "reviews_due_count": 0,
+                "session_date": "2026-11-02"
+              },
+              "session_completed": false,
+              "streak": {
+                "completed_today": false,
+                "current": 0,
+                "freezes_available": 0,
+                "longest": 0
+              },
+              "xp_awarded": 15
+            }
+          }
+        },
+        {
+          "args": [],
+          "command": "getDailyQueue",
+          "result": {
+            "ok": [
+              {
+                "card_id": 2,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 1,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 3,
+                "kind": "new_capture"
+              },
+              {
+                "curriculum_order": 0,
+                "hanzi": "我",
+                "kind": "new"
+              }
+            ]
+          }
+        },
+        {
+          "args": [1],
+          "command": "startNewCapture",
+          "result": {
+            "ok": 1
+          }
+        },
+        {
+          "args": [1, 4],
+          "command": "submitReviewRating",
+          "result": {
+            "ok": {
+              "next": {
+                "algorithm": "fsrs",
+                "card_id": 1,
+                "difficulty": 3.28285649513529,
+                "due_date": "2026-11-17T07:00:30Z",
+                "elapsed_days": 0,
+                "fsrs_state": "review",
+                "interval_days": 15,
+                "lapses": 0,
+                "last_rating": 4,
+                "last_reviewed_at": "2026-11-02T07:00:30Z",
+                "repetitions": 1,
+                "stability": 15.4722
+              },
+              "session": {
+                "completed_at": null,
+                "new_items_completed": 2,
+                "requested_new_count": 4,
+                "reviews_completed": 0,
+                "reviews_due_count": 0,
+                "session_date": "2026-11-02"
+              },
+              "session_completed": false,
+              "streak": {
+                "completed_today": false,
+                "current": 0,
+                "freezes_available": 0,
+                "longest": 0
+              },
+              "xp_awarded": 15
+            }
+          }
+        },
+        {
+          "args": [3],
+          "command": "startNewCapture",
+          "result": {
+            "ok": 3
+          }
+        },
+        {
+          "args": [3],
+          "command": "getCardAudio",
+          "result": {
+            "ok": "//uQAA=="
+          }
+        },
+        {
+          "args": [3, 3],
+          "command": "submitReviewRating",
+          "result": {
+            "ok": {
+              "next": {
+                "algorithm": "fsrs",
+                "card_id": 3,
+                "difficulty": 5.314577829570867,
+                "due_date": "2026-11-02T07:10:30Z",
+                "elapsed_days": 0,
+                "fsrs_state": "learning",
+                "interval_days": 0,
+                "lapses": 0,
+                "last_rating": 3,
+                "last_reviewed_at": "2026-11-02T07:00:30Z",
+                "repetitions": 1,
+                "stability": 3.1262
+              },
+              "session": {
+                "completed_at": null,
+                "new_items_completed": 3,
+                "requested_new_count": 4,
+                "reviews_completed": 0,
+                "reviews_due_count": 0,
+                "session_date": "2026-11-02"
+              },
+              "session_completed": false,
+              "streak": {
+                "completed_today": false,
+                "current": 0,
+                "freezes_available": 0,
+                "longest": 0
+              },
+              "xp_awarded": 15
+            }
+          }
+        },
+        {
+          "args": [],
+          "command": "getDailyQueue",
+          "result": {
+            "ok": [
+              {
+                "card_id": 2,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 3,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "curriculum_order": 0,
+                "hanzi": "我",
+                "kind": "new"
+              }
+            ]
+          }
+        },
+        {
+          "args": ["我"],
+          "command": "startNewItem",
+          "result": {
+            "ok": 5
+          }
+        },
+        {
+          "args": [5, 3],
+          "command": "submitReviewRating",
+          "result": {
+            "ok": {
+              "next": {
+                "algorithm": "fsrs",
+                "card_id": 5,
+                "difficulty": 5.314577829570867,
+                "due_date": "2026-11-02T07:10:30Z",
+                "elapsed_days": 0,
+                "fsrs_state": "learning",
+                "interval_days": 0,
+                "lapses": 0,
+                "last_rating": 3,
+                "last_reviewed_at": "2026-11-02T07:00:30Z",
+                "repetitions": 1,
+                "stability": 3.1262
+              },
+              "session": {
+                "completed_at": "2026-11-02T07:00:30Z",
+                "new_items_completed": 4,
+                "requested_new_count": 4,
+                "reviews_completed": 0,
+                "reviews_due_count": 0,
+                "session_date": "2026-11-02"
+              },
+              "session_completed": true,
+              "streak": {
+                "completed_today": true,
+                "current": 1,
+                "freezes_available": 0,
+                "longest": 1
+              },
+              "xp_awarded": 65
+            }
+          }
+        },
+        {
+          "args": [],
+          "command": "getDailyQueue",
+          "result": {
+            "ok": [
+              {
+                "card_id": 2,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 3,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 5,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              }
+            ]
+          }
+        },
+        {
+          "args": [9999],
+          "command": "startNewCapture",
+          "result": {
+            "error": "There is no card 9999."
+          }
+        },
+        {
+          "args": [],
+          "command": "listLearnedCards",
+          "result": {
+            "ok": [
+              {
+                "back": "tree",
+                "card_id": 1,
+                "example_source": "Der Baum ist alt.",
+                "example_target": "The tree is old.",
+                "front": "Baum",
+                "has_audio": false,
+                "hsk_level": null,
+                "pinyin": null,
+                "script_kind": "none",
+                "source_lang": "de",
+                "target_lang": "en"
+              },
+              {
+                "back": "Haus",
+                "card_id": 2,
+                "example_source": "The house is big.",
+                "example_target": "Das Haus ist groß.",
+                "front": "house",
+                "has_audio": false,
+                "hsk_level": null,
+                "pinyin": null,
+                "script_kind": "none",
+                "source_lang": "en",
+                "target_lang": "de"
+              },
+              {
+                "back": "laptop bag",
+                "card_id": 3,
+                "example_source": "",
+                "example_target": "",
+                "front": "电脑包",
+                "has_audio": true,
+                "hsk_level": 1,
+                "pinyin": "diàn nǎo bāo",
+                "script_kind": "chinese",
+                "source_lang": "zh-CN",
+                "target_lang": "en"
+              },
+              {
+                "back": "我 (en)",
+                "card_id": 5,
+                "example_source": "我是老师。",
+                "example_target": "Sentence with 我.",
+                "front": "我",
+                "has_audio": false,
+                "hsk_level": 1,
+                "pinyin": "pinyin of 我",
+                "script_kind": "chinese",
+                "source_lang": "zh-CN",
+                "target_lang": "en"
+              }
+            ]
+          }
+        },
+        {
+          "args": [3, "multiple_choice", 3],
+          "command": "nextExercise",
+          "result": {
+            "ok": {
+              "card_id": 3,
+              "correct_index": 0,
+              "direction": "front_to_pinyin",
+              "kind": "multiple_choice",
+              "option_lang": "zh-CN",
+              "options": [
+                {
+                  "card_id": 3,
+                  "text": "diàn nǎo bāo"
+                },
+                {
+                  "card_id": 5,
+                  "text": "pinyin of 我"
+                }
+              ],
+              "prompt": "电脑包",
+              "prompt_lang": "zh-CN"
+            }
+          }
+        },
+        {
+          "args": [1, "multiple_choice", 3],
+          "command": "nextExercise",
+          "result": {
+            "ok": {
+              "card_id": 1,
+              "correct_index": 0,
+              "direction": "front_to_back",
+              "kind": "multiple_choice",
+              "option_lang": "en",
+              "options": [
+                {
+                  "card_id": 1,
+                  "text": "tree"
+                },
+                {
+                  "card_id": 3,
+                  "text": "laptop bag"
+                },
+                {
+                  "card_id": 5,
+                  "text": "我 (en)"
+                }
+              ],
+              "prompt": "Baum",
+              "prompt_lang": "de"
+            }
+          }
+        },
+        {
+          "args": [2, "sentence_builder", 3],
+          "command": "nextExercise",
+          "result": {
+            "ok": {
+              "card_id": 2,
+              "kind": "sentence_builder",
+              "prompt": "Das Haus ist groß.",
+              "sentence": "The house is big.",
+              "sentence_card_id": 2,
+              "sentence_lang": "en",
+              "solution": [2, 0, 3, 1],
+              "tiles": [
+                {
+                  "id": 0,
+                  "text": "house"
+                },
+                {
+                  "id": 1,
+                  "text": "big"
+                },
+                {
+                  "id": 2,
+                  "text": "The"
+                },
+                {
+                  "id": 3,
+                  "text": "is"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "args": [],
+          "command": "getStats",
+          "result": {
+            "ok": {
+              "due_today": 3,
+              "learned_count": 4,
+              "streak": {
+                "completed_today": true,
+                "current": 1,
+                "freezes_available": 0,
+                "longest": 1
+              },
+              "xp_today": 110,
+              "xp_total": 110
+            }
+          }
+        },
+        {
+          "now": "2026-11-03T07:00:00Z",
+          "op": "set_clock"
+        },
+        {
+          "args": [2],
+          "command": "submitDailyQuota",
+          "result": {
+            "ok": {
+              "completed_at": null,
+              "new_items_completed": 0,
+              "requested_new_count": 2,
+              "reviews_completed": 0,
+              "reviews_due_count": 3,
+              "session_date": "2026-11-03"
+            }
+          }
+        },
+        {
+          "args": [],
+          "command": "getDailyQueue",
+          "result": {
+            "ok": [
+              {
+                "card_id": 2,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 3,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 5,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "curriculum_order": 1,
+                "hanzi": "你",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 2,
+                "hanzi": "好",
+                "kind": "new"
+              }
+            ]
+          }
+        },
+        {
+          "args": ["你"],
+          "command": "startNewItem",
+          "result": {
+            "ok": 4
+          }
+        },
+        {
+          "args": [4],
+          "command": "getCard",
+          "result": {
+            "ok": {
+              "card": {
+                "audio_front": null,
+                "back": "you",
+                "captured_at": "2026-10-01T09:00:00Z",
+                "example_source": "",
+                "example_target": "",
+                "front": "你",
+                "notes": "",
+                "script_metadata": {
+                  "hsk_level": 1,
+                  "kind": "chinese",
+                  "pinyin": "nǐ",
+                  "script_variant": "simplified"
+                },
+                "source_lang": "zh-CN",
+                "tags": [],
+                "target_lang": "en"
+              },
+              "id": 4,
+              "origin": "anki_import",
+              "synced_to_anki": false
+            }
+          }
+        },
+        {
+          "args": [],
+          "command": "getDailyQueue",
+          "result": {
+            "ok": [
+              {
+                "card_id": 2,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 3,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 5,
+                "due_date": "2026-11-02T07:10:30Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 4,
+                "due_date": "2026-11-03T07:00:00Z",
+                "kind": "review"
+              },
+              {
+                "curriculum_order": 2,
+                "hanzi": "好",
+                "kind": "new"
+              }
+            ]
+          }
+        },
+        {
+          "args": [],
+          "command": "getStats",
+          "result": {
+            "ok": {
+              "due_today": 4,
+              "learned_count": 5,
+              "streak": {
+                "completed_today": false,
+                "current": 1,
+                "freezes_available": 0,
+                "longest": 1
+              },
+              "xp_today": 0,
+              "xp_total": 110
             }
           }
         }
@@ -48751,7 +49845,8 @@
           "kind": "new"
         }
       ],
-      "quota": 2
+      "quota": 2,
+      "unscheduled": []
     },
     {
       "curriculum": [
@@ -48984,7 +50079,34 @@
           "kind": "review"
         }
       ],
-      "quota": 0
+      "quota": 0,
+      "unscheduled": [
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 21,
+          "front": "Haus"
+        },
+        {
+          "captured_at": "2026-09-01T08:00:00Z",
+          "card_id": 12,
+          "front": "学习"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00.001Z",
+          "card_id": 30,
+          "front": "tree"
+        },
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 17,
+          "front": "电脑包"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00Z",
+          "card_id": 25,
+          "front": "Katze"
+        }
+      ]
     },
     {
       "curriculum": [
@@ -49132,7 +50254,8 @@
           "kind": "new"
         }
       ],
-      "quota": 6
+      "quota": 6,
+      "unscheduled": []
     },
     {
       "curriculum": [
@@ -49265,7 +50388,8 @@
           "kind": "new"
         }
       ],
-      "quota": 3
+      "quota": 3,
+      "unscheduled": []
     },
     {
       "curriculum": [
@@ -49398,7 +50522,8 @@
           "kind": "new"
         }
       ],
-      "quota": 3
+      "quota": 3,
+      "unscheduled": []
     },
     {
       "curriculum": [
@@ -49531,7 +50656,8 @@
           "kind": "new"
         }
       ],
-      "quota": 100
+      "quota": 100,
+      "unscheduled": []
     },
     {
       "curriculum": [
@@ -49688,6 +50814,22 @@
           "kind": "review"
         },
         {
+          "card_id": 25,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 30,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 17,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 21,
+          "kind": "new_capture"
+        },
+        {
           "curriculum_order": 1,
           "hanzi": "我",
           "kind": "new"
@@ -49718,7 +50860,34 @@
           "kind": "new"
         }
       ],
-      "quota": 4294967295
+      "quota": 4294967295,
+      "unscheduled": [
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 21,
+          "front": "Haus"
+        },
+        {
+          "captured_at": "2026-09-01T08:00:00Z",
+          "card_id": 12,
+          "front": "学习"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00.001Z",
+          "card_id": 30,
+          "front": "tree"
+        },
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 17,
+          "front": "电脑包"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00Z",
+          "card_id": 25,
+          "front": "Katze"
+        }
+      ]
     },
     {
       "curriculum": [
@@ -49856,7 +51025,8 @@
           "kind": "review"
         }
       ],
-      "quota": 5
+      "quota": 5,
+      "unscheduled": []
     },
     {
       "curriculum": [],
@@ -49980,7 +51150,8 @@
           "kind": "review"
         }
       ],
-      "quota": 10
+      "quota": 10,
+      "unscheduled": []
     },
     {
       "curriculum": [],
@@ -49988,7 +51159,833 @@
       "learned": [],
       "name": "nothing at all",
       "queue": [],
-      "quota": 10
+      "quota": 10,
+      "unscheduled": []
+    },
+    {
+      "curriculum": [
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 5,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 50,
+          "hanzi": "你好",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "你好 (de)",
+          "meaning_en": "你好 (en)",
+          "pinyin": "pinyin of 你好",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 1,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 10,
+          "hanzi": "我",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "我 (de)",
+          "meaning_en": "我 (en)",
+          "pinyin": "pinyin of 我",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 30,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 300,
+          "hanzi": "学习",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "学习 (de)",
+          "meaning_en": "学习 (en)",
+          "pinyin": "pinyin of 学习",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 7,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 70,
+          "hanzi": "中文",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "中文 (de)",
+          "meaning_en": "中文 (en)",
+          "pinyin": "pinyin of 中文",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 2,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 20,
+          "hanzi": "是",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "是 (de)",
+          "meaning_en": "是 (en)",
+          "pinyin": "pinyin of 是",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 12,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 120,
+          "hanzi": "好",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "好 (de)",
+          "meaning_en": "好 (en)",
+          "pinyin": "pinyin of 好",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        }
+      ],
+      "due": [
+        {
+          "algorithm": "fsrs",
+          "card_id": 9,
+          "difficulty": 5.0,
+          "due_date": "2026-10-31T12:00:00Z",
+          "elapsed_days": 4,
+          "fsrs_state": "review",
+          "interval_days": 4,
+          "lapses": 0,
+          "last_rating": 3,
+          "last_reviewed_at": "2026-10-27T12:00:00Z",
+          "repetitions": 2,
+          "stability": 4.0
+        },
+        {
+          "algorithm": "fsrs",
+          "card_id": 4,
+          "difficulty": 5.0,
+          "due_date": "2026-10-31T12:00:00Z",
+          "elapsed_days": 4,
+          "fsrs_state": "review",
+          "interval_days": 4,
+          "lapses": 0,
+          "last_rating": 3,
+          "last_reviewed_at": "2026-10-27T12:00:00Z",
+          "repetitions": 2,
+          "stability": 4.0
+        },
+        {
+          "algorithm": "fsrs",
+          "card_id": 7,
+          "difficulty": 5.0,
+          "due_date": "2026-10-31T11:59:59.999Z",
+          "elapsed_days": 4,
+          "fsrs_state": "review",
+          "interval_days": 4,
+          "lapses": 0,
+          "last_rating": 3,
+          "last_reviewed_at": "2026-10-27T11:59:59.999Z",
+          "repetitions": 2,
+          "stability": 4.0
+        },
+        {
+          "algorithm": "fsrs",
+          "card_id": 1,
+          "difficulty": 5.0,
+          "due_date": "2026-10-31T12:00:00.001Z",
+          "elapsed_days": 4,
+          "fsrs_state": "review",
+          "interval_days": 4,
+          "lapses": 0,
+          "last_rating": 3,
+          "last_reviewed_at": "2026-10-27T12:00:00.001Z",
+          "repetitions": 2,
+          "stability": 4.0
+        },
+        {
+          "algorithm": "fsrs",
+          "card_id": 6,
+          "difficulty": 5.0,
+          "due_date": "2026-10-31T12:00:00Z",
+          "elapsed_days": 4,
+          "fsrs_state": "review",
+          "interval_days": 4,
+          "lapses": 0,
+          "last_rating": 3,
+          "last_reviewed_at": "2026-10-27T12:00:00Z",
+          "repetitions": 2,
+          "stability": 4.0
+        },
+        {
+          "algorithm": "fsrs",
+          "card_id": 3,
+          "difficulty": 5.0,
+          "due_date": "2026-10-01T00:00:00Z",
+          "elapsed_days": 4,
+          "fsrs_state": "review",
+          "interval_days": 4,
+          "lapses": 0,
+          "last_rating": 3,
+          "last_reviewed_at": "2026-09-27T00:00:00Z",
+          "repetitions": 2,
+          "stability": 4.0
+        }
+      ],
+      "learned": [],
+      "name": "captures first, by capture time then card id",
+      "queue": [
+        {
+          "card_id": 3,
+          "due_date": "2026-10-01T00:00:00Z",
+          "kind": "review"
+        },
+        {
+          "card_id": 7,
+          "due_date": "2026-10-31T11:59:59.999Z",
+          "kind": "review"
+        },
+        {
+          "card_id": 4,
+          "due_date": "2026-10-31T12:00:00Z",
+          "kind": "review"
+        },
+        {
+          "card_id": 6,
+          "due_date": "2026-10-31T12:00:00Z",
+          "kind": "review"
+        },
+        {
+          "card_id": 9,
+          "due_date": "2026-10-31T12:00:00Z",
+          "kind": "review"
+        },
+        {
+          "card_id": 1,
+          "due_date": "2026-10-31T12:00:00.001Z",
+          "kind": "review"
+        },
+        {
+          "card_id": 25,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 30,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 17,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 21,
+          "kind": "new_capture"
+        },
+        {
+          "curriculum_order": 1,
+          "hanzi": "我",
+          "kind": "new"
+        },
+        {
+          "curriculum_order": 2,
+          "hanzi": "是",
+          "kind": "new"
+        }
+      ],
+      "quota": 6,
+      "unscheduled": [
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 21,
+          "front": "Haus"
+        },
+        {
+          "captured_at": "2026-09-01T08:00:00Z",
+          "card_id": 12,
+          "front": "学习"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00.001Z",
+          "card_id": 30,
+          "front": "tree"
+        },
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 17,
+          "front": "电脑包"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00Z",
+          "card_id": 25,
+          "front": "Katze"
+        }
+      ]
+    },
+    {
+      "curriculum": [
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 5,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 50,
+          "hanzi": "你好",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "你好 (de)",
+          "meaning_en": "你好 (en)",
+          "pinyin": "pinyin of 你好",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 1,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 10,
+          "hanzi": "我",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "我 (de)",
+          "meaning_en": "我 (en)",
+          "pinyin": "pinyin of 我",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 30,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 300,
+          "hanzi": "学习",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "学习 (de)",
+          "meaning_en": "学习 (en)",
+          "pinyin": "pinyin of 学习",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 7,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 70,
+          "hanzi": "中文",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "中文 (de)",
+          "meaning_en": "中文 (en)",
+          "pinyin": "pinyin of 中文",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 2,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 20,
+          "hanzi": "是",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "是 (de)",
+          "meaning_en": "是 (en)",
+          "pinyin": "pinyin of 是",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 12,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 120,
+          "hanzi": "好",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "好 (de)",
+          "meaning_en": "好 (en)",
+          "pinyin": "pinyin of 好",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        }
+      ],
+      "due": [],
+      "learned": [],
+      "name": "captures can use up the quota",
+      "queue": [
+        {
+          "card_id": 25,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 30,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 17,
+          "kind": "new_capture"
+        }
+      ],
+      "quota": 3,
+      "unscheduled": [
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 21,
+          "front": "Haus"
+        },
+        {
+          "captured_at": "2026-09-01T08:00:00Z",
+          "card_id": 12,
+          "front": "学习"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00.001Z",
+          "card_id": 30,
+          "front": "tree"
+        },
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 17,
+          "front": "电脑包"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00Z",
+          "card_id": 25,
+          "front": "Katze"
+        }
+      ]
+    },
+    {
+      "curriculum": [
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 5,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 50,
+          "hanzi": "你好",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "你好 (de)",
+          "meaning_en": "你好 (en)",
+          "pinyin": "pinyin of 你好",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 1,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 10,
+          "hanzi": "我",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "我 (de)",
+          "meaning_en": "我 (en)",
+          "pinyin": "pinyin of 我",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 30,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 300,
+          "hanzi": "学习",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "学习 (de)",
+          "meaning_en": "学习 (en)",
+          "pinyin": "pinyin of 学习",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 7,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 70,
+          "hanzi": "中文",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "中文 (de)",
+          "meaning_en": "中文 (en)",
+          "pinyin": "pinyin of 中文",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 2,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 20,
+          "hanzi": "是",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "是 (de)",
+          "meaning_en": "是 (en)",
+          "pinyin": "pinyin of 是",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 12,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 120,
+          "hanzi": "好",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "好 (de)",
+          "meaning_en": "好 (en)",
+          "pinyin": "pinyin of 好",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        }
+      ],
+      "due": [],
+      "learned": [],
+      "name": "captured curriculum words wait for their turn",
+      "queue": [
+        {
+          "curriculum_order": 1,
+          "hanzi": "我",
+          "kind": "new"
+        },
+        {
+          "curriculum_order": 2,
+          "hanzi": "是",
+          "kind": "new"
+        },
+        {
+          "curriculum_order": 5,
+          "hanzi": "你好",
+          "kind": "new"
+        },
+        {
+          "curriculum_order": 7,
+          "hanzi": "中文",
+          "kind": "new"
+        },
+        {
+          "curriculum_order": 12,
+          "hanzi": "好",
+          "kind": "new"
+        },
+        {
+          "curriculum_order": 30,
+          "hanzi": "学习",
+          "kind": "new"
+        }
+      ],
+      "quota": 6,
+      "unscheduled": [
+        {
+          "captured_at": "2026-09-01T08:00:00Z",
+          "card_id": 12,
+          "front": "学习"
+        },
+        {
+          "captured_at": "2026-09-02T08:00:00Z",
+          "card_id": 13,
+          "front": "我"
+        }
+      ]
+    },
+    {
+      "curriculum": [
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 5,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 50,
+          "hanzi": "你好",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "你好 (de)",
+          "meaning_en": "你好 (en)",
+          "pinyin": "pinyin of 你好",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 1,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 10,
+          "hanzi": "我",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "我 (de)",
+          "meaning_en": "我 (en)",
+          "pinyin": "pinyin of 我",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 30,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 300,
+          "hanzi": "学习",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "学习 (de)",
+          "meaning_en": "学习 (en)",
+          "pinyin": "pinyin of 学习",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 7,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 70,
+          "hanzi": "中文",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "中文 (de)",
+          "meaning_en": "中文 (en)",
+          "pinyin": "pinyin of 中文",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 2,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 20,
+          "hanzi": "是",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "是 (de)",
+          "meaning_en": "是 (en)",
+          "pinyin": "pinyin of 是",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        },
+        {
+          "cloze_sentence": null,
+          "curriculum_order": 12,
+          "example_sentence_pinyin": null,
+          "example_sentence_source": null,
+          "example_sentence_target": null,
+          "frequency": 120,
+          "hanzi": "好",
+          "hsk_level": 1,
+          "image_path": null,
+          "meaning_de": "好 (de)",
+          "meaning_en": "好 (en)",
+          "pinyin": "pinyin of 好",
+          "pos": null,
+          "sentence_audio_path": null,
+          "traditional": null,
+          "vocab_audio_path": null
+        }
+      ],
+      "due": [],
+      "learned": ["Haus", "我", "电脑包"],
+      "name": "learned hanzi hide no capture",
+      "queue": [
+        {
+          "card_id": 25,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 30,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 17,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 21,
+          "kind": "new_capture"
+        },
+        {
+          "curriculum_order": 2,
+          "hanzi": "是",
+          "kind": "new"
+        }
+      ],
+      "quota": 5,
+      "unscheduled": [
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 21,
+          "front": "Haus"
+        },
+        {
+          "captured_at": "2026-09-01T08:00:00Z",
+          "card_id": 12,
+          "front": "学习"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00.001Z",
+          "card_id": 30,
+          "front": "tree"
+        },
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 17,
+          "front": "电脑包"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00Z",
+          "card_id": 25,
+          "front": "Katze"
+        }
+      ]
+    },
+    {
+      "curriculum": [],
+      "due": [],
+      "learned": [],
+      "name": "captures without a curriculum",
+      "queue": [
+        {
+          "card_id": 12,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 25,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 30,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 17,
+          "kind": "new_capture"
+        },
+        {
+          "card_id": 21,
+          "kind": "new_capture"
+        }
+      ],
+      "quota": 10,
+      "unscheduled": [
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 21,
+          "front": "Haus"
+        },
+        {
+          "captured_at": "2026-09-01T08:00:00Z",
+          "card_id": 12,
+          "front": "学习"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00.001Z",
+          "card_id": 30,
+          "front": "tree"
+        },
+        {
+          "captured_at": "2026-10-20T08:00:00Z",
+          "card_id": 17,
+          "front": "电脑包"
+        },
+        {
+          "captured_at": "2026-10-02T08:00:00Z",
+          "card_id": 25,
+          "front": "Katze"
+        }
+      ]
     }
   ],
   "scenarios": [
@@ -56036,6 +58033,787 @@
                 "card_id": 1,
                 "due_date": "2026-10-31T10:00:00Z",
                 "kind": "review"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "captures and imports in the queue",
+      "offset_seconds": 3600,
+      "start": "2026-10-31T08:00:00.000456Z",
+      "steps": [
+        {
+          "items": [
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 5,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 50,
+              "hanzi": "你好",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": "你好 (de)",
+              "meaning_en": "你好 (en)",
+              "pinyin": "pinyin of 你好",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 1,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 10,
+              "hanzi": "我",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": "我 (de)",
+              "meaning_en": "我 (en)",
+              "pinyin": "pinyin of 我",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 30,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 300,
+              "hanzi": "学习",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": "学习 (de)",
+              "meaning_en": "学习 (en)",
+              "pinyin": "pinyin of 学习",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 7,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 70,
+              "hanzi": "中文",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": "中文 (de)",
+              "meaning_en": "中文 (en)",
+              "pinyin": "pinyin of 中文",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 2,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 20,
+              "hanzi": "是",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": "是 (de)",
+              "meaning_en": "是 (en)",
+              "pinyin": "pinyin of 是",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            },
+            {
+              "cloze_sentence": null,
+              "curriculum_order": 12,
+              "example_sentence_pinyin": null,
+              "example_sentence_source": null,
+              "example_sentence_target": null,
+              "frequency": 120,
+              "hanzi": "好",
+              "hsk_level": 1,
+              "image_path": null,
+              "meaning_de": "好 (de)",
+              "meaning_en": "好 (en)",
+              "pinyin": "pinyin of 好",
+              "pos": null,
+              "sentence_audio_path": null,
+              "traditional": null,
+              "vocab_audio_path": null
+            }
+          ],
+          "op": "replace_curriculum",
+          "result": {
+            "ok": null
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "Haus",
+            "captured_at": "2026-10-20T08:00:00Z",
+            "example_source": "",
+            "example_target": "",
+            "front": "house",
+            "notes": "",
+            "script_metadata": {
+              "kind": "none"
+            },
+            "source_lang": "en",
+            "tags": [],
+            "target_lang": "de"
+          },
+          "op": "insert_capture",
+          "origin": "capture",
+          "result": {
+            "ok": 1
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "tree",
+            "captured_at": "2026-10-02T08:00:00Z",
+            "example_source": "",
+            "example_target": "",
+            "front": "Baum",
+            "notes": "",
+            "script_metadata": {
+              "kind": "none"
+            },
+            "source_lang": "de",
+            "tags": [],
+            "target_lang": "en"
+          },
+          "op": "insert_capture",
+          "origin": "anki_import",
+          "result": {
+            "ok": 2
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "laptop bag",
+            "captured_at": "2026-10-20T08:00:00Z",
+            "example_source": "",
+            "example_target": "",
+            "front": "电脑包",
+            "notes": "",
+            "script_metadata": {
+              "hsk_level": 1,
+              "kind": "chinese",
+              "pinyin": "diàn nǎo bāo",
+              "script_variant": "simplified"
+            },
+            "source_lang": "zh-CN",
+            "tags": [],
+            "target_lang": "en"
+          },
+          "op": "insert_capture",
+          "origin": "anki_import",
+          "result": {
+            "ok": 3
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "lernen",
+            "captured_at": "2026-09-01T08:00:00Z",
+            "example_source": "",
+            "example_target": "",
+            "front": "学习",
+            "notes": "",
+            "script_metadata": {
+              "hsk_level": 1,
+              "kind": "chinese",
+              "pinyin": "xué xí",
+              "script_variant": "simplified"
+            },
+            "source_lang": "zh-CN",
+            "tags": [],
+            "target_lang": "de"
+          },
+          "op": "insert_capture",
+          "origin": "anki_import",
+          "result": {
+            "ok": 4
+          }
+        },
+        {
+          "card": {
+            "audio_front": null,
+            "back": "ich",
+            "captured_at": "2026-09-01T08:00:00Z",
+            "example_source": "",
+            "example_target": "",
+            "front": "我",
+            "notes": "",
+            "script_metadata": {
+              "hsk_level": 1,
+              "kind": "chinese",
+              "pinyin": "wǒ",
+              "script_variant": "simplified"
+            },
+            "source_lang": "zh-CN",
+            "tags": [],
+            "target_lang": "de"
+          },
+          "op": "insert_capture",
+          "origin": "capture",
+          "result": {
+            "ok": 5
+          }
+        },
+        {
+          "op": "upsert_srs_state",
+          "result": {
+            "ok": null
+          },
+          "row": {
+            "algorithm": "fsrs",
+            "card_id": 5,
+            "difficulty": 5.0,
+            "due_date": "2026-10-31T10:00:00Z",
+            "elapsed_days": 4,
+            "fsrs_state": "review",
+            "interval_days": 4,
+            "lapses": 0,
+            "last_rating": 3,
+            "last_reviewed_at": "2026-10-27T10:00:00Z",
+            "repetitions": 2,
+            "stability": 4.0
+          }
+        },
+        {
+          "op": "list_unscheduled_captures",
+          "result": {
+            "ok": [
+              {
+                "captured_at": "2026-09-01T08:00:00Z",
+                "card_id": 4,
+                "front": "学习"
+              },
+              {
+                "captured_at": "2026-10-02T08:00:00Z",
+                "card_id": 2,
+                "front": "Baum"
+              },
+              {
+                "captured_at": "2026-10-20T08:00:00Z",
+                "card_id": 1,
+                "front": "house"
+              },
+              {
+                "captured_at": "2026-10-20T08:00:00Z",
+                "card_id": 3,
+                "front": "电脑包"
+              }
+            ]
+          }
+        },
+        {
+          "op": "build_daily_queue",
+          "quota": 0,
+          "result": {
+            "ok": [
+              {
+                "card_id": 5,
+                "due_date": "2026-10-31T10:00:00Z",
+                "kind": "review"
+              }
+            ]
+          }
+        },
+        {
+          "op": "build_daily_queue",
+          "quota": 2,
+          "result": {
+            "ok": [
+              {
+                "card_id": 5,
+                "due_date": "2026-10-31T10:00:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 2,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 1,
+                "kind": "new_capture"
+              }
+            ]
+          }
+        },
+        {
+          "op": "build_daily_queue",
+          "quota": 5,
+          "result": {
+            "ok": [
+              {
+                "card_id": 5,
+                "due_date": "2026-10-31T10:00:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 2,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 1,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 3,
+                "kind": "new_capture"
+              },
+              {
+                "curriculum_order": 2,
+                "hanzi": "是",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 5,
+                "hanzi": "你好",
+                "kind": "new"
+              }
+            ]
+          }
+        },
+        {
+          "op": "build_daily_queue",
+          "quota": 99,
+          "result": {
+            "ok": [
+              {
+                "card_id": 5,
+                "due_date": "2026-10-31T10:00:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 2,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 1,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 3,
+                "kind": "new_capture"
+              },
+              {
+                "curriculum_order": 2,
+                "hanzi": "是",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 5,
+                "hanzi": "你好",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 7,
+                "hanzi": "中文",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 12,
+                "hanzi": "好",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 30,
+                "hanzi": "学习",
+                "kind": "new"
+              }
+            ]
+          }
+        },
+        {
+          "card_id": 2,
+          "op": "introduce_capture",
+          "result": {
+            "ok": 2
+          }
+        },
+        {
+          "card_id": 2,
+          "op": "introduce_capture",
+          "result": {
+            "ok": 2
+          }
+        },
+        {
+          "card_id": 2,
+          "op": "get_srs_state",
+          "result": {
+            "ok": {
+              "algorithm": "fsrs",
+              "card_id": 2,
+              "difficulty": null,
+              "due_date": "2026-10-31T08:00:00Z",
+              "elapsed_days": 0,
+              "fsrs_state": "new",
+              "interval_days": 0,
+              "lapses": 0,
+              "last_rating": null,
+              "last_reviewed_at": null,
+              "repetitions": 0,
+              "stability": null
+            }
+          }
+        },
+        {
+          "id": 2,
+          "op": "get_capture",
+          "result": {
+            "ok": {
+              "card": {
+                "audio_front": null,
+                "back": "tree",
+                "captured_at": "2026-10-02T08:00:00Z",
+                "example_source": "",
+                "example_target": "",
+                "front": "Baum",
+                "notes": "",
+                "script_metadata": {
+                  "kind": "none"
+                },
+                "source_lang": "de",
+                "tags": [],
+                "target_lang": "en"
+              },
+              "id": 2,
+              "origin": "anki_import",
+              "synced_to_anki": false
+            }
+          }
+        },
+        {
+          "op": "list_unscheduled_captures",
+          "result": {
+            "ok": [
+              {
+                "captured_at": "2026-09-01T08:00:00Z",
+                "card_id": 4,
+                "front": "学习"
+              },
+              {
+                "captured_at": "2026-10-20T08:00:00Z",
+                "card_id": 1,
+                "front": "house"
+              },
+              {
+                "captured_at": "2026-10-20T08:00:00Z",
+                "card_id": 3,
+                "front": "电脑包"
+              }
+            ]
+          }
+        },
+        {
+          "op": "build_daily_queue",
+          "quota": 2,
+          "result": {
+            "ok": [
+              {
+                "card_id": 2,
+                "due_date": "2026-10-31T08:00:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 5,
+                "due_date": "2026-10-31T10:00:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 1,
+                "kind": "new_capture"
+              },
+              {
+                "card_id": 3,
+                "kind": "new_capture"
+              }
+            ]
+          }
+        },
+        {
+          "card_id": 2,
+          "op": "submit_review",
+          "rating": 3,
+          "result": {
+            "ok": {
+              "log": {
+                "card_id": 2,
+                "elapsed_days": 0,
+                "id": 1,
+                "rating": 3,
+                "reviewed_at": "2026-10-31T08:00:00Z",
+                "scheduled_days": 0,
+                "session_date": "2026-10-31",
+                "state_before": "new"
+              },
+              "next": {
+                "algorithm": "fsrs",
+                "card_id": 2,
+                "difficulty": 5.314577829570867,
+                "due_date": "2026-10-31T08:10:00Z",
+                "elapsed_days": 0,
+                "fsrs_state": "learning",
+                "interval_days": 0,
+                "lapses": 0,
+                "last_rating": 3,
+                "last_reviewed_at": "2026-10-31T08:00:00Z",
+                "repetitions": 1,
+                "stability": 3.1262
+              }
+            }
+          }
+        },
+        {
+          "now": "2026-10-31T08:05:00.000456Z",
+          "op": "set_clock"
+        },
+        {
+          "card_id": 2,
+          "op": "introduce_capture",
+          "result": {
+            "ok": 2
+          }
+        },
+        {
+          "card_id": 2,
+          "op": "get_srs_state",
+          "result": {
+            "ok": {
+              "algorithm": "fsrs",
+              "card_id": 2,
+              "difficulty": 5.314577829570867,
+              "due_date": "2026-10-31T08:10:00Z",
+              "elapsed_days": 0,
+              "fsrs_state": "learning",
+              "interval_days": 0,
+              "lapses": 0,
+              "last_rating": 3,
+              "last_reviewed_at": "2026-10-31T08:00:00Z",
+              "repetitions": 1,
+              "stability": 3.1262
+            }
+          }
+        },
+        {
+          "card_id": 9999,
+          "op": "introduce_capture",
+          "result": {
+            "error": "not found: capture 9999"
+          }
+        },
+        {
+          "card_id": 3,
+          "op": "introduce_capture",
+          "result": {
+            "ok": 3
+          }
+        },
+        {
+          "op": "load_pool",
+          "result": {
+            "ok": {
+              "entries": [
+                {
+                  "back": "tree",
+                  "card_id": 2,
+                  "example_source": "",
+                  "example_target": "",
+                  "front": "Baum",
+                  "has_audio": false,
+                  "hsk_level": null,
+                  "pinyin": null,
+                  "script_kind": "none",
+                  "source_lang": "de",
+                  "target_lang": "en"
+                },
+                {
+                  "back": "laptop bag",
+                  "card_id": 3,
+                  "example_source": "",
+                  "example_target": "",
+                  "front": "电脑包",
+                  "has_audio": false,
+                  "hsk_level": 1,
+                  "pinyin": "diàn nǎo bāo",
+                  "script_kind": "chinese",
+                  "source_lang": "zh-CN",
+                  "target_lang": "en"
+                },
+                {
+                  "back": "ich",
+                  "card_id": 5,
+                  "example_source": "",
+                  "example_target": "",
+                  "front": "我",
+                  "has_audio": false,
+                  "hsk_level": 1,
+                  "pinyin": "wǒ",
+                  "script_kind": "chinese",
+                  "source_lang": "zh-CN",
+                  "target_lang": "de"
+                }
+              ],
+              "learned_hanzi": ["包", "我", "电", "脑"]
+            }
+          }
+        },
+        {
+          "hanzi": "学习",
+          "op": "introduce_new_item",
+          "result": {
+            "ok": 4
+          },
+          "target_lang": "de"
+        },
+        {
+          "card_id": 4,
+          "op": "get_srs_state",
+          "result": {
+            "ok": {
+              "algorithm": "fsrs",
+              "card_id": 4,
+              "difficulty": null,
+              "due_date": "2026-10-31T08:05:00Z",
+              "elapsed_days": 0,
+              "fsrs_state": "new",
+              "interval_days": 0,
+              "lapses": 0,
+              "last_rating": null,
+              "last_reviewed_at": null,
+              "repetitions": 0,
+              "stability": null
+            }
+          }
+        },
+        {
+          "op": "list_unscheduled_captures",
+          "result": {
+            "ok": [
+              {
+                "captured_at": "2026-10-20T08:00:00Z",
+                "card_id": 1,
+                "front": "house"
+              }
+            ]
+          }
+        },
+        {
+          "op": "build_daily_queue",
+          "quota": 99,
+          "result": {
+            "ok": [
+              {
+                "card_id": 3,
+                "due_date": "2026-10-31T08:05:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 4,
+                "due_date": "2026-10-31T08:05:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 2,
+                "due_date": "2026-10-31T08:10:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 5,
+                "due_date": "2026-10-31T10:00:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 1,
+                "kind": "new_capture"
+              },
+              {
+                "curriculum_order": 2,
+                "hanzi": "是",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 5,
+                "hanzi": "你好",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 7,
+                "hanzi": "中文",
+                "kind": "new"
+              },
+              {
+                "curriculum_order": 12,
+                "hanzi": "好",
+                "kind": "new"
+              }
+            ]
+          }
+        },
+        {
+          "id": 1,
+          "op": "delete_capture",
+          "result": {
+            "ok": true
+          }
+        },
+        {
+          "op": "list_unscheduled_captures",
+          "result": {
+            "ok": []
+          }
+        },
+        {
+          "op": "build_daily_queue",
+          "quota": 1,
+          "result": {
+            "ok": [
+              {
+                "card_id": 3,
+                "due_date": "2026-10-31T08:05:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 4,
+                "due_date": "2026-10-31T08:05:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 2,
+                "due_date": "2026-10-31T08:10:00Z",
+                "kind": "review"
+              },
+              {
+                "card_id": 5,
+                "due_date": "2026-10-31T10:00:00Z",
+                "kind": "review"
+              },
+              {
+                "curriculum_order": 2,
+                "hanzi": "是",
+                "kind": "new"
               }
             ]
           }
