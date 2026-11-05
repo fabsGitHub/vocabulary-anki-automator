@@ -24,6 +24,34 @@ docs/                      this file, test-harness strategy, signing-key custody
 scripts/                   bootstrap, run-all-checks, git hooks
 ```
 
+**Product names.** Users see the Automator as **Polywort** and Learn as **Polywort
+Learn** (`productName` and the window titles in each `tauri.conf.json`, the
+`<title>` of each `index.html`, `app.title` in each app's i18n, the log lines that
+greet and say goodbye). Both set `bundle.publisher` to "Polywort", because without
+it Tauri shows the identifier's second segment, "ankiautomator", as the Windows
+publisher. Until 2026-11 they were Vocabulary
+Automator and Vocabulary Learn. The log file follows `productName` too:
+tauri-plugin-log names it after the product, so in the log folder below it is now
+`Polywort.log` or `Polywort Learn.log`, and an install from before keeps its old
+`Vocabulary Automator.log` or `Vocabulary Learn.log` beside it, no longer rotated.
+These kept the old names, because installs and their data depend on them.
+`tests/product_identity.rs` pins the bundle identifier and the history path in both
+apps, and the updater endpoint in the Automator's:
+
+- the bundle identifiers `com.ankiautomator.app` and `com.ankiautomator.learn`, from
+  which Tauri derives the settings folder (`config.json`) and the log folder;
+- the shared history `VocabularyAutomator/vocab.sqlite3` (§ 6, `default_db_path`);
+- the updater endpoint and the GitHub repository `vocabulary-anki-automator`;
+- the Cargo packages, crates and binaries (`vocab-automator`, `vocab-learn`, …) and
+  the npm package `vocab-automator`;
+- the User-Agents (AnkiConnect's `vocabulary-anki-automator anki-bridge/…`, the
+  providers' and the setup downloads' `vocabulary-automator/…`), the `app_state`
+  keys (`automator.*`, `learn.settings`) and the web build's IndexedDB `vocab-learn`.
+
+No Anki tag, note marker or query names the product: neither app adds tags of its
+own, and Learn's import finds notes by deck (`deck_query`). The recommended note
+type (§ 9) is named after the product, "Polywort".
+
 ## 2. Conventions (all crates)
 
 - **No network in tests, ever.** Every provider and client takes a base URL
@@ -74,6 +102,11 @@ scripts/                   bootstrap, run-all-checks, git hooks
   or a run outside the sandbox; they never touch anything but loopback.
 - **Proxies:** clients that talk to AnkiConnect never use an HTTP proxy (it is always
   local); provider clients honour the system proxy settings.
+- **AnkiConnect connections are never reused:** `AnkiClient` keeps no idle connections
+  (`pool_max_idle_per_host(0)`), so every request opens its own. AnkiConnect closes the
+  socket after each response without sending `Connection: close`; a pooled connection
+  reused before its FIN is noticed fails with "Connection reset by peer" (an `addNote`
+  right after `createDeck` did). `crates/anki-bridge/tests/fresh_connection.rs` pins it.
 
 ## 3. Language codes and script detection (`vocab_core::language`)
 
@@ -91,6 +124,64 @@ pub fn cjk_chars(text: &str) -> Vec<char>;     // in order, duplicates kept
 pub fn effective_source_lang(configured: &str, text: &str) -> String; // "zh-CN" if text contains CJK, else normalize_lang(configured)
 pub fn is_phrase(text: &str) -> bool;          // contains whitespace after trimming (Milestone H)
 ```
+
+### 3.1 Source-language detection (`vocab_core::detect`)
+
+With learned languages configured (§ 8.1), the Automator's default hotkey picks
+the capture's source language with `detect` before the pipeline runs (Milestone O).
+
+```rust
+pub const LATIN_LANGS: &[&str] = &["en", "de", "fr", "es", "it"];
+pub const CONFIDENT_AT: f64 = 0.85;       // a statistical top score from which the guess is certain
+pub const TIE_BREAK_MARGIN: f64 = 0.25;   // how close the last approved language must score to win
+
+#[serde(rename_all = "snake_case")] pub enum Script { Latin, Han, Kana, Hangul, Cyrillic, Other, None }
+#[serde(rename_all = "snake_case")] pub enum DetectionMethod { Script, Single, Statistical, TieBreak, Fallback, Chosen }
+pub struct LanguageScore { pub lang: String, pub confidence: f64 }
+pub struct Detection {
+    pub lang: String,             // canonical code the card was built for
+    pub method: DetectionMethod,
+    pub confident: bool,
+    pub script: Script,
+    pub candidates: Vec<String>,  // what the approval window offers, in settings order; contains `lang`
+    pub ranked: Vec<LanguageScore>, // the guesser's scores, best first; empty unless it ran
+}
+pub trait LatinGuesser: Send + Sync {
+    /// 2+ canonical codes from LATIN_LANGS; scores sum to 1, or are all 0 when nothing fits.
+    fn rank(&self, text: &str, candidates: &[&str]) -> Vec<LanguageScore>;
+}
+pub fn script_of(text: &str) -> Script;
+pub fn detect(text: &str, learned: &[String], fallback: &str,
+              last_confirmed: Option<&str>, guesser: &dyn LatinGuesser) -> Detection;
+```
+
+`script_of`: any `is_cjk_char` → `Han` (also among kana: Japanese kanji read as
+Chinese, as before). Otherwise the class most letters (`char::is_alphabetic`) belong
+to: Latin (ASCII, U+00C0–U+024F without × and ÷, U+1E00–U+1EFF), kana
+(U+3040–U+30FF, U+31F0–U+31FF, U+FF66–U+FF9F), Hangul (U+1100–U+11FF,
+U+3130–U+318F, U+AC00–U+D7AF), Cyrillic (U+0400–U+052F), other; a tie goes to the
+first in that order, and no letters at all is `None`.
+
+`detect(text, learned, fallback, last_confirmed, guesser)`, with `learned` the
+learned languages in settings order, `fallback` the configured source language and
+`last_confirmed` the language of the last approved card:
+
+1. `Han` → `zh-CN`, method `script`, confident, candidates `["zh-CN"]`, whether or
+   not Chinese is learned.
+2. `Latin`, with `latin` = learned ∩ `LATIN_LANGS` in settings order: none →
+   `fallback`; one → that language, `single`, confident; two or more →
+   `guesser.rank(text, latin)`, scores for other codes dropped, best first (equal
+   scores in settings order). A top score of 0 (or no scores) → `fallback`; a top
+   ≥ `CONFIDENT_AT` → `statistical`, confident; else `last_confirmed`, when it is in
+   `latin`, is not the top and scores less than `TIE_BREAK_MARGIN` below it →
+   `tie_break`, unsure; else the top, `statistical`, unsure. Candidates are `latin`.
+3. Any other script → `fallback`, unsure, with every learned language as a candidate.
+
+`fallback` is never confident, and the chosen `lang` is appended to the candidates
+when they lack it. The guesser is only asked with two or more codes. `chosen` is
+what a switch in the approval window records (§ 8.2). The guesser the app uses is
+the lingua adapter in `src-tauri/src/detect.rs`; lingua is a dependency of the
+Automator only, so vocab-core and Learn build without it.
 
 ## 4. Providers (`vocab_core::providers`)
 
@@ -204,6 +295,9 @@ Semantics, in order:
    capture on a network that drops packets can take up to ~10 s per step.
 7. Annotator → `script_metadata` (failure → warning, `ScriptMetadata::None`).
 8. `card.tags = req.tags`, `card.captured_at = req.captured_at`.
+
+The Automator may choose `req.source_lang` with `vocab_core::detect` (§ 3.1) before
+it builds the request; the pipeline itself is the same for every caller.
 
 ## 6. Store (`vocab_core::store`)
 
@@ -420,14 +514,15 @@ pub(crate) fn conn(&self) -> &rusqlite::Connection;                            /
 
 ### 6.4 Shared `app_state` keys and curriculum data
 
-| key                                    | owner                | value                                                            |
-| -------------------------------------- | -------------------- | ---------------------------------------------------------------- |
-| `curriculum_fingerprint`               | store                | FNV-1a 64 of the seeded curriculum                               |
-| `last_prompted_date`                   | srs (Learn)          | local date the daily prompt was last answered or dismissed       |
-| `streak_freezes_available`             | gamification (Learn) | freezes in stock (0..=2)                                         |
-| `learn.settings`                       | Learn                | `LearnSettings` JSON (`apps/learn/src/platform/types.ts`)        |
-| `automator.unsynced_deck.<capture id>` | Automator            | the deck a profile capture belongs to, until it syncs            |
-| `learn.lesson_completed.<lesson id>`   | Learn                | local date on which that lesson last earned `XP_LESSON_COMPLETE` |
+| key                                    | owner                | value                                                                                                                        |
+| -------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `curriculum_fingerprint`               | store                | FNV-1a 64 of the seeded curriculum                                                                                           |
+| `last_prompted_date`                   | srs (Learn)          | local date the daily prompt was last answered or dismissed                                                                   |
+| `streak_freezes_available`             | gamification (Learn) | freezes in stock (0..=2)                                                                                                     |
+| `learn.settings`                       | Learn                | `LearnSettings` JSON (`apps/learn/src/platform/types.ts`)                                                                    |
+| `automator.unsynced_deck.<capture id>` | Automator            | the deck a profile capture belongs to, until it syncs                                                                        |
+| `automator.last_source_lang`           | Automator            | the source language of the last approved capture, written only while learned languages are configured; detection's tie-break |
+| `learn.lesson_completed.<lesson id>`   | Learn                | local date on which that lesson last earned `XP_LESSON_COMPLETE`                                                             |
 
 Curriculum data: `crates/vocab-core/data/hsk_curriculum.json` (10,969 items,
 HSK 3.0 levels 1–6 plus the 7–9 band), generated by `tools/hsk-import` from two
@@ -655,18 +750,109 @@ language pair in capture order.
     "deck_name": "English::AutomatedVocabulary",
     "model_name": "AppleStyleFinalV3",
     "create_reverse": true,
-    "field_mapping": {
-      "fields": [{ "anki_field": "Front", "source": "front" }],
-      "audio_field": "Front Audio"
-    }
+    "field_mapping": null
   },
-  "consent": { "anki_install_granted_at": null, "ankiconnect_provision_granted_at": null }
+  "consent": { "anki_install_granted_at": null, "ankiconnect_provision_granted_at": null },
+  "learning": {
+    "languages": [
+      {
+        "lang": "fr",
+        "deck_name": "french",
+        "model_name": "AppleStyleFinalV3",
+        "field_mapping": {
+          "fields": [{ "anki_field": "Front", "source": "front" }],
+          "audio_field": "Audio"
+        },
+        "create_reverse": true
+      }
+    ]
+  },
+  "setup_assistant": { "closed_at": null, "finished": false }
 }
 ```
 
-- `hotkeys` is the default profile (uses `translation.*` languages and
-  `anki.deck_name`); `hotkey_profiles` add more shortcuts with their own pair
-  and optional deck (Milestone H). All shortcuts must parse and be distinct.
+- `hotkeys` is the default profile (uses `translation.*` languages, or detects
+  among `learning.languages`; the deck is `AppConfig::filing`'s choice);
+  `hotkey_profiles` add more shortcuts with their own pair and optional deck
+  (Milestone H). All shortcuts must parse and be distinct.
+- `learning.languages` lists the languages the user learns (Milestone O), in the
+  order the approval window shows them, each with its own deck, note type, field
+  mapping and reverse setting. The user's own language is
+  `translation.target_lang`. A file without `learning` loads as an empty list and
+  is not rewritten on load; an empty list keeps every capture in the deck and note
+  type it always had (the field mapping is matched by name unless customized; see
+  below).
+- Detection (`vocab_core::detect`, § 3.1) runs only for the default hotkey and
+  only while `learning.languages` is non-empty: it picks the capture's source
+  language among the learned ones, with `translation.source_lang` as the fallback
+  for text that fits none of them, and the tie-break reads
+  `automator.last_source_lang` (§ 6.4). Hotkey profiles keep their fixed pair, and
+  text the pipeline refuses (empty, too long) is not detected. Han text for a
+  learner whose own language is Chinese is left to the pipeline, which reverses
+  the pair as before.
+- `AppConfig::filing(profile_id, source_lang)` is the one place that decides where
+  a card goes; `entry` is the first learned language whose `lang` equals
+  `normalize_lang(source_lang)`:
+
+  | value         | precedence                                                                                                             |
+  | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+  | deck          | the hotkey profile's `deck_name` (a known `profile_id` with a deck) → `entry.deck_name` (non-blank) → `anki.deck_name` |
+  | note type     | `entry.model_name` (non-blank) → `anki.model_name`                                                                     |
+  | field mapping | with an entry: its `field_mapping`; without one: `anki.field_mapping`; either is `Auto` when `null`                    |
+  | reverse note  | `entry.create_reverse` → `anki.create_reverse`                                                                         |
+
+  An unknown `profile_id` (a profile deleted since the capture) counts as none. A
+  hotkey profile with a fixed pair still takes note type, mapping and reverse
+  setting from its source language's entry; only its own deck wins.
+
+- A `null` `field_mapping`, a learned language's or `anki.field_mapping` (whose
+  default it is), means "match the note type's fields by name"
+  (`FieldMapping::auto_match`, § 9) whenever a card is filed; the result is never
+  written back, so a changed note type is matched afresh. A saved mapping is
+  always used as saved.
+- `version`: every save writes `"version": 2` (`CONFIG_VERSION`) as the file's
+  first key; `get_current_settings` and `apply_settings` do not carry it, and older
+  builds ignore it like any key they do not know. A file without it (or with one that
+  is not a whole number) is version 1.
+- Migration of `anki.field_mapping`, in `load_config_from` and for version 1 only:
+  until 2026-11 it was a plain mapping that defaulted to
+  `FieldMapping::apple_style_default()`, so every file an older build saved holds
+  that default whether or not the user ever chose it. Such a file's missing key,
+  `null` and exactly that default load as `null`, and the next save leaves the key
+  out and writes the version; any other mapping, even the default with one binding
+  or the audio field changed, stays saved. On the classic AppleStyleFinalV3 note type
+  (Front, Back, Context Sentence, Notes, Front Audio) the match is exactly that
+  default for every language pair (`mapper.rs`
+  `the_classic_note_type_matches_the_old_default_for_every_pair`), so those notes do
+  not change; on any other note type it fills the fields the default missed. The
+  rule is only for the global mapping: a learned language's saved mapping, the
+  preset included, was always a choice. Since the version marks every file saved
+  after the migration, a mapping chosen since is kept as saved, the Apple-style
+  preset included (`AppConfig::normalize` leaves mappings alone, and the settings
+  form sends a customized mapping as it is).
+- Validation: each learned `lang` is supported, listed once and not
+  `translation.target_lang`; deck and note type are non-empty; a saved mapping of
+  its own fills at least one field and names every field, like a saved
+  `anki.field_mapping`. Fields the note type lacks are a warning, never a validation
+  error.
+- In the file, an `anki.field_mapping` of `null` is left out (`ConfigFile` in
+  `config.rs`); `get_current_settings` and `apply_settings` still carry it as `null`.
+  A missing key loads as `null` here, and as the built-in Apple-style default in a
+  build from before the global mapping could be unset, which is the mapping that
+  build always used.
+- Downgrade: an older build ignores `learning`, but a saved mapping that uses
+  `example_in_source_lang` or `example_in_target_lang` (§ 9) makes the whole file
+  unreadable to it, so it is kept as `config.json.bak` and the defaults load. An
+  unset global mapping does not, since the file leaves it out
+  (`a_build_from_before_the_mapping_could_be_unset_reads_the_saved_file`). An older
+  build saves without `version`, so after a save there a global mapping equal to the
+  Apple-style default loads as unset here again.
+- `setup_assistant` is the first-run setup assistant's state, written only by
+  `close_setup_assistant` (`apply_settings` keeps the stored value, like `consent`).
+  While `closed_at` is `null` the settings window opens the assistant once the
+  settings have loaded; `finished` tells "Done" on its last step from a dismissal. A
+  file without the key, or with a `closed_at` that is not RFC 3339, loads as never
+  closed, so an existing install sees the assistant once after the update.
 - Loading a legacy file maps the old `deepl` section onto `translation`
   (`api_key` is dropped), lowercases language codes and fills every new field
   with its default. `load_config_from(path)`/`save_config_to(path, cfg)` are
@@ -674,34 +860,43 @@ language pair in capture order.
 
 ### 8.2 Commands (`invoke` names; JS passes args in camelCase)
 
-| command                       | args                                                | returns                                                                                                 |
-| ----------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `get_current_settings`        | —                                                   | `AppConfig`                                                                                             |
-| `apply_settings`              | `newCfg: AppConfig`                                 | `null` (re-registers shortcuts; validation errors as `string`)                                          |
-| `get_pending_payload`         | —                                                   | `PendingCapture \| null`                                                                                |
-| `discard_pending_payload`     | —                                                   | `null` (clears state, hides `preview`)                                                                  |
-| `execute_card_generation`     | `card: Card`                                        | `SubmitResult`                                                                                          |
-| `capture_text`                | `text: string, profileId: string \| null`           | `null` (runs the pipeline as if the hotkey had copied `text`; the internal capture event for tests/E2E) |
-| `anki_status`                 | —                                                   | `AnkiStatus`                                                                                            |
-| `anki_model_field_names`      | `model: string`                                     | `string[]`                                                                                              |
-| `launch_anki_desktop`         | —                                                   | `string`                                                                                                |
-| `get_setup_status`            | —                                                   | `SetupStatus`                                                                                           |
-| `grant_consent`               | `action: "anki_install" \| "ankiconnect_provision"` | `ConsentState`                                                                                          |
-| `download_and_install_anki`   | —                                                   | `string` (error unless consent granted)                                                                 |
-| `auto_provision_ankiconnect`  | —                                                   | `string` (error unless consent granted)                                                                 |
-| `check_ankiconnect_installed` | —                                                   | `boolean`                                                                                               |
-| `list_recent_captures`        | `limit: number`                                     | `StoredCapture[]`                                                                                       |
-| `delete_capture`              | `id: number`                                        | `boolean`                                                                                               |
-| `sync_pending_captures`       | —                                                   | `SyncReport`                                                                                            |
-| `capture_in_progress`         | —                                                   | `boolean`                                                                                               |
-| `restart_app`                 | —                                                   | never returns                                                                                           |
+| command                        | args                                                    | returns                                                                                                 |
+| ------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `get_current_settings`         | —                                                       | `AppConfig`                                                                                             |
+| `apply_settings`               | `newCfg: AppConfig`                                     | `null` (re-registers shortcuts; validation errors as `string`)                                          |
+| `get_pending_payload`          | —                                                       | `PendingCapture \| null`                                                                                |
+| `discard_pending_payload`      | —                                                       | `null` (clears state, hides `preview`)                                                                  |
+| `execute_card_generation`      | `card: Card`                                            | `SubmitResult`                                                                                          |
+| `capture_text`                 | `text: string, profileId: string \| null`               | `null` (runs the pipeline as if the hotkey had copied `text`; the internal capture event for tests/E2E) |
+| `rerun_pending_capture`        | `sourceLang: string, text: string, generation: number`  | `PendingCapture` (the pending card captured again as `sourceLang`; also sent as `translation-payload`)  |
+| `anki_status`                  | —                                                       | `AnkiStatus`                                                                                            |
+| `anki_model_field_names`       | `model: string`                                         | `string[]`                                                                                              |
+| `suggest_field_mapping`        | `model: string, sourceLang: string, targetLang: string` | `AutoMatch` (`modelFieldNames`, then `FieldMapping::auto_match`; saves nothing)                         |
+| `check_pending_fields`         | `card: Card \| null`                                    | `FieldCheck \| null` (what a push of the pending card would drop; `null` when nothing is pending)       |
+| `create_recommended_note_type` | —                                                       | `RecommendedNoteType` (creates or reuses the recommended note type in Anki; writes no config)           |
+| `launch_anki_desktop`          | —                                                       | `string`                                                                                                |
+| `get_setup_status`             | —                                                       | `SetupStatus`                                                                                           |
+| `grant_consent`                | `action: "anki_install" \| "ankiconnect_provision"`     | `ConsentState`                                                                                          |
+| `download_and_install_anki`    | —                                                       | `string` (error unless consent granted)                                                                 |
+| `auto_provision_ankiconnect`   | —                                                       | `string` (error unless consent granted)                                                                 |
+| `check_ankiconnect_installed`  | —                                                       | `boolean`                                                                                               |
+| `get_accessibility_status`     | —                                                       | `AccessibilityStatus` (`AXIsProcessTrusted` on macOS; asks nothing)                                     |
+| `request_accessibility`        | —                                                       | `AccessibilityStatus` (prompts and opens System Settings at the Accessibility list; installs nothing)   |
+| `close_setup_assistant`        | `finished: boolean`                                     | `SetupAssistantState` (stops the assistant from opening at startup)                                     |
+| `list_recent_captures`         | `limit: number`                                         | `StoredCapture[]`                                                                                       |
+| `delete_capture`               | `id: number`                                            | `boolean`                                                                                               |
+| `sync_pending_captures`        | —                                                       | `SyncReport`                                                                                            |
+| `capture_in_progress`          | —                                                       | `boolean`                                                                                               |
+| `restart_app`                  | —                                                       | never returns                                                                                           |
 
 Events: `translation-payload` (`PendingCapture`, emitted to the `preview`
 window), `capture-error` (`{ message: string }`, app-wide),
 `captures-changed` (no payload, app-wide, after a save/delete/sync).
 
 `execute_card_generation(card)`: (1) saves the card to SQLite first, always;
-(2) maps it with `anki-bridge` (forward note, plus the reverse note when
+(2) files it through `AppConfig::filing` (§ 8.1: deck, note type, mapping and
+reverse note, from the card's language and the pending capture's profile) and
+maps it with `anki-bridge` (forward note, plus the reverse note when
 `create_reverse`), synthesizing reverse-side audio in `target_lang`;
 (3) pushes to AnkiConnect; (4) marks the capture synced on success (an Anki
 "duplicate" error also counts as synced). Anki being offline is not an error:
@@ -715,16 +910,136 @@ frontend so it can show the result first. `capture_id` is `0` in Anki-only mode
 Further rules both sides rely on:
 
 - **`apply_settings` ignores `newCfg.consent`**: consent is recorded only by
-  `grant_consent`, so no webview script can forge it through a settings save.
+  `grant_consent`, so no webview script can forge it through a settings save. It
+  ignores `newCfg.setup_assistant` the same way.
+- The setup assistant (`src/views/SetupAssistant.vue`,
+  `src/composables/useSetupAssistant.ts`) runs in the settings window: Anki →
+  AnkiConnect → Anki running with AnkiConnect loaded → the recommended note type
+  created and saved as `anki.model_name` → the Accessibility permission (macOS only;
+  `required: false` hides the step elsewhere) → a practice capture with the default
+  hotkey. Each step is ticked from what the app can check (`anki_status`,
+  `get_setup_status`, the saved note type against Anki's `models`,
+  `get_accessibility_status`), and the step shown moves on by itself when it gets
+  done; while shown, "Anki running" probes every 2 s and the permission is read every
+  1 s. "Set up everything" opens one consent dialog listing every download it needs
+  (the Anki release and source, the AnkiConnect commit), then runs `grant_consent`
+  and the install for each in turn, `launch_anki_desktop`,
+  `create_recommended_note_type` plus a save of only that change on top of the saved
+  settings, and `request_accessibility`, stopping at the first step that needs the
+  user. AnkiConnect loads only when Anki starts, so the "Anki running" step asks the
+  user to quit and restart an Anki that was open during the install. Whether a
+  permission granted while the app runs reaches the simulated Cmd+C without a restart
+  is not documented by Apple: the practice step offers `restart_app` when a capture
+  fails while `AXIsProcessTrusted` is true.
+- `get_accessibility_status` and `request_accessibility` go through the
+  `Accessibility` trait (`src-tauri/src/accessibility.rs`, direct FFI to
+  ApplicationServices), injected through `AppServices`, so no test calls the real API.
+  `request_accessibility` calls `AXIsProcessTrustedWithOptions` with
+  `kAXTrustedCheckOptionPrompt` (macOS adds the app, switched off, to the list and
+  shows its alert) and then opens
+  `x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility`;
+  it does neither when the permission is granted or not required. Only the user's own
+  switch grants it.
 - `capture_in_progress` is true from the hotkey until the capture is approved or
   discarded (the approval window counts); closing the preview counts as a discard.
 - `max_chars` must be a whole number in `1..=500`; a profile's source and target
   language must differ; all shortcuts must parse and be distinct.
 - `sync_pending_captures` pushes `origin = capture` rows only, stops at the first
-  "Anki unreachable" error, and uses the deck remembered for profile captures
-  (`app_state` `automator.unsynced_deck.<id>`).
+  "Anki unreachable" error, and files each card by its language as the default
+  hotkey would (`AppConfig::filing(None, lang)`), into the deck remembered for a
+  profile capture (`app_state` `automator.unsynced_deck.<id>`) when there is one.
+  `execute_card_generation` remembers a deck only when it differs from that one.
+- Both push commands send `modelFieldNames` first when the filing's mapping is
+  matched by field name (`null`, an entry's or the global one; § 9 `auto_match`,
+  never saved), once per note type per sync run. A failure to read the fields counts
+  as a push error: the card stays saved and unsynced. A saved mapping sends exactly
+  `createDeck`, forward note, reverse note, as before.
+- After the card is saved, `execute_card_generation` writes the card's
+  `source_lang` to `automator.last_source_lang` (§ 6.4), best-effort and only while
+  `learning.languages` is non-empty.
+- The `PendingCapture` payload carries `filing`, the deck and note type
+  `AppConfig::filing` chose when the card was captured, for the approval window to
+  show; the push decides again with the config of that moment. It also carries
+  `detection` (§ 3.1), how the source language was chosen, or `null` when it was
+  not detected; the window offers the `candidates` as chips (two or more) and
+  explains an unsure guess. `generation` numbers the captures
+  (`PendingPayload::set`); a re-run keeps the number, so the window can tell a
+  re-delivery of the capture it shows from a newer one.
 - `launch_anki_desktop` waits for `open -a Anki` on macOS and reports a missing
   Anki instead of "Starting Anki…".
+- `check_pending_fields` files the pending card with `AppConfig::filing` (its profile
+  and the card's `source_lang`), reads the note type's fields once
+  (`modelFieldNames`, 3 s timeout) and compares them with the mapping that push
+  would use (`FieldMapping::lost_values`, § 9), for `card`: the card as the
+  window would submit it, with the user's edits (`null`: the pending card as
+  captured). It returns `unchecked` when Anki is unreachable, `failed` with the
+  error otherwise (e.g. the note type does not exist), else `checked` with `lost`
+  (empty when everything arrives) and whether the mapping was matched by field
+  name. It reads from Anki only and works for every config; the approval window
+  calls it after showing a capture, so a slow Anki never delays the capture, and
+  again whenever the user fills in or empties a value, and shows the result as a
+  warning that does not block approving.
+- `rerun_pending_capture(sourceLang, text, generation)` is the approval window's
+  language switch for the capture it shows (`generation`): it runs `text` (the
+  window's front) through the pipeline again as `sourceLang`, with the pending
+  card's `target_lang`, `captured_at`, tags and hotkey profile, files it anew
+  (`AppConfig::filing`) and replaces the pending capture with the result,
+  keeping its generation (it is the same capture), then emits it as
+  `translation-payload` and returns it. A detection becomes method
+  `chosen`, confident, with the same candidates and scores; no detection stays
+  `null`. It holds the capture and the submission guard throughout, so a hotkey
+  meanwhile is ignored and `execute_card_generation` is refused ("already being
+  saved"). It refuses, emitting nothing and changing nothing: an unsupported code,
+  a running capture or submission, nothing pending, the card's `target_lang`, Han
+  text as anything but `zh-CN` (the pipeline would read it as Chinese anyway), a
+  pipeline refusal (its `capture-error` message, returned instead of emitted), and
+  a capture saved, discarded or replaced meanwhile (another `generation` pending
+  when it starts, or by the time the result is ready: "The card was saved or
+  discarded in the meantime."). Each re-run spends the translation, example and
+  TTS requests again.
+- `suggest_field_mapping` only reads from Anki and writes no config. Both settings
+  tabs call it to preview the match of every mapping that is `null`, without
+  touching the form: the Anki tab's for `translation.source_lang` →
+  `translation.target_lang` (each card is still matched for its own pair), each "My
+  languages" entry's for its language and `translation.target_lang`. Only
+  "Customize" copies the result into the form (offline: the Anki tab starts from the
+  Apple-style preset, an entry from a copy of `anki.field_mapping`, or that preset
+  while it is `null`), and "Stop customizing" sets the mapping back to `null`; both
+  tabs share this UI (`src/components/MappingChoiceEditor.vue`,
+  `src/composables/useAutoMatches.ts`), so saving the Anki tab without customizing
+  sends `"field_mapping": null`. A customized mapping's "Match by field name"
+  replaces the form's mapping and audio field with the result (a user edit, so the
+  form becomes dirty) and lists its `guessed` and `unmatched` fields; nothing is
+  saved until the user saves the form. The settings tabs read a note type's fields
+  (`anki_model_field_names`) for customized mappings only, once while Anki stays
+  online, from a cache the main window shares between them
+  (`src/composables/useModelFields.ts`).
+- `create_recommended_note_type` sets up the recommended note type (§ 9
+  `recommended_note_type`, "Polywort") in the user's collection, the
+  one command besides the pushes that writes to it. It runs only from the button
+  both settings tabs show while Anki is online (the Anki tab under the note type,
+  each "My languages" entry under its own; `src/components/RecommendedNoteType.vue`),
+  never at startup, and the tests only against a mock AnkiConnect. It reads
+  `modelNames`; without that name it sends `createModel` with the spec's fields,
+  CSS and template (`created: true`). With it, it reads `modelFieldNames` and reuses
+  the note type as it is when it has every recommended field (`created: false`;
+  extra fields are fine), and otherwise fails naming the missing fields: an existing
+  note type is never changed or replaced (AnkiConnect's `createModel` refuses a
+  name the collection has anyway). It returns the name, `FieldMapping::recommended`
+  and `matches_by_name`, whether matching the note type's fields by name gives
+  exactly that mapping for every language pair (`FieldMapping::is_matched_by_name`;
+  always true for a note type it created). It writes no config: the button selects
+  the note type for its place in the form and, when `matches_by_name`, leaves that
+  place's mapping `null` (matched by name, the simplest config), else saves the
+  mapping; the user saves the form. The button runs as the Anki connection's
+  `note_type` activity, so it never overlaps a rescan, launch or install, and the
+  note type lists are read again afterwards. When Anki already lists the note type,
+  the button says "Use" instead of "Create", and its hint says that note type is
+  used only if it has every recommended field. The line after a success asks the
+  user to save only when the click changed the form and the form differs from the
+  saved settings; otherwise it says the note type was already selected there (the
+  form already differed) or that the saved settings already use it. A save clears
+  that line. The mapping is also the first preset of the mapping editor.
 
 ### 8.3 Windows and capabilities
 
@@ -780,7 +1095,11 @@ holds the Accessibility permission, which macOS ties to its signature).
 ### 8.4 Consent & supply chain (Milestone E)
 
 - Startup only _checks_ (`check_anki_installed`, `check_ankiconnect_installed`);
-  nothing is downloaded, installed or launched without a user click.
+  nothing is downloaded, installed or launched without a user click. The setup
+  assistant may open at startup (§ 8.2), but it too only checks until the user clicks,
+  and its "Set up everything" asks for every download in one consent dialog first. Creating the
+  recommended note type (§ 8.2) writes to the collection, so it waits for a click
+  too; it records no consent, since it downloads nothing and only ever adds.
 - Each install action requires a one-time consent recorded in
   `config.consent.*_granted_at` via `grant_consent`; the UI shows a consent
   dialog that explains exactly what will be downloaded, from where, and what
@@ -833,24 +1152,36 @@ impl AnkiClient {
     pub async fn model_names(&self) -> Result<Vec<String>, AnkiError>;
     pub async fn model_field_names(&self, model: &str) -> Result<Vec<String>, AnkiError>;
     pub async fn create_deck(&self, deck: &str) -> Result<i64, AnkiError>;
+    pub async fn create_model(&self, name: &str, fields: &[String], css: &str,
+        templates: &[CardTemplate]) -> Result<(), AnkiError>; // createModel, isCloze false
     pub async fn add_note(&self, note: &NoteSpec) -> Result<i64, AnkiError>;
     pub async fn find_notes(&self, query: &str) -> Result<Vec<i64>, AnkiError>;
     pub async fn notes_info(&self, ids: &[i64]) -> Result<Vec<NoteInfo>, AnkiError>;
 }
+pub struct CardTemplate { pub name: String, pub front: String, pub back: String } // serde "Name"/"Front"/"Back"
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AnkiError { Unreachable { message: String }, Api { message: String }, Duplicate { message: String }, Malformed { message: String } }
 
 #[serde(rename_all = "snake_case")]
-pub enum CardField { Front, Back, ExampleSource, ExampleTarget, Example, Notes, Pinyin, HskLevel }
+pub enum CardField { Front, Back, ExampleSource, ExampleTarget, Example, Notes, Pinyin, HskLevel,
+    ExampleInSourceLang, ExampleInTargetLang } // the last two: never swapped on the reverse note
 pub struct FieldBinding { pub anki_field: String, pub source: CardField }
 pub struct FieldMapping { pub fields: Vec<FieldBinding>, pub audio_field: Option<String> }
 impl FieldMapping {
     pub fn apple_style_default() -> Self; // Front->Front, Back->Back, Example->"Context Sentence", Notes->Notes, audio "Front Audio"
     pub fn chinese_default() -> Self;     // Front->Hanzi, Pinyin->Pinyin, Back->Meaning, Example->Sentence, audio "Audio"
+    pub fn recommended() -> Self;         // the recommended note type's fields, see below; audio "Audio"
     pub fn audio_field(&self) -> Option<&str>;                    // None when unset or blank
     pub fn missing_fields(&self, model_fields: &[String]) -> Vec<String>; // mapped fields the note type lacks
+    pub fn lost_values(&self, card: &Card, model_fields: &[String]) -> Vec<LostValue>; // what a push of card drops
+    pub fn auto_match(model_fields: &[String], source_lang: &str, target_lang: &str) -> AutoMatch;
+    pub fn is_matched_by_name(&self, model_fields: &[String]) -> bool; // auto_match == self for every pair
 }
 impl Default for FieldMapping { /* apple_style_default */ }
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum LostValue { MissingField { anki_field: String, source: CardField }, Unmapped { source: CardField },
+    Audio { audio_field: Option<String> } }
+pub struct AutoMatch { pub mapping: FieldMapping, pub guessed: Vec<String>, pub unmatched: Vec<String> }
 pub enum Direction { Forward, Reverse }
 pub struct AnkiTarget { pub deck: String, pub model: String }
 pub struct NoteSpec { pub deck: String, pub model: String, pub fields: BTreeMap<String, String>,
@@ -859,6 +1190,9 @@ pub struct AudioAttachment { pub filename: String, pub data_b64: String, pub fie
 pub fn map_card(card: &Card, direction: Direction, target: &AnkiTarget, mapping: &FieldMapping, audio: Option<&[u8]>) -> NoteSpec;
 pub fn add_note_params(note: &NoteSpec) -> serde_json::Value;     // exactly AnkiConnect's addNote "params"
 pub fn card_from_note(note: &NoteInfo, mapping: &FieldMapping, source_lang: &str, target_lang: &str, captured_at: DateTime<Utc>) -> Option<Card>;
+pub const RECOMMENDED_NOTE_TYPE: &str = "Polywort";
+pub struct NoteTypeSpec { pub name: String, pub fields: Vec<String>, pub css: String, pub templates: Vec<CardTemplate> }
+pub fn recommended_note_type() -> NoteTypeSpec;
 ```
 
 Shared push helper (both apps use it; never re-implement the sequence):
@@ -888,7 +1222,70 @@ Semantics:
 - Only AnkiConnect's exact `DUPLICATE_NOTE_MESSAGE` is `Duplicate`; anything else
   (e.g. a missing deck whose user-chosen name contains "duplicate") is `Api`.
 - `map_card(Reverse)` swaps front/back and example source/target; the `Example`
-  field is the combined example in display order.
+  field is the combined example in display order. `ExampleInSourceLang` and
+  `ExampleInTargetLang` are `card.example_source` and `card.example_target` on both
+  notes, never swapped: they fill fields named after a language ("English
+  Sentence"), which must keep that language on the reverse note.
+- `card_from_note` reads a forward note: an example half comes from its
+  `ExampleSource`/`ExampleTarget` binding, or else from its
+  `ExampleInSourceLang`/`ExampleInTargetLang` one, or else out of `Example`. Learn
+  does not offer the two direction-independent values: its import swaps both sides
+  and both example halves of a note whose hanzi is on the back
+  (`apps/learn/src-tauri/src/anki.rs`), which would be wrong for them, so offering
+  them needs a direction-aware `card_from_note` first.
+- `FieldMapping::auto_match` builds a mapping from a note type's field names alone
+  (the keyword tables and rules are at the end of `mapper.rs`): it splits each name
+  into folded words ("EnglishSentence" → english, sentence; "Rückseite" →
+  ruckseite), recognizes the supported languages by their names (spelled in English,
+  German, French, Spanish or Italian) and codes, and binds in note-type order, the first field winning each value. A field naming the
+  card's source or target language gets `ExampleInSourceLang`/`ExampleInTargetLang`
+  (or `Front`/`Back` when it is not an example); one naming a third language, or a
+  template switch like "Add Reverse", stays empty. `Front` and `Back` fall back to
+  the first unrecognized fields (listed in `guessed`), since Anki refuses a note
+  with an empty first field; `audio_field` is the first word-audio field, spelled
+  exactly; `unmatched` lists the fields left empty. Codes are normalized first. Both
+  built-in mappings come out of their own field names exactly.
+- The recommended note type (`recommended_note_type`, Milestone O) holds everything
+  a card has. Fields in order, with what `FieldMapping::recommended` writes:
+
+  | field                  | value                    |
+  | ---------------------- | ------------------------ |
+  | `Front`                | `front`                  |
+  | `Back`                 | `back`                   |
+  | `Sentence`             | `example_in_source_lang` |
+  | `Sentence Translation` | `example_in_target_lang` |
+  | `Audio`                | the pronunciation        |
+  | `Pinyin`               | `pinyin`                 |
+  | `HSK Level`            | `hsk_level`              |
+  | `Notes`                | `notes`                  |
+
+  The sentences are bound by language, so the reverse note (front and back
+  swapped) still has the sentence in the captured language over its translation.
+  One template, "Recall": the question side shows `{{Front}}` large; the answer
+  side shows `{{FrontSide}}`, Audio, `<hr id=answer>`, Pinyin, `{{Back}}`, then
+  Sentence, Sentence Translation, Notes and HSK Level, each optional field inside a
+  `{{#Field}}...{{/Field}}` block, so an empty field leaves no trace. The order keeps
+  each value next to the word it belongs to in both directions: Audio speaks the
+  note's own `Front` (on the reverse note, the prompt in the user's language), so it
+  sits under the question, and the pinyin sits between the two words, under the
+  Hanzi forward (学习 / xué xí / lernen) and over it reversed (lernen / xué xí /
+  学习); `the_answer_keeps_pronunciation_and_pinyin_next_to_their_word` renders
+  both. The CSS is
+  self-contained (no fonts, images or scripts from anywhere, no JavaScript): a
+  centred word, muted secondary text, and a dark variant for Anki's `nightMode` and
+  AnkiDroid's `night_mode` classes. Matching its field names by name gives exactly
+  `FieldMapping::recommended` for every language pair, so a place that uses it can
+  leave its mapping `null`. The name is the one place the product name appears in
+  Rust; the frontend mirrors it in `RECOMMENDED_NOTE_TYPE`
+  (`src/domain/fieldMapping.ts`, pinned to `mapper.rs` by its tests).
+
+- `lost_values` checks the forward note only (the reverse note writes the same
+  fields): a binding whose field the note type lacks while the card has a value for
+  it (`missing_field`, field names case-insensitive), a non-empty front, back,
+  example half, notes or pinyin that no field receives and no `missing_field`
+  already reports (`unmapped`; an example half also travels in its relative or the
+  combined field), and audio bytes without an exactly named audio field of the note
+  type (`audio`). Empty values are never reported.
 - Field values are HTML-escaped (`&`, `<`, `>`) and line breaks are written as
   `<br>` (a raw newline renders as a space in Anki's HTML fields, which put both
   example sentences on one line). `card_from_note` reverses this (tags stripped,
@@ -900,7 +1297,8 @@ Semantics:
   second download. The `addNote` payload uses `allowDuplicate: false,
 duplicateScope: "deck"` and the card's tags (Anki splits tags on whitespace).
 - `notes_info` sends 500 ids per request, skips AnkiConnect's `{}` entries for deleted
-  notes, and sends nothing for an empty slice. The client never uses a proxy.
+  notes, and sends nothing for an empty slice. The client never uses a proxy and opens
+  a new connection for every request (§ 2).
 
 ## 10. Learn (`apps/learn`)
 
@@ -1044,6 +1442,27 @@ interface PendingCapture {
   card: Card
   warnings: PipelineWarning[]
   profile_id: string | null
+  detection: Detection | null // null: not detected (a hotkey profile, no learned languages)
+  filing: PendingFiling
+  generation: number // which capture; a re-run keeps it
+}
+type Script = 'latin' | 'han' | 'kana' | 'hangul' | 'cyrillic' | 'other' | 'none'
+type DetectionMethod = 'script' | 'single' | 'statistical' | 'tie_break' | 'fallback' | 'chosen'
+interface LanguageScore {
+  lang: string
+  confidence: number // 0..1
+}
+interface Detection {
+  lang: string // the card's source language
+  method: DetectionMethod
+  confident: boolean
+  script: Script
+  candidates: string[] // offered by the approval window, in settings order; contains lang
+  ranked: LanguageScore[] // best first; empty unless the statistics ran
+}
+interface PendingFiling {
+  deck: string
+  model: string // the note type
 }
 interface StoredCapture {
   id: number
@@ -1080,10 +1499,62 @@ interface SetupStatus {
   anki_version: string
   consent: ConsentState
 }
+interface AccessibilityStatus {
+  required: boolean // false: no permission on this platform, the assistant hides its step
+  trusted: boolean // AXIsProcessTrusted(); true when not required
+}
+interface SetupAssistantState {
+  closed_at: string | null // RFC 3339; null: the settings window opens the assistant
+  finished: boolean // closed with "Done" rather than dismissed
+}
 type QueueItem =
   | { kind: 'review'; card_id: number; due_date: string }
   | { kind: 'new'; hanzi: string; curriculum_order: number }
   | { kind: 'new_capture'; card_id: number }
+type CardField =
+  | 'front'
+  | 'back'
+  | 'example_source' // the half in this note's front language: swapped on the reverse note
+  | 'example_target'
+  | 'example'
+  | 'notes'
+  | 'pinyin'
+  | 'hsk_level'
+  | 'example_in_source_lang' // card.example_source on both notes: never swapped
+  | 'example_in_target_lang' // card.example_target on both notes: never swapped
+interface FieldMapping {
+  fields: { anki_field: string; source: CardField }[]
+  audio_field: string | null
+}
+interface AutoMatch {
+  mapping: FieldMapping // bindings in note-type order
+  guessed: string[] // fields bound only by position
+  unmatched: string[] // fields left empty (the audio field excluded)
+}
+interface RecommendedNoteType {
+  model_name: string
+  mapping: FieldMapping // FieldMapping::recommended
+  created: boolean // false: an existing note type of that name was reused
+  matches_by_name: boolean // matching its fields by name gives exactly mapping
+}
+type LostValue =
+  | { kind: 'missing_field'; anki_field: string; source: CardField }
+  | { kind: 'unmapped'; source: CardField }
+  | { kind: 'audio'; audio_field: string | null }
+type FieldCheck =
+  | { status: 'unchecked' } // Anki unreachable
+  | { status: 'failed'; model: string; error: string }
+  | { status: 'checked'; model: string; auto_matched: boolean; lost: LostValue[] }
+interface LearnedLanguage {
+  lang: string
+  deck_name: string
+  model_name: string
+  field_mapping: FieldMapping | null // null: matched by field name, never saved
+  create_reverse: boolean
+}
+interface LearningConfig {
+  languages: LearnedLanguage[] // in approval-window order
+}
 ```
 
 ## 12. Deviations from IMPLEMENTATION_PLAN.md (and why)

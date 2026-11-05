@@ -10,8 +10,9 @@
 use std::time::Duration;
 
 use anki_bridge::{
-    card_from_note, deck_query, map_card, push_card, AnkiClient, AnkiError, AnkiTarget, Direction,
-    FieldMapping, NoteField, NoteInfo, PushOptions, PushOutcome,
+    card_from_note, deck_query, map_card, push_card, recommended_note_type, AnkiClient, AnkiError,
+    AnkiTarget, CardTemplate, Direction, FieldMapping, NoteField, NoteInfo, PushOptions,
+    PushOutcome,
 };
 use chrono::{DateTime, TimeDelta, TimeZone, Utc};
 use serde_json::{json, Value};
@@ -556,6 +557,123 @@ async fn model_field_names_and_create_deck_send_their_parameters() {
             }),
             create_deck_request("A::B"),
         ]
+    );
+}
+
+/// `createModel` answers with the whole new note type; the client only
+/// needs to know it worked.
+fn created_model(name: &str) -> Value {
+    json!({
+        "sortf": 0,
+        "did": 1,
+        "latexPre": "",
+        "latexPost": "",
+        "mod": 1_730_000_000,
+        "usn": -1,
+        "vers": [],
+        "type": 0,
+        "css": ".card {}",
+        "name": name,
+        "flds": [{ "name": "Q", "ord": 0 }, { "name": "A", "ord": 1 }],
+        "tmpls": [{ "name": "Card", "ord": 0, "qfmt": "{{Q}}", "afmt": "{{A}}" }],
+        "tags": [],
+        "id": 1_730_000_000_123_i64,
+        "req": [[0, "any", [0]]]
+    })
+}
+
+#[tokio::test]
+async fn create_model_sends_the_exact_create_model_request() {
+    let server = MockServer::start().await;
+    answer_exactly(
+        &server,
+        json!({
+            "action": "createModel",
+            "version": 6,
+            "params": {
+                "modelName": "Q & A",
+                "inOrderFields": ["Q", "A"],
+                "css": ".card { color: black; }",
+                "isCloze": false,
+                "cardTemplates": [
+                    { "Name": "Card", "Front": "{{Q}}", "Back": "{{FrontSide}}<hr id=answer>{{A}}" }
+                ]
+            }
+        }),
+        ok(created_model("Q & A")),
+    )
+    .await;
+    let client = AnkiClient::new(server.uri());
+
+    let created = client
+        .create_model(
+            "Q & A",
+            &["Q".to_string(), "A".to_string()],
+            ".card { color: black; }",
+            &[CardTemplate {
+                name: "Card".into(),
+                front: "{{Q}}".into(),
+                back: "{{FrontSide}}<hr id=answer>{{A}}".into(),
+            }],
+        )
+        .await;
+
+    assert_eq!(created, Ok(()));
+}
+
+#[tokio::test]
+async fn create_model_sends_the_recommended_note_type_as_defined() {
+    let server = MockServer::start().await;
+    answer(&server, "createModel", ok(created_model("Polywort"))).await;
+    let client = AnkiClient::new(server.uri());
+    let spec = recommended_note_type();
+
+    let created = client
+        .create_model(&spec.name, &spec.fields, &spec.css, &spec.templates)
+        .await;
+
+    assert_eq!(created, Ok(()));
+    let [request] = <[Value; 1]>::try_from(sent(&server).await).expect("one request");
+    assert_eq!(request["action"], "createModel");
+    let params = &request["params"];
+    assert_eq!(params["modelName"], "Polywort");
+    assert_eq!(
+        params["inOrderFields"],
+        json!([
+            "Front",
+            "Back",
+            "Sentence",
+            "Sentence Translation",
+            "Audio",
+            "Pinyin",
+            "HSK Level",
+            "Notes"
+        ])
+    );
+    assert_eq!(params["isCloze"], false);
+    assert_eq!(params["css"], spec.css.as_str());
+    let template = &spec.templates[0];
+    assert_eq!(
+        params["cardTemplates"],
+        json!([{ "Name": "Recall", "Front": template.front, "Back": template.back }])
+    );
+}
+
+#[tokio::test]
+async fn create_model_reports_an_existing_name_as_an_api_error() {
+    let server = MockServer::start().await;
+    answer(&server, "createModel", error("Model name already exists")).await;
+    let client = AnkiClient::new(server.uri());
+
+    let created = client
+        .create_model("Basic", &["Front".to_string()], "", &[])
+        .await;
+
+    assert_eq!(
+        created,
+        Err(AnkiError::Api {
+            message: "Model name already exists".into()
+        })
     );
 }
 

@@ -5,7 +5,10 @@ import { i18n, setLocale } from '../i18n'
 import ConsentDialog from './ConsentDialog.vue'
 
 function mountDialog(action: 'anki_install' | 'ankiconnect_provision', ankiVersion = '24.06.3') {
-  return mount(ConsentDialog, { props: { action, ankiVersion }, global: { plugins: [i18n] } })
+  return mount(ConsentDialog, {
+    props: { actions: [action], ankiVersion },
+    global: { plugins: [i18n] },
+  })
 }
 
 beforeEach(() => setLocale('en'))
@@ -76,6 +79,28 @@ describe('ConsentDialog', () => {
     await wrapper.find('.modal-overlay').trigger('click')
     expect(wrapper.emitted('cancel')).toHaveLength(3)
     expect(wrapper.emitted('agree')).toBeUndefined()
+  })
+
+  it('lists both downloads, in install order, in one dialog with one agreement', async () => {
+    const wrapper = mount(ConsentDialog, {
+      props: { actions: ['anki_install', 'ankiconnect_provision'], ankiVersion: '24.06.3' },
+      slots: { after: '<p data-test="plan">Then Polywort starts Anki.</p>' },
+      global: { plugins: [i18n] },
+    })
+    const text = wrapper.text()
+    expect(wrapper.find('h3').text()).toBe('Install Anki 24.06.3 and AnkiConnect?')
+    expect(wrapper.findAll('.consent-download h4').map((h) => h.text())).toEqual([
+      'Anki 24.06.3',
+      'The AnkiConnect add-on',
+    ])
+    expect(text).toContain('github.com/ankitects/anki/releases/tag/24.06.3')
+    expect(text).toContain('ce2f728c98ab3711450fbc066b8fbe27e983684e5d6195be5f451475d1a48d35')
+    expect(text).toContain('4064fa142785975255457abd6a496015f5b71f38')
+    expect(text).toContain('2185b1243b924152cbac7a7668b40c0bf713902619bfc8ede5c42465066d0f05')
+    expect(wrapper.find('[data-test="plan"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-test="consent-agree"]')).toHaveLength(1)
+    await wrapper.find('[data-test="consent-agree"]').trigger('click')
+    expect(wrapper.emitted('agree')).toHaveLength(1)
   })
 
   it('is shown in German too', () => {

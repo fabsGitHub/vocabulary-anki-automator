@@ -32,22 +32,26 @@ mod common;
 
 use std::{collections::BTreeMap, fs, path::PathBuf, sync::Arc};
 
-use anki_bridge::{CardField, FieldBinding, FieldMapping};
+use anki_bridge::{AutoMatch, CardField, FieldBinding, FieldMapping, LostValue};
 use chrono::{DateTime, Utc};
 use common::Harness;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Map, Value};
 use vocab_automator_lib::{
-    capture::{CaptureErrorPayload, PendingCapture},
-    commands::anki::AnkiStatus,
+    accessibility::AccessibilityStatus,
+    capture::{CaptureErrorPayload, PendingCapture, PendingFiling},
+    commands::anki::{AnkiStatus, RecommendedNoteType},
     config::{
-        AnkiConfig, AppConfig, ConsentAction, ConsentState, HotkeyProfile, TranslationConfig,
+        AnkiConfig, AppConfig, ConsentAction, ConsentState, HotkeyProfile, LearnedLanguage,
+        LearningConfig, SetupAssistantState, TranslationConfig,
     },
+    filing::FieldCheck,
     push::{SubmitResult, SyncFailure, SyncReport},
     setup::SetupStatus,
 };
 use vocab_core::{
     curriculum::CurriculumIndex,
+    detect::{Detection, DetectionMethod, LanguageScore, Script},
     language::SUPPORTED_LANGS,
     pipeline::{PipelineStage, PipelineWarning},
     providers::{ProviderRegistry, StandardProviders},
@@ -95,12 +99,36 @@ const COMMANDS: &[(&str, &str, &[&str], &str)] = &[
         &["text", "profileId"],
         "null",
     ),
+    (
+        "rerunPendingCapture",
+        "rerun_pending_capture",
+        &["sourceLang", "text", "generation"],
+        "PendingCapture",
+    ),
     ("ankiStatus", "anki_status", &[], "AnkiStatus"),
     (
         "ankiModelFieldNames",
         "anki_model_field_names",
         &["model"],
         "string[]",
+    ),
+    (
+        "suggestFieldMapping",
+        "suggest_field_mapping",
+        &["model", "sourceLang", "targetLang"],
+        "AutoMatch",
+    ),
+    (
+        "checkPendingFields",
+        "check_pending_fields",
+        &["card"],
+        "FieldCheck | null",
+    ),
+    (
+        "createRecommendedNoteType",
+        "create_recommended_note_type",
+        &[],
+        "RecommendedNoteType",
     ),
     ("launchAnkiDesktop", "launch_anki_desktop", &[], "string"),
     ("getSetupStatus", "get_setup_status", &[], "SetupStatus"),
@@ -122,6 +150,24 @@ const COMMANDS: &[(&str, &str, &[&str], &str)] = &[
         "check_ankiconnect_installed",
         &[],
         "boolean",
+    ),
+    (
+        "getAccessibilityStatus",
+        "get_accessibility_status",
+        &[],
+        "AccessibilityStatus",
+    ),
+    (
+        "requestAccessibility",
+        "request_accessibility",
+        &[],
+        "AccessibilityStatus",
+    ),
+    (
+        "closeSetupAssistant",
+        "close_setup_assistant",
+        &["finished"],
+        "SetupAssistantState",
     ),
     (
         "listRecentCaptures",
@@ -149,6 +195,8 @@ const NOT_RUN: &str = "restart_app";
 /// arguments.
 const MAY_FAIL: &[&str] = &[
     "anki_model_field_names",
+    "suggest_field_mapping",
+    "create_recommended_note_type",
     "launch_anki_desktop",
     "download_and_install_anki",
     "auto_provision_ankiconnect",
@@ -239,6 +287,94 @@ fn chinese_card() -> Card {
     }
 }
 
+fn english_filing() -> PendingFiling {
+    PendingFiling {
+        deck: "English::AutomatedVocabulary".into(),
+        model: "AppleStyleFinalV3".into(),
+    }
+}
+
+fn chinese_filing() -> PendingFiling {
+    PendingFiling {
+        deck: "Chinese::HSK".into(),
+        model: "Chinese (HSK)".into(),
+    }
+}
+
+fn score(lang: &str, confidence: f64) -> LanguageScore {
+    LanguageScore {
+        lang: lang.into(),
+        confidence,
+    }
+}
+
+/// "serendipity" among en and fr: a certain guess.
+fn confident_detection() -> Detection {
+    Detection {
+        lang: "en".into(),
+        method: DetectionMethod::Statistical,
+        confident: true,
+        script: Script::Latin,
+        candidates: vec!["en".into(), "fr".into()],
+        ranked: vec![score("en", 0.96), score("fr", 0.04)],
+    }
+}
+
+/// "message" among en and fr without history: an unsure guess.
+fn unsure_detection() -> Detection {
+    Detection {
+        lang: "fr".into(),
+        method: DetectionMethod::Statistical,
+        confident: false,
+        script: Script::Latin,
+        candidates: vec!["en".into(), "fr".into()],
+        ranked: vec![score("fr", 0.6094), score("en", 0.3906)],
+    }
+}
+
+/// One of each method, and of each script that decides a method on its own.
+fn detections() -> Vec<Detection> {
+    vec![
+        Detection {
+            lang: "zh-CN".into(),
+            method: DetectionMethod::Script,
+            confident: true,
+            script: Script::Han,
+            candidates: vec!["zh-CN".into()],
+            ranked: Vec::new(),
+        },
+        Detection {
+            lang: "en".into(),
+            method: DetectionMethod::Single,
+            confident: true,
+            script: Script::Latin,
+            candidates: vec!["en".into()],
+            ranked: Vec::new(),
+        },
+        confident_detection(),
+        unsure_detection(),
+        Detection {
+            lang: "en".into(),
+            method: DetectionMethod::TieBreak,
+            ..unsure_detection()
+        },
+        Detection {
+            lang: "en".into(),
+            method: DetectionMethod::Fallback,
+            confident: false,
+            script: Script::Kana,
+            candidates: vec!["fr".into(), "zh-CN".into(), "en".into()],
+            ranked: Vec::new(),
+        },
+        Detection {
+            lang: "en".into(),
+            method: DetectionMethod::Chosen,
+            confident: true,
+            ..unsure_detection()
+        },
+    ]
+}
+
 fn provider_errors() -> Vec<ProviderError> {
     vec![
         ProviderError::Network {
@@ -327,6 +463,59 @@ fn custom_mapping() -> FieldMapping {
     }
 }
 
+/// The fields of the user's AppleStyleFinalV3 note type, which the old default
+/// mapping does not fit.
+fn apple_style_final_v3() -> Vec<String> {
+    [
+        "Front",
+        "Back",
+        "English Sentence",
+        "German Sentence",
+        "Audio",
+    ]
+    .map(String::from)
+    .to_vec()
+}
+
+/// Every kind of value a push can drop, both sides of the audio field
+/// included.
+fn lost_values() -> Vec<LostValue> {
+    vec![
+        LostValue::MissingField {
+            anki_field: "Context Sentence".into(),
+            source: CardField::Example,
+        },
+        LostValue::Unmapped {
+            source: CardField::Pinyin,
+        },
+        LostValue::Audio {
+            audio_field: Some("Front Audio".into()),
+        },
+        LostValue::Audio { audio_field: None },
+    ]
+}
+
+/// English matched by field name, and Chinese with its own mapping and no
+/// reverse notes.
+fn learned_languages() -> Vec<LearnedLanguage> {
+    vec![
+        LearnedLanguage {
+            lang: "en".into(),
+            deck_name: "english".into(),
+            model_name: "AppleStyleFinalV3".into(),
+            field_mapping: None,
+            create_reverse: true,
+        },
+        LearnedLanguage {
+            lang: "zh-CN".into(),
+            deck_name: "chinese".into(),
+            model_name: "Chinese (HSK)".into(),
+            field_mapping: Some(FieldMapping::chinese_default()),
+            create_reverse: false,
+        },
+    ]
+}
+
 fn custom_config() -> AppConfig {
     AppConfig {
         ui_lang: "de".into(),
@@ -344,9 +533,20 @@ fn custom_config() -> AppConfig {
             deck_name: "Vocabulary::Mined".into(),
             model_name: "Basic".into(),
             create_reverse: false,
-            field_mapping: custom_mapping(),
+            field_mapping: Some(custom_mapping()),
         },
         consent: granted_consent(),
+        learning: LearningConfig {
+            languages: learned_languages(),
+        },
+        setup_assistant: closed_assistant(),
+    }
+}
+
+fn closed_assistant() -> SetupAssistantState {
+    SetupAssistantState {
+        closed_at: Some("2026-11-05T09:30:00.000Z".into()),
+        finished: true,
     }
 }
 
@@ -388,13 +588,73 @@ fn shapes() -> Map<String, Value> {
                     card: english_card(),
                     warnings: warnings(),
                     profile_id: None,
+                    detection: Some(confident_detection()),
+                    filing: english_filing(),
+                    generation: 1,
                 }),
                 json_of(PendingCapture {
                     card: chinese_card(),
                     warnings: Vec::new(),
                     profile_id: Some("zh-de".into()),
+                    detection: None,
+                    filing: chinese_filing(),
+                    generation: 2,
+                }),
+                json_of(PendingCapture {
+                    card: Card {
+                        front: "message".into(),
+                        back: "Nachricht".into(),
+                        source_lang: "fr".into(),
+                        ..english_card()
+                    },
+                    warnings: Vec::new(),
+                    profile_id: None,
+                    detection: Some(unsure_detection()),
+                    filing: PendingFiling {
+                        deck: "french".into(),
+                        model: "AppleStyleFinalV3".into(),
+                    },
+                    generation: 3,
                 }),
             ],
+        ),
+        ("Detection", detections().iter().map(json_of).collect()),
+        (
+            "DetectionMethod",
+            [
+                DetectionMethod::Script,
+                DetectionMethod::Single,
+                DetectionMethod::Statistical,
+                DetectionMethod::TieBreak,
+                DetectionMethod::Fallback,
+                DetectionMethod::Chosen,
+            ]
+            .iter()
+            .map(json_of)
+            .collect(),
+        ),
+        (
+            "Script",
+            [
+                Script::Latin,
+                Script::Han,
+                Script::Kana,
+                Script::Hangul,
+                Script::Cyrillic,
+                Script::Other,
+                Script::None,
+            ]
+            .iter()
+            .map(json_of)
+            .collect(),
+        ),
+        (
+            "LanguageScore",
+            unsure_detection().ranked.iter().map(json_of).collect(),
+        ),
+        (
+            "PendingFiling",
+            vec![json_of(english_filing()), json_of(chinese_filing())],
         ),
         (
             "CaptureOrigin",
@@ -530,6 +790,8 @@ fn shapes() -> Map<String, Value> {
                 CardField::Notes,
                 CardField::Pinyin,
                 CardField::HskLevel,
+                CardField::ExampleInSourceLang,
+                CardField::ExampleInTargetLang,
             ]
             .iter()
             .map(json_of)
@@ -551,8 +813,73 @@ fn shapes() -> Map<String, Value> {
             ],
         ),
         (
+            "AutoMatch",
+            vec![
+                json_of(FieldMapping::auto_match(
+                    &apple_style_final_v3(),
+                    "en",
+                    "de",
+                )),
+                json_of(FieldMapping::auto_match(
+                    &["Q".into(), "A".into(), "Add Reverse".into()],
+                    "en",
+                    "de",
+                )),
+            ],
+        ),
+        (
+            "RecommendedNoteType",
+            vec![
+                json_of(RecommendedNoteType {
+                    model_name: "Polywort".into(),
+                    mapping: FieldMapping::recommended(),
+                    created: true,
+                    matches_by_name: true,
+                }),
+                json_of(RecommendedNoteType {
+                    model_name: "Polywort".into(),
+                    mapping: FieldMapping::recommended(),
+                    created: false,
+                    matches_by_name: false,
+                }),
+            ],
+        ),
+        ("LostValue", lost_values().iter().map(json_of).collect()),
+        (
+            "FieldCheck",
+            vec![
+                json_of(FieldCheck::Unchecked),
+                json_of(FieldCheck::Failed {
+                    model: "Nope".into(),
+                    error: "model was not found: Nope".into(),
+                }),
+                json_of(FieldCheck::Checked {
+                    model: "AppleStyleFinalV3".into(),
+                    auto_matched: false,
+                    lost: FieldMapping::apple_style_default()
+                        .lost_values(&english_card(), &apple_style_final_v3()),
+                }),
+                json_of(FieldCheck::Checked {
+                    model: "AppleStyleFinalV3".into(),
+                    auto_matched: true,
+                    lost: Vec::new(),
+                }),
+            ],
+        ),
+        (
             "HotkeyProfile",
             vec![json_of(chinese_profile()), json_of(french_profile())],
+        ),
+        (
+            "LearnedLanguage",
+            learned_languages().iter().map(json_of).collect(),
+        ),
+        (
+            "LearningConfig",
+            vec![
+                json_of(LearningConfig::default()),
+                json_of(custom_config().learning),
+            ],
         ),
         (
             "TranslationConfig",
@@ -571,6 +898,30 @@ fn shapes() -> Map<String, Value> {
         (
             "AppConfig",
             vec![json_of(AppConfig::default()), json_of(custom_config())],
+        ),
+        (
+            "AccessibilityStatus",
+            vec![
+                json_of(AccessibilityStatus {
+                    required: true,
+                    trusted: false,
+                }),
+                json_of(AccessibilityStatus {
+                    required: true,
+                    trusted: true,
+                }),
+                json_of(AccessibilityStatus {
+                    required: false,
+                    trusted: true,
+                }),
+            ],
+        ),
+        (
+            "SetupAssistantState",
+            vec![
+                json_of(SetupAssistantState::default()),
+                json_of(closed_assistant()),
+            ],
         ),
         (
             "CaptureErrorPayload",
@@ -626,7 +977,12 @@ fn conforms(returns: &str, value: &Value) -> Result<(), String> {
         "ConsentState" => exactly::<ConsentState>(value),
         "StoredCapture" => exactly::<StoredCapture>(value),
         "SyncReport" => exactly::<SyncReport>(value),
+        "AutoMatch" => exactly::<AutoMatch>(value),
+        "RecommendedNoteType" => exactly::<RecommendedNoteType>(value),
+        "FieldCheck" => exactly::<FieldCheck>(value),
         "CaptureErrorPayload" => exactly::<CaptureErrorPayload>(value),
+        "AccessibilityStatus" => exactly::<AccessibilityStatus>(value),
+        "SetupAssistantState" => exactly::<SetupAssistantState>(value),
         other => Err(format!("no Rust type is known for {other}")),
     }
 }
@@ -667,7 +1023,22 @@ fn run_every_command() -> (Results, Harness) {
         "capture_text",
         json!({ "text": "serendipity", "profileId": null }),
     );
+    // The approval window checks the card as the user would submit it.
+    let shown = harness.call("get_pending_payload", json!({}));
+    let unchecked = call("check_pending_fields", json!({ "card": shown["card"] }));
+    assert_eq!(
+        unchecked,
+        json!({ "status": "unchecked" }),
+        "Anki is offline"
+    );
+    // The approval window's language switch: from here on the card is French.
+    let switched = call(
+        "rerun_pending_capture",
+        json!({ "sourceLang": "fr", "text": "serendipity", "generation": shown["generation"] }),
+    );
+    assert_eq!(switched["card"]["source_lang"], "fr");
     let pending = call("get_pending_payload", json!({}));
+    assert_eq!(pending, switched);
     let submitted = call(
         "execute_card_generation",
         json!({ "card": pending["card"] }),
@@ -675,6 +1046,11 @@ fn run_every_command() -> (Results, Harness) {
     call("discard_pending_payload", json!({}));
     call("anki_status", json!({}));
     call("anki_model_field_names", json!({ "model": "Basic" }));
+    call(
+        "suggest_field_mapping",
+        json!({ "model": "Basic", "sourceLang": "en", "targetLang": "de" }),
+    );
+    call("create_recommended_note_type", json!({}));
     call("launch_anki_desktop", json!({}));
     call("get_setup_status", json!({}));
     // Before any consent: both install commands refuse at once (the hard
@@ -684,6 +1060,10 @@ fn run_every_command() -> (Results, Harness) {
     call("auto_provision_ankiconnect", json!({}));
     call("grant_consent", json!({ "action": "anki_install" }));
     call("check_ankiconnect_installed", json!({}));
+    // The assistant's Accessibility step: a check, then its button.
+    call("get_accessibility_status", json!({}));
+    call("request_accessibility", json!({}));
+    call("close_setup_assistant", json!({ "finished": true }));
     call("list_recent_captures", json!({ "limit": 10 }));
     call("sync_pending_captures", json!({}));
     call("delete_capture", json!({ "id": submitted["capture_id"] }));
@@ -715,6 +1095,11 @@ fn run_every_command() -> (Results, Harness) {
     assert!(
         harness.downloader.requests().is_empty(),
         "nothing was downloaded"
+    );
+    assert_eq!(
+        harness.accessibility.calls(),
+        ["prompt", "open_settings"],
+        "only the button asked for the permission"
     );
     assert!(
         harness.runner.calls().len() <= 1,

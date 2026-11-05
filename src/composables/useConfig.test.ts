@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AppConfig } from '../api'
+import type { AppConfig, LearnedLanguage } from '../api'
+import { appleStyleMapping, withBinding } from '../domain/fieldMapping'
 import { callsTo, commandNames, onCommand, resetTauri } from '../test/fakeTauri'
 import { defaultConfig, normalizeConfig, toSettingsPayload, useConfig } from './useConfig'
 
@@ -38,6 +39,31 @@ function backendConfig(): AppConfig {
       },
     },
     consent: { anki_install_granted_at: null, ankiconnect_provision_granted_at: null },
+    learning: {
+      languages: [
+        {
+          lang: 'fr',
+          deck_name: 'french',
+          model_name: 'AppleStyleFinalV3',
+          field_mapping: null,
+          create_reverse: true,
+        },
+        {
+          lang: 'zh-CN',
+          deck_name: 'chinese',
+          model_name: 'Chinese (HSK)',
+          field_mapping: {
+            fields: [
+              { anki_field: 'Hanzi', source: 'front' },
+              { anki_field: 'Meaning', source: 'back' },
+            ],
+            audio_field: 'Audio',
+          },
+          create_reverse: false,
+        },
+      ],
+    },
+    setup_assistant: { closed_at: '2026-11-01T08:00:00.000Z', finished: false },
   }
 }
 
@@ -102,12 +128,54 @@ describe('load', () => {
     expect(config.translation.target_lang).toBe('zh-CN')
     expect(config.translation.contact_email).toBeNull()
     expect(config.hotkey_profiles).toEqual([])
-    expect(config.anki.field_mapping).toEqual(defaultConfig().anki.field_mapping)
+    expect(config.anki.field_mapping).toBeNull()
+    expect(defaultConfig().anki.field_mapping).toBeNull()
     expect(config.anki.create_reverse).toBe(true)
     expect(config.consent).toEqual({
       anki_install_granted_at: null,
       ankiconnect_provision_granted_at: null,
     })
+    expect(config.learning).toEqual({ languages: [] })
+    expect(config.setup_assistant).toEqual({ closed_at: null, finished: false })
+  })
+
+  it('reads learned languages with canonical codes, a null mapping and reverse cards by default', async () => {
+    const store = await loadedStore({
+      ...backendConfig(),
+      learning: {
+        languages: [
+          { lang: 'FR', deck_name: 'french', model_name: 'Basic', field_mapping: null },
+          { lang: 'zh', deck_name: 'chinese', model_name: 'Chinese' },
+          null,
+        ],
+      },
+    })
+    const [french, chinese, empty] = store.config.value.learning.languages
+    expect(french).toEqual({
+      lang: 'fr',
+      deck_name: 'french',
+      model_name: 'Basic',
+      field_mapping: null,
+      create_reverse: true,
+    })
+    expect(chinese.lang).toBe('zh-CN')
+    expect(chinese.field_mapping).toBeNull()
+    expect(empty).toEqual({
+      lang: '',
+      deck_name: '',
+      model_name: '',
+      field_mapping: null,
+      create_reverse: true,
+    })
+  })
+
+  it('loads a global mapping equal to the Apple-style preset as the choice it is', async () => {
+    const store = await loadedStore({
+      ...backendConfig(),
+      anki: { ...backendConfig().anki, field_mapping: appleStyleMapping() },
+    })
+    expect(store.config.value.anki.field_mapping).toEqual(appleStyleMapping())
+    expect(store.dirty.value).toBe(false)
   })
 
   it('reports a failed load and refuses to save the defaults over the real config', async () => {
@@ -138,7 +206,16 @@ describe('save', () => {
     expect(await store.save()).toBe(true)
     const sent = sentConfig()
     expect(Object.keys(sent).sort()).toEqual(
-      ['anki', 'consent', 'hotkey_profiles', 'hotkeys', 'translation', 'ui_lang'].sort(),
+      [
+        'anki',
+        'consent',
+        'hotkey_profiles',
+        'hotkeys',
+        'learning',
+        'setup_assistant',
+        'translation',
+        'ui_lang',
+      ].sort(),
     )
     expect(Object.keys(sent.translation).sort()).toEqual(
       ['contact_email', 'max_chars', 'provider', 'source_lang', 'target_lang'].sort(),
@@ -152,6 +229,29 @@ describe('save', () => {
     expect(JSON.stringify(sent)).not.toMatch(/deepl|api_key|secret-key/)
     expect(sent.translation.contact_email).toBe('me@example.com')
     expect(sent.hotkey_profiles[0]).toEqual(backendConfig().hotkey_profiles[0])
+    expect(sent.learning).toEqual(backendConfig().learning)
+    expect(store.dirty.value).toBe(false)
+  })
+
+  it('keeps learned languages through a save, a null mapping included', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', null)
+    const french = store.config.value.learning.languages[0] as LearnedLanguage
+    french.lang = 'IT'
+    french.deck_name = ' italian '
+    french.model_name = ' Basic '
+    expect(store.dirty.value).toBe(true)
+
+    expect(await store.save()).toBe(true)
+    const [sentFrench, sentChinese] = sentConfig().learning.languages
+    expect(sentFrench).toEqual({
+      lang: 'it',
+      deck_name: 'italian',
+      model_name: 'Basic',
+      field_mapping: null,
+      create_reverse: true,
+    })
+    expect(sentChinese).toEqual(backendConfig().learning.languages[1])
     expect(store.dirty.value).toBe(false)
   })
 
@@ -163,12 +263,40 @@ describe('save', () => {
     onCommand('apply_settings', null)
     store.config.value.translation.contact_email = ''
     store.config.value.hotkey_profiles[0].deck_name = '   '
-    store.config.value.anki.field_mapping.audio_field = ' '
+    const mapping = store.config.value.anki.field_mapping
+    if (!mapping) throw new Error('backendConfig() saves a global mapping')
+    mapping.audio_field = ' '
     await store.save()
     const sent = sentConfig()
     expect(sent.translation.contact_email).toBeNull()
     expect(sent.hotkey_profiles[0].deck_name).toBeNull()
-    expect(sent.anki.field_mapping.audio_field).toBeNull()
+    expect(sent.anki.field_mapping?.audio_field).toBeNull()
+  })
+
+  it('sends null for a global mapping matched by name, and the Apple-style preset once chosen', async () => {
+    const store = await loadedStore({
+      ...backendConfig(),
+      anki: { ...backendConfig().anki, field_mapping: null },
+    })
+    onCommand('apply_settings', null)
+    expect(store.config.value.anki.field_mapping).toBeNull()
+    store.config.value.anki.deck_name = 'Mined'
+    expect(await store.save()).toBe(true)
+    expect(sentConfig().anki.field_mapping).toBeNull()
+
+    // Customizing is a choice a save keeps, even the preset the old default was.
+    store.config.value.anki.field_mapping = appleStyleMapping()
+    expect(store.dirty.value).toBe(true)
+    expect(await store.save()).toBe(true)
+    expect(sentConfig(1).anki).toMatchObject({
+      deck_name: 'Mined',
+      field_mapping: appleStyleMapping(),
+    })
+    expect(store.dirty.value).toBe(false)
+    store.config.value.anki.field_mapping = withBinding(appleStyleMapping(), 'Notes', null)
+    expect(store.dirty.value).toBe(true)
+    store.config.value.anki.field_mapping = null
+    expect(store.dirty.value).toBe(true)
   })
 
   it('does not call apply_settings while a field is invalid', async () => {
@@ -289,5 +417,46 @@ describe('setConsent', () => {
     store.config.value.anki.deck_name = 'Other'
     await store.save()
     expect(sentConfig().consent).toEqual(granted)
+  })
+})
+
+describe('setSetupAssistant', () => {
+  it('keeps the closed assistant without dirtying the form, and a save sends it back unchanged', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', null)
+    const closed = { closed_at: '2026-11-05T09:30:00.000Z', finished: true }
+    store.setSetupAssistant(closed)
+    expect(store.dirty.value).toBe(false)
+    expect(store.saved.value.setup_assistant).toEqual(closed)
+    store.config.value.anki.deck_name = 'Other'
+    await store.save()
+    expect(sentConfig().setup_assistant).toEqual(closed)
+  })
+})
+
+describe('persist', () => {
+  it('saves one change on top of the saved settings, leaving other edits unsaved', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', null)
+    store.config.value.anki.deck_name = 'Unsaved deck'
+    const error = await store.persist((config) => (config.anki.model_name = 'Polywort'))
+    expect(error).toBeNull()
+    expect(sentConfig().anki.model_name).toBe('Polywort')
+    expect(sentConfig().anki.deck_name).toBe(backendConfig().anki.deck_name)
+    expect(store.saved.value.anki.model_name).toBe('Polywort')
+    expect(store.config.value.anki.model_name).toBe('Polywort')
+    expect(store.config.value.anki.deck_name).toBe('Unsaved deck')
+    expect(store.dirty.value).toBe(true)
+  })
+
+  it('resolves to the backend error and keeps the saved settings', async () => {
+    const store = await loadedStore()
+    onCommand('apply_settings', () => {
+      throw 'The settings were not saved: disk full'
+    })
+    const error = await store.persist((config) => (config.anki.model_name = 'Polywort'))
+    expect(error).toBe('The settings were not saved: disk full')
+    expect(store.saved.value.anki.model_name).toBe(backendConfig().anki.model_name)
+    expect(store.config.value.anki.model_name).toBe(backendConfig().anki.model_name)
   })
 })

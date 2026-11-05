@@ -19,7 +19,10 @@
     "learn:dev:demo": "vite --config apps/learn/vite.config.ts --mode demo",
     "learn:build:demo": "vue-tsc --noEmit -p apps/learn && vite build --config apps/learn/vite.config.ts --mode demo",
     "learn:preview:demo": "vite preview --config apps/learn/vite.config.ts --mode demo",
-    "learn:tauri": "cd apps/learn && tauri"
+    "learn:tauri": "cd apps/learn && tauri",
+    "site:build": "node site/build.mjs",
+    "site:test": "node --test \"site/**/*.test.mjs\"",
+    "site:preview": "node site/serve.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",

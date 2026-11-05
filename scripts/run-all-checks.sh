@@ -32,4 +32,7 @@ cargo run -q -p vocab-core --example golden_vectors -- --check
 echo "==> Frontend unit tests (Vitest: Automator, then Learn incl. the web core)"
 npm run test:unit
 
+echo "==> Product site build tests (site/)"
+npm run site:test
+
 echo "==> all checks passed"

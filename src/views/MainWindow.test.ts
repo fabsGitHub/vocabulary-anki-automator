@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AnkiStatus, AppConfig } from '../api'
 import { defaultConfig } from '../composables/useConfig'
+import { chineseMapping } from '../domain/fieldMapping'
 import { i18n, setLocale } from '../i18n'
 import { callsTo, emitEvent, onCommand, resetTauri } from '../test/fakeTauri'
 import MainWindow from './MainWindow.vue'
@@ -21,8 +22,10 @@ const ONLINE: AnkiStatus = {
   error: null,
 }
 
+/** The defaults, with the setup assistant closed, as after the first run. */
 function settings(edit: (config: AppConfig) => void = () => {}): AppConfig {
   const config = defaultConfig()
+  config.setup_assistant = { closed_at: '2026-11-01T08:00:00.000Z', finished: true }
   edit(config)
   return config
 }
@@ -68,6 +71,7 @@ describe('MainWindow', () => {
     expect(wrapper?.find('[data-test="anki-badge"]').text()).toContain('Anki connected')
     expect(wrapper?.findAll('[role="tab"]').map((t) => t.text())).toEqual([
       'Capture & Language',
+      'My languages',
       'Hotkey profiles',
       'Anki connection',
       'History',
@@ -116,6 +120,71 @@ describe('MainWindow', () => {
     await flushPromises()
     expect(callsTo('apply_settings')).toHaveLength(0)
     expect(wrapper?.text()).toContain('Fix the highlighted settings before saving.')
+  })
+
+  it('edits "My languages" in the second tab and marks it when an entry needs fixing', async () => {
+    onCommand('suggest_field_mapping', {
+      mapping: { fields: [{ anki_field: 'Front', source: 'front' }], audio_field: null },
+      guessed: [],
+      unmatched: [],
+    })
+    await mountMain()
+    expect(wrapper?.findAll('[role="tab"]')[1].attributes('data-test')).toBe('tab-learning')
+    await tab('learning')?.trigger('click')
+    expect(tab('learning')?.attributes('aria-selected')).toBe('true')
+    await wrapper?.find('[data-test="add-language"]').trigger('click')
+    expect(tab('learning')?.find('.tab-issue-dot').exists()).toBe(false)
+
+    await wrapper?.find('[data-test="learned-deck"]').setValue(' ')
+    expect(tab('learning')?.find('.tab-issue-dot').exists()).toBe(true)
+    expect(tab('capture')?.find('.tab-issue-dot').exists()).toBe(false)
+    expect(tab('anki')?.find('.tab-issue-dot').exists()).toBe(false)
+
+    await wrapper?.find('[data-test="learned-deck"]').setValue('english')
+    await wrapper?.find('[data-test="save"]').trigger('click')
+    await flushPromises()
+    expect(sentConfigs().map((config) => config.learning.languages)).toEqual([
+      [
+        {
+          lang: 'en',
+          deck_name: 'english',
+          model_name: 'AppleStyleFinalV3',
+          field_mapping: null,
+          create_reverse: true,
+        },
+      ],
+    ])
+  })
+
+  it('reads a note type once for the Anki and "My languages" tabs', async () => {
+    // Both mappings customized: only those are edited against the fields.
+    onCommand(
+      'get_current_settings',
+      settings((config) => {
+        config.anki.field_mapping = chineseMapping()
+        config.learning.languages.push({
+          lang: 'fr',
+          deck_name: 'french',
+          model_name: 'AppleStyleFinalV3',
+          field_mapping: chineseMapping(),
+          create_reverse: true,
+        })
+      }),
+    )
+    await mountMain()
+    await tab('anki')?.trigger('click')
+    await flushPromises()
+    await tab('learning')?.trigger('click')
+    await flushPromises()
+    await tab('anki')?.trigger('click')
+    await flushPromises()
+    expect(callsTo('anki_model_field_names').map((call) => call.args)).toEqual([
+      { model: 'AppleStyleFinalV3' },
+    ])
+
+    await wrapper?.find('[data-test="rescan"]').trigger('click')
+    await flushPromises()
+    expect(callsTo('anki_model_field_names')).toHaveLength(2)
   })
 
   it('shows the backend error when saving fails', async () => {
@@ -231,5 +300,67 @@ describe('MainWindow', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('MainWindow and the setup assistant', () => {
+  beforeEach(() => {
+    onCommand('get_accessibility_status', { required: true, trusted: true })
+    onCommand('close_setup_assistant', (args: { finished: boolean } | undefined) => ({
+      closed_at: '2026-11-05T10:30:00.000Z',
+      finished: args?.finished ?? false,
+    }))
+  })
+
+  it('opens it instead of the tabs on the first launch, and only checks', async () => {
+    onCommand('get_current_settings', defaultConfig())
+    await mountMain()
+    expect(wrapper?.find('[data-test="setup-assistant"]').exists()).toBe(true)
+    expect(wrapper?.find('[role="tablist"]').exists()).toBe(false)
+    expect(wrapper?.find('[data-test="save"]').exists()).toBe(false)
+    expect(wrapper?.find('[data-test="open-assistant"]').exists()).toBe(false)
+    for (const forbidden of [
+      'grant_consent',
+      'download_and_install_anki',
+      'auto_provision_ankiconnect',
+      'launch_anki_desktop',
+      'create_recommended_note_type',
+      'request_accessibility',
+      'apply_settings',
+    ]) {
+      expect(callsTo(forbidden), forbidden).toHaveLength(0)
+    }
+
+    await wrapper?.find('[data-test="assistant-dismiss"]').trigger('click')
+    await flushPromises()
+    expect(callsTo('close_setup_assistant')).toHaveLength(1)
+    expect(wrapper?.find('[data-test="setup-assistant"]').exists()).toBe(false)
+    expect(wrapper?.find('[role="tablist"]').exists()).toBe(true)
+    // Closing it is not a settings edit.
+    expect(wrapper?.find('[data-test="revert"]').exists()).toBe(false)
+  })
+
+  it('leaves capture errors to the assistant while it shows "Try it"', async () => {
+    onCommand('get_current_settings', defaultConfig())
+    await mountMain()
+    expect(wrapper?.find('[data-test="assistant-detail"]').attributes('data-step')).toBe('try')
+    emitEvent('capture-error', { message: 'Nothing was copied.' })
+    await flushPromises()
+    expect(wrapper?.find('[data-test="try-error"]').text()).toContain('Nothing was copied.')
+    expect(wrapper?.find('[data-test="capture-error"]').exists()).toBe(false)
+
+    await wrapper?.find('[data-test="step-anki"]').trigger('click')
+    emitEvent('capture-error', { message: 'Nothing was copied again.' })
+    await flushPromises()
+    expect(wrapper?.find('[data-test="capture-error"]').text()).toContain('copied again')
+  })
+
+  it('stays closed once closed, and the header brings it back', async () => {
+    await mountMain()
+    expect(wrapper?.find('[data-test="setup-assistant"]').exists()).toBe(false)
+    await wrapper?.find('[data-test="open-assistant"]').trigger('click')
+    await flushPromises()
+    expect(wrapper?.find('[data-test="setup-assistant"]').exists()).toBe(true)
+    expect(wrapper?.find('[role="tablist"]').exists()).toBe(false)
   })
 })

@@ -4,7 +4,7 @@ import type { MessageSchema } from './en'
 
 export const de: MessageSchema = {
   app: {
-    title: 'Vocabulary Automator',
+    title: 'Polywort',
     subtitle: 'Wort irgendwo markieren, Hotkey drücken, Karte bestätigen.',
     loading: 'Einstellungen werden geladen…',
     loadFailed: 'Die Einstellungen konnten nicht geladen werden: {error}',
@@ -21,6 +21,7 @@ export const de: MessageSchema = {
   },
   tabs: {
     capture: 'Erfassung & Sprache',
+    learning: 'Meine Sprachen',
     profiles: 'Hotkey-Profile',
     anki: 'Anki-Verbindung',
     history: 'Verlauf',
@@ -47,6 +48,8 @@ export const de: MessageSchema = {
   capture: {
     languagesTitle: 'Sprachen',
     sourceLang: 'Ausgangssprache',
+    sourceFallbackHint:
+      'Ihr Standard-Hotkey erkennt die unter „Meine Sprachen“ aufgeführten Sprachen. Diese Ausgangssprache wird nur für Text verwendet, der zu keiner davon passt.',
     targetLang: 'Zielsprache',
     languagesHint:
       'Text mit chinesischen Schriftzeichen wird immer als Chinesisch erfasst, unabhängig von der Ausgangssprache.',
@@ -74,10 +77,27 @@ export const de: MessageSchema = {
     trySent: 'Gesendet. Das Bestätigungsfenster öffnet sich, sobald die Karte fertig ist.',
     tryFailed: 'Die Erfassung konnte nicht starten: {error}',
   },
+  learning: {
+    title: 'Sprachen, die ich lerne',
+    intro:
+      'Führen Sie die Sprachen auf, die Sie lernen. Der Standard-Hotkey erkennt dann, in welcher davon der markierte Text ist, und legt die Karte im Stapel und Notiztyp dieser Sprache ab. Chinesischen Text erkennt er an den Schriftzeichen; zwischen Sprachen mit lateinischer Schrift vergleicht er die Wörter statistisch und ohne Internet. Bei einem kurzen Wort, das es in mehreren Ihrer Sprachen gibt (etwa „message“ im Englischen und Französischen), zeigt das Bestätigungsfenster die beste Vermutung, und ein Klick wechselt sie.',
+    native:
+      'Ihre Sprache: {lang}. In sie werden die Karten übersetzt (einstellbar unter „Erfassung & Sprache“).',
+    empty:
+      'Noch keine Sprachen. Solange keine eingetragen ist, erfasst der Standard-Hotkey wie bisher aus der Ausgangssprache unter „Erfassung & Sprache“.',
+    add: 'Sprache hinzufügen',
+    allAdded: 'Alle unterstützten Sprachen sind aufgeführt.',
+    remove: 'Entfernen',
+    language: 'Sprache',
+    deck: 'Stapel',
+    deckPlaceholder: 'z. B. {deck}',
+    model: 'Notiztyp',
+    mapping: 'Feldzuordnung',
+  },
   profiles: {
     title: 'Hotkey-Profile',
     intro:
-      'Jedes Profil fügt eine Tastenkombination hinzu, die direkt in ein eigenes Sprachpaar und optional in einen eigenen Stapel erfasst. Der Standard-Hotkey auf dem ersten Tab nutzt weiterhin die Hauptsprachen und den Hauptstapel.',
+      'Jedes Profil fügt eine Tastenkombination hinzu, die direkt in ein eigenes Sprachpaar und optional in einen eigenen Stapel erfasst. Der Standard-Hotkey nutzt die Sprachen unter „Meine Sprachen“, oder das Hauptsprachpaar und den Hauptstapel, wenn keine eingetragen sind.',
     empty: 'Noch keine Profile.',
     add: 'Profil hinzufügen',
     remove: 'Entfernen',
@@ -118,6 +138,8 @@ export const de: MessageSchema = {
     offlineEditing:
       'Anki ist offline. Stapel und Notiztyp können trotzdem eingetippt werden; die Listen erscheinen, sobald Anki verbunden ist.',
     targetTitle: 'Wohin die Karten gehen',
+    otherLanguagesHint:
+      'Text in einer unter „Meine Sprachen“ aufgeführten Sprache wird mit deren Stapel, Notiztyp und Feldzuordnung abgelegt. Diese Einstellungen gelten für jeden anderen Text.',
     deck: 'Stapel',
     deckHint: 'Ein Stapel, den es noch nicht gibt, wird mit der ersten Karte angelegt.',
     model: 'Notiztyp',
@@ -167,11 +189,36 @@ export const de: MessageSchema = {
     checksums: 'Erwartete SHA-256-Prüfsummen',
     agree: 'Zustimmen und installieren',
     cancel: 'Abbrechen',
+    titleBoth: 'Anki {version} und AnkiConnect installieren?',
+    ankiHeading: 'Anki {version}',
+    ankiconnectHeading: 'Das Add-on AnkiConnect',
+    planHeading: 'Nach den Downloads',
+    planLaunch: 'Polywort startet Anki und wartet, bis AnkiConnect antwortet.',
+    planNoteType:
+      'Gehen Ihre Karten nicht schon in einen Notiztyp, den Anki hat, legt es den Notiztyp „{name}“ in Ihrer Anki-Sammlung an und wählt ihn aus.',
+    planAccessibility:
+      'Es bittet macOS um die Bedienungshilfen-Berechtigung und öffnet die Systemeinstellungen, wo Sie Polywort einschalten.',
   },
   mapping: {
     title: 'Feldzuordnung',
+    auto: 'Nach Feldnamen zugeordnet',
+    custom: 'Angepasst',
+    autoHint:
+      'Jedes Feld von „{model}“ wird nach seinem Namen gefüllt: „Audio“ bekommt die Aussprache, „English Sentence“ das englische Beispiel und so weiter. Gespeichert wird nichts, bis Sie die Zuordnung anpassen.',
+    autoOffline: 'Verbinden Sie Anki, um zu sehen, wie die Felder von „{model}“ zugeordnet werden.',
+    customize: 'Anpassen',
+    rematch: 'Nicht mehr anpassen',
+    audioTo: 'Aussprache → {field}',
+    noAudioField: 'Kein Feld für die Aussprache',
     intro: 'Legen Sie fest, was in jedes Feld des Notiztyps „{model}“ kommt.',
     presets: 'Vorlagen:',
+    matchByName: 'Nach Feldnamen zuordnen',
+    matching: 'Wird zugeordnet…',
+    matchOffline: 'Verbinden Sie Anki, um die Felder nach Namen zuzuordnen.',
+    matchFailed: 'Die Felder konnten nicht zugeordnet werden: {error}',
+    matchedGuessed: 'Nach Position gefüllt, weil kein Name passte:',
+    matchedUnmatched: 'Bleiben leer:',
+    presetRecommended: '{name} (empfohlen)',
     presetApple: 'Apple-Stil',
     presetChinese: 'Chinesisch (Hanzi/Pinyin/Meaning/Audio)',
     ankiField: 'Anki-Feld',
@@ -189,17 +236,36 @@ export const de: MessageSchema = {
     missing:
       'Der Notiztyp „{model}“ hat diese Felder nicht, deshalb verwirft Anki ihre Werte stillschweigend:',
     chineseWarning:
-      'Chinesische Erfassungen brauchen einen Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio sowie eine Zuordnung, die Pinyin füllt. Wählen Sie einen solchen Notiztyp und wenden Sie die chinesische Vorlage an, oder ordnen Sie einem Feld Pinyin zu.',
+      'Chinesische Erfassungen brauchen einen Notiztyp mit einem Pinyin-Feld. Klicken Sie oben auf „{button}“, während Anki läuft, oder wählen Sie einen Notiztyp mit Pinyin-Feld und ordnen Sie diesem Feld Pinyin zu.',
     sources: {
       front: 'Wort (Vorderseite)',
       back: 'Übersetzung (Rückseite)',
-      example_source: 'Beispielsatz',
-      example_target: 'Übersetzung des Beispiels',
+      example_source: 'Beispiel in der Sprache der Vorderseite',
+      example_target: 'Beispiel in der Sprache der Rückseite',
       example: 'Beispiel und Übersetzung (zwei Zeilen)',
       notes: 'Notizen',
       pinyin: 'Pinyin',
       hsk_level: 'HSK-Stufe',
+      example_in_source_lang: 'Beispiel in der Lernsprache',
+      example_in_target_lang: 'Beispiel in Ihrer Sprache',
     },
+  },
+  noteType: {
+    create: 'Empfohlenen Notiztyp anlegen',
+    use: 'Empfohlenen Notiztyp verwenden',
+    creating: 'Notiztyp wird angelegt…',
+    createHint:
+      'Legt in Anki den Notiztyp „{name}“ an, mit einem Feld für alles, was eine Karte enthält: Wort, Übersetzung, Beispiel und seine Übersetzung, Aussprache, Pinyin, HSK-Stufe und Notizen.',
+    useHint:
+      'Anki hat schon einen Notiztyp namens „{name}“. Er wird hier ausgewählt, wenn er alle empfohlenen Felder hat, und nie verändert.',
+    created: '„{name}“ wurde in Anki angelegt.',
+    reused: 'Anki hat „{name}“ schon, mit allen empfohlenen Feldern.',
+    saveToUse:
+      'Der Notiztyp ist hier ausgewählt; speichern Sie die Einstellungen, um ihn zu verwenden.',
+    alreadySelected: 'Der Notiztyp ist hier schon ausgewählt.',
+    inUse:
+      'Der Notiztyp ist hier ausgewählt, und die gespeicherten Einstellungen verwenden ihn schon.',
+    failed: 'Der Notiztyp konnte nicht eingerichtet werden: {error}',
   },
   history: {
     title: 'Letzte Erfassungen',
@@ -235,6 +301,18 @@ export const de: MessageSchema = {
     languagePair: '{source} → {target}',
     profile: 'Hotkey: {label}',
     deck: 'Stapel: {deck}',
+    model: 'Notiztyp: {model}',
+    languageGroup: 'Sprache des Textes',
+    switchTo: 'Als {lang} erfassen',
+    detectedUnsure: '{lang}?',
+    targetLang: '→ {lang}',
+    switching: 'Die Karte wird für {lang} neu erstellt…',
+    switchFailed: 'Wechsel zu {lang} fehlgeschlagen: {error}',
+    unsureHint:
+      'Das kann mehr als eine Ihrer Sprachen sein. Es wurde als {lang} gelesen. Falls das nicht stimmt, wählen Sie die richtige Sprache: Übersetzung, Beispiel, Aussprache und Stapel werden neu ermittelt.',
+    fallbackHint: 'Keine Ihrer Sprachen passt zu diesem Text. Er wurde als {lang} gelesen.',
+    foreignScript:
+      'Der Text ist in einer Schrift geschrieben, die keine Ihrer Sprachen verwendet. Er wurde als {lang} gelesen.',
     front: 'Vorderseite (Wort)',
     back: 'Rückseite (Übersetzung)',
     exampleSource: 'Beispielsatz',
@@ -258,6 +336,14 @@ export const de: MessageSchema = {
     close: 'Schließen',
     submitFailed: 'Die Karte konnte nicht gespeichert werden: {error}',
     discardFailed: 'Verwerfen fehlgeschlagen: {error}',
+    lostTitle: 'Nicht alles käme in Anki an:',
+    lostMissingField: '{value}: Der Notiztyp „{model}“ hat kein Feld „{field}“.',
+    lostUnmapped: '{value}: Kein Feld von „{model}“ wird damit gefüllt.',
+    lostAudio: 'Aussprache: Der Notiztyp „{model}“ hat kein Feld „{field}“.',
+    lostAudioUnset: 'Aussprache: Für das Audio ist kein Feld von „{model}“ gewählt.',
+    lostHint:
+      'Korrigieren Sie die Feldzuordnung in den Einstellungen unter „Meine Sprachen“ oder „Anki-Verbindung“, oder fügen Sie die Karte ohne diese Werte hinzu.',
+    fieldCheckFailed: 'Der Notiztyp konnte nicht geprüft werden: {error}',
   },
   warnings: {
     title: 'Einige Angaben konnten nicht abgerufen werden',
@@ -293,7 +379,7 @@ export const de: MessageSchema = {
   credits: {
     title: 'Quellen und Lizenzen',
     intro:
-      'Für chinesische Wörter schlägt der Automator Pinyin, die HSK-Stufe und ein Beispiel in der mitgelieferten HSK-3.0-Wortliste nach. Sie enthält Wörterbuchdaten, die andere erstellt haben und unter diesen Lizenzen teilen.',
+      'Für chinesische Wörter schlägt Polywort Pinyin, die HSK-Stufe und ein Beispiel in der mitgelieferten HSK-3.0-Wortliste nach. Sie enthält Wörterbuchdaten, die andere erstellt haben und unter diesen Lizenzen teilen.',
     fullText: 'Volltext',
     ccCedict:
       'Die englischen Bedeutungen, traditionellen Schriftzeichen und das Pinyin der HSK-Wörter, übernommen und angepasst aus dem Wörterbuch CC-CEDICT. Lizenziert unter CC BY-SA 4.0, ebenso die angepassten Daten.',
@@ -301,21 +387,97 @@ export const de: MessageSchema = {
     hsk30:
       'Die offizielle HSK-3.0-Wortliste, nach der die Lesung jedes Worts gewählt wird. MIT-Lizenz.',
   },
+  assistant: {
+    open: 'Einrichtungsassistent',
+    title: 'Polywort einrichten',
+    intro: 'In wenigen Schritten zur ersten Karte. Erledigte Schritte sind abgehakt.',
+    dismiss: 'Assistent schließen',
+    everything: 'Alles einrichten',
+    everythingRunning: 'Wird eingerichtet…',
+    everythingHint:
+      'Installiert, was fehlt, sobald Sie den Downloads zustimmen, startet Anki, legt den Notiztyp an und fragt nach der Berechtigung. Oder gehen Sie die Schritte einzeln durch.',
+    checking: 'Es wird geprüft, was schon eingerichtet ist…',
+    stepOf: 'Schritt {number} von {total}: {title}',
+    skip: 'Schritt überspringen',
+    next: 'Weiter',
+    done: 'Fertig',
+    steps: {
+      anki: 'Anki installieren',
+      ankiconnect: 'AnkiConnect installieren',
+      running: 'Anki starten',
+      note_type: 'Notiztyp einrichten',
+      accessibility: 'Kopieren erlauben',
+      try: 'Ausprobieren',
+    },
+    anki: {
+      done: 'Anki ist installiert.',
+      body: 'Polywort fügt Ihre Karten in Anki Desktop ein, die kostenlose Lernkarten-App. Sie ist auf diesem Computer noch nicht installiert.',
+    },
+    ankiconnect: {
+      done: 'AnkiConnect ist installiert.',
+    },
+    running: {
+      done: 'Anki läuft, und AnkiConnect antwortet.',
+      body: 'Starten Sie Anki und lassen Sie es während der Erfassung geöffnet: Polywort erreicht Anki nur, solange es läuft. Dieser Schritt merkt von selbst, wenn Anki antwortet.',
+      restart:
+        'Anki lädt AnkiConnect nur beim Start. Ist Anki schon geöffnet, beenden Sie es ganz und starten Sie es neu.',
+      justInstalled:
+        'AnkiConnect wurde gerade installiert. Ist Anki geöffnet, beenden Sie es ganz und starten Sie es neu, damit es das Add-on lädt.',
+      firstStart:
+        'Beim ersten Start fragt Anki nach Ihrer Sprache und zeigt eventuell einen Willkommensbildschirm. Beantworten Sie beides; Polywort verbindet sich, sobald Anki bereit ist.',
+    },
+    noteType: {
+      offline: 'Starten Sie zuerst Anki: Der Notiztyp wird in Ihrer Anki-Sammlung eingerichtet.',
+      body: 'Karten brauchen einen Notiztyp mit einem Feld für alles, was sie enthalten: Wort, Übersetzung, Beispiel und seine Übersetzung, Aussprache, Pinyin, HSK-Stufe und Notizen. Der empfohlene Notiztyp „{name}“ hat sie alle; er wird in Anki angelegt und in den Einstellungen ausgewählt.',
+      done: 'Karten gehen in den Notiztyp „{model}“, den Anki hat.',
+      keep: 'Sie können ihn behalten oder zum empfohlenen Notiztyp „{name}“ wechseln, der für jeden Wert ein Feld hat.',
+      saveFailed:
+        'Der Notiztyp ist in Anki, aber die Einstellungen konnten nicht gespeichert werden: {error}',
+    },
+    accessibility: {
+      done: 'Polywort darf den markierten Text kopieren.',
+      body: 'Um den markierten Text zu kopieren, drückt Polywort für Sie Cmd+C. macOS erlaubt das nur Apps, die unter Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen eingeschaltet sind.',
+      open: 'Systemeinstellungen öffnen',
+      opening: 'Wird geöffnet…',
+      how: 'macOS fragt, ob Polywort diesen Computer steuern darf, und die Systemeinstellungen öffnen sich bei der Liste. Schalten Sie dort „Polywort“ ein; macOS fragt eventuell nach Ihrem Passwort.',
+      watching: 'Dieser Schritt merkt von selbst, sobald der Schalter an ist.',
+      staleTitle: 'Polywort ist eingeschaltet, aber dieser Schritt merkt es nicht?',
+      stale:
+        'Nach einem Update behält macOS manchmal einen veralteten Eintrag. Wählen Sie Polywort in der Liste aus, entfernen Sie es mit „−“, klicken Sie dann erneut auf „Systemeinstellungen öffnen“ und schalten Sie es ein.',
+      failed:
+        'Die Systemeinstellungen konnten nicht geöffnet werden: {error}. Öffnen Sie sie selbst: Datenschutz & Sicherheit → Bedienungshilfen.',
+    },
+    try: {
+      body: 'Markieren Sie das Wort unten (Doppelklick) und drücken Sie dann Ihren Hotkey {hotkey}.',
+      waiting: 'Warte auf Ihren Hotkey…',
+      success:
+        'Es funktioniert: Das Bestätigungsfenster zeigt Ihre Karte. Drücken Sie Enter, um sie zu Anki hinzuzufügen, oder Esc, um sie zu verwerfen.',
+      failed: 'Die Erfassung hat nicht funktioniert: {message}',
+      notAllowed:
+        'Polywort darf noch nicht kopieren: Schließen Sie zuerst den Schritt „{step}“ ab.',
+      restartHint:
+        'Haben Sie Polywort gerade erst unter Bedienungshilfen eingeschaltet, wendet macOS das eventuell erst nach einem Neustart von Polywort an.',
+      restart: 'Polywort neu starten',
+      restarting: 'Wird neu gestartet…',
+      anyApp:
+        'Ab jetzt funktioniert das in jeder App: Text markieren, {hotkey} drücken, Karte bestätigen.',
+    },
+  },
   help: {
     title: 'Einrichtung und Bedienung',
     close: 'Schließen',
     step1Title: '1. Anki und AnkiConnect installieren',
     step1Body:
-      'Installieren Sie auf dem Tab „Anki-Verbindung“, was fehlt, oder installieren Sie Anki selbst und fügen Sie AnkiConnect in Anki über Extras → Erweiterungen → Erweiterungen herunterladen mit dem Code 2055492159 hinzu. Starten Sie Anki danach neu.',
+      'Der Einrichtungsassistent („Einrichtungsassistent“ oben) führt Sie durch alles. Oder installieren Sie auf dem Tab „Anki-Verbindung“, was fehlt, oder installieren Sie Anki selbst und fügen Sie AnkiConnect in Anki über Extras → Erweiterungen → Erweiterungen herunterladen mit dem Code 2055492159 hinzu. Starten Sie Anki danach neu.',
     step2Title: '2. Anki geöffnet lassen',
     step2Body:
       'Die App spricht über AnkiConnect auf diesem Computer mit Anki. Karten, die Sie bestätigen, während Anki geschlossen ist, bleiben im Verlauf und lassen sich später übertragen.',
     step3Title: '3. Erfassen',
     step3Body:
-      'Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie Ihren Hotkey. Prüfen Sie die Karte im Bestätigungsfenster und drücken Sie Enter zum Hinzufügen oder Esc zum Verwerfen.',
+      'Markieren Sie in einer beliebigen App ein Wort oder einen Ausdruck und drücken Sie Ihren Hotkey. Prüfen Sie die Karte im Bestätigungsfenster und drücken Sie Enter zum Hinzufügen oder Esc zum Verwerfen. Sind unter „Meine Sprachen“ Sprachen eingetragen, erkennt der Hotkey die Sprache des Textes selbst.',
     step4Title: '4. Chinesisch',
     step4Body:
-      'Text mit chinesischen Schriftzeichen bekommt Pinyin und bei HSK-Wörtern die HSK-Stufe. Verwenden Sie einen Notiztyp mit den Feldern Hanzi, Pinyin, Meaning und Audio zusammen mit der chinesischen Vorlage.',
+      'Text mit chinesischen Schriftzeichen bekommt Pinyin und bei HSK-Wörtern die HSK-Stufe. Der empfohlene Notiztyp hat für beides ein Feld (Pinyin und HSK Level): Klicken Sie, während Anki läuft, auf dem Tab „Anki-Verbindung“ oder in einem Eintrag unter „Meine Sprachen“ auf „Empfohlenen Notiztyp anlegen“.',
   },
   update: {
     available: 'Version {version} ist verfügbar – zum Aktualisieren neu starten.',
@@ -335,6 +497,8 @@ export const de: MessageSchema = {
     shortcutDuplicateDefault: 'Wird schon vom Standard-Hotkey verwendet.',
     languageUnsupported: 'Nicht unterstützte Sprache.',
     languagesEqual: 'Ausgangs- und Zielsprache müssen sich unterscheiden.',
+    languageDuplicate: 'Diese Sprache ist bereits aufgeführt.',
+    languageIsNative: 'In diese Sprache werden die Karten übersetzt; wählen Sie eine andere.',
     maxCharsRange: 'Geben Sie eine ganze Zahl von 1 bis {max} ein.',
     emailInvalid: 'Keine gültige E-Mail-Adresse.',
     providerUnknown: 'Unbekannter Übersetzungsdienst.',

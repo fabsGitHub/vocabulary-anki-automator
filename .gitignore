@@ -27,3 +27,8 @@ dist-ssr
 /target
 dist-web
 dist-demo
+
+# Product site (site/): the build output, the .dmg input folder and the Vercel CLI link
+/site/dist
+/site/downloads
+.vercel

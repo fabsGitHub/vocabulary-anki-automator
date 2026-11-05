@@ -305,7 +305,8 @@ async fn imported_card(
             return Err(AnkiSyncFailure {
                 card_id: None,
                 front: card.front,
-                error: "No hanzi on either side: Learn imports Chinese vocabulary.".to_string(),
+                error: "No hanzi on either side: Polywort Learn imports Chinese vocabulary."
+                    .to_string(),
             });
         }
         std::mem::swap(&mut card.front, &mut card.back);
@@ -555,7 +556,7 @@ mod tests {
                 {
                     "card_id": null,
                     "front": "house",
-                    "error": "No hanzi on either side: Learn imports Chinese vocabulary."
+                    "error": "No hanzi on either side: Polywort Learn imports Chinese vocabulary."
                 },
                 {
                     "card_id": null,

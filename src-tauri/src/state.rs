@@ -3,8 +3,8 @@
 //!
 //! Everything that touches the outside world is injected through
 //! [`AppServices`]: where the config lives, the database, the enrichment
-//! providers, the clock, and Anki's folders plus the downloader and process
-//! runner used by setup. Production wiring is [`AppServices::production`];
+//! providers, the clock, Anki's folders plus the downloader and process
+//! runner used by setup, and the macOS Accessibility check. Production wiring is [`AppServices::production`];
 //! the `tauri::test` suites pass temp dirs and fakes, so no test can reach the
 //! network, a real Anki folder or the real config.
 //!
@@ -30,6 +30,7 @@ use vocab_core::{
 };
 
 use crate::{
+    accessibility::{Accessibility, SystemAccessibility},
     capture::{PendingCapture, ProviderFactory, StandardProviderFactory},
     config::{load_config_from, save_config_to, AppConfig, ConfigError},
     setup::SetupEnv,
@@ -44,12 +45,13 @@ pub struct AppServices {
     pub providers: Arc<dyn ProviderFactory>,
     pub clock: Arc<dyn Clock>,
     pub setup: SetupEnv,
+    pub accessibility: Arc<dyn Accessibility>,
 }
 
 impl AppServices {
     /// The real thing: `config_path`, the shared database at
-    /// [`default_db_path`], the standard providers, the system clock and the
-    /// platform's Anki folders.
+    /// [`default_db_path`], the standard providers, the system clock, the
+    /// platform's Anki folders and its Accessibility API.
     pub fn production(config_path: PathBuf) -> Self {
         let db_path = default_db_path();
         let store = Store::open(&db_path).map_err(|err| {
@@ -68,6 +70,7 @@ impl AppServices {
             providers: Arc::new(StandardProviderFactory::default()),
             clock: Arc::new(SystemClock),
             setup: SetupEnv::production(),
+            accessibility: Arc::new(SystemAccessibility),
         }
     }
 }
@@ -85,6 +88,7 @@ pub struct AppState {
     providers: Arc<dyn ProviderFactory>,
     clock: Arc<dyn Clock>,
     setup: SetupEnv,
+    accessibility: Arc<dyn Accessibility>,
 }
 
 impl AppState {
@@ -115,6 +119,7 @@ impl AppState {
             providers: services.providers,
             clock: services.clock,
             setup: services.setup,
+            accessibility: services.accessibility,
         }
     }
 
@@ -207,6 +212,10 @@ impl AppState {
     pub fn setup(&self) -> &SetupEnv {
         &self.setup
     }
+
+    pub fn accessibility(&self) -> Arc<dyn Accessibility> {
+        self.accessibility.clone()
+    }
 }
 
 /// The capture waiting in the approval window (B3), with a generation number
@@ -219,9 +228,11 @@ pub struct PendingPayload {
 }
 
 impl PendingPayload {
-    /// Replaces the pending capture; returns its generation.
-    pub fn set(&self, capture: PendingCapture) -> u64 {
+    /// Replaces the pending capture; returns its generation, which is also
+    /// written into the capture.
+    pub fn set(&self, mut capture: PendingCapture) -> u64 {
         let generation = self.generations.fetch_add(1, Ordering::SeqCst) + 1;
+        capture.generation = generation;
         *lock(&self.current) = Some((generation, capture));
         generation
     }
@@ -244,6 +255,21 @@ impl PendingPayload {
 
     pub fn clear(&self) {
         *lock(&self.current) = None;
+    }
+
+    /// Replaces the pending capture with `capture` if it is still
+    /// `generation`, keeping that generation: a re-run is the same capture,
+    /// so a submission started for it still clears it.
+    pub fn replace_if(&self, generation: u64, mut capture: PendingCapture) -> bool {
+        let mut current = lock(&self.current);
+        match current.as_mut() {
+            Some((g, pending)) if *g == generation => {
+                capture.generation = *g;
+                *pending = capture;
+                true
+            }
+            _ => false,
+        }
     }
 
     /// Clears the pending capture if it is still `generation`.
@@ -295,13 +321,16 @@ mod tests {
     use vocab_core::{time::FixedClock, Card};
 
     use super::*;
-    use crate::setup::SetupEnv;
+    use crate::{accessibility::testing::FakeAccessibility, setup::SetupEnv};
 
     fn pending(front: &str) -> PendingCapture {
         PendingCapture {
             card: Card::new(front, "", "en", "de", Utc.timestamp_millis_opt(0).unwrap()),
             warnings: Vec::new(),
             profile_id: None,
+            detection: None,
+            filing: Default::default(),
+            generation: 0,
         }
     }
 
@@ -312,6 +341,7 @@ mod tests {
             providers: Arc::new(StandardProviderFactory::default()),
             clock: Arc::new(clock),
             setup: SetupEnv::unavailable("not needed"),
+            accessibility: Arc::new(FakeAccessibility::default()),
         })
     }
 
@@ -326,6 +356,27 @@ mod tests {
         assert_eq!(payload.get().unwrap().card.front, "second");
         assert!(payload.clear_if(second));
         assert_eq!(payload.get(), None);
+    }
+
+    #[test]
+    fn replace_if_keeps_the_generation_and_only_replaces_that_capture() {
+        let payload = PendingPayload::default();
+        let first = payload.set(pending("message"));
+
+        assert_eq!(payload.get().unwrap().generation, first);
+        assert!(payload.replace_if(first, pending("message, again")));
+        let (generation, capture) = payload.snapshot().unwrap();
+        assert_eq!(generation, first, "the same capture");
+        assert_eq!(capture.generation, first, "the payload names it too");
+        assert_eq!(capture.card.front, "message, again");
+
+        let second = payload.set(pending("newer"));
+        assert!(!payload.replace_if(first, pending("late")));
+        assert_eq!(payload.get().unwrap().card.front, "newer");
+
+        payload.clear();
+        assert!(!payload.replace_if(second, pending("late")));
+        assert_eq!(payload.get(), None, "a discarded capture stays discarded");
     }
 
     #[test]

@@ -30,6 +30,7 @@ import {
   integer,
   literal,
   nullable,
+  number,
   object,
   string,
   union,
@@ -88,10 +89,32 @@ const pipelineStage = literal(
   'annotate',
 )
 const pipelineWarning = object({ stage: pipelineStage, error: providerError })
+const script = literal('latin', 'han', 'kana', 'hangul', 'cyrillic', 'other', 'none')
+const detectionMethod = literal(
+  'script',
+  'single',
+  'statistical',
+  'tie_break',
+  'fallback',
+  'chosen',
+)
+const languageScore = object({ lang: string, confidence: number })
+const detection = object({
+  lang: string,
+  method: detectionMethod,
+  confident: boolean,
+  script,
+  candidates: array(string),
+  ranked: array(languageScore),
+})
+const pendingFiling = object({ deck: string, model: string })
 const pendingCapture = object({
   card,
   warnings: array(pipelineWarning),
   profile_id: nullable(string),
+  detection: nullable(detection),
+  filing: pendingFiling,
+  generation: integer,
 })
 const captureOrigin = literal('capture', 'curriculum', 'anki_import')
 const storedCapture = object({
@@ -141,9 +164,37 @@ const cardField = literal(
   'notes',
   'pinyin',
   'hsk_level',
+  'example_in_source_lang',
+  'example_in_target_lang',
 )
 const fieldBinding = object({ anki_field: string, source: cardField })
 const fieldMapping = object({ fields: array(fieldBinding), audio_field: nullable(string) })
+const autoMatch = object({
+  mapping: fieldMapping,
+  guessed: array(string),
+  unmatched: array(string),
+})
+const recommendedNoteType = object({
+  model_name: string,
+  mapping: fieldMapping,
+  created: boolean,
+  matches_by_name: boolean,
+})
+const lostValue = union(
+  object({ kind: literal('missing_field'), anki_field: string, source: cardField }),
+  object({ kind: literal('unmapped'), source: cardField }),
+  object({ kind: literal('audio'), audio_field: nullable(string) }),
+)
+const fieldCheck = union(
+  object({ status: literal('unchecked') }),
+  object({ status: literal('failed'), model: string, error: string }),
+  object({
+    status: literal('checked'),
+    model: string,
+    auto_matched: boolean,
+    lost: array(lostValue),
+  }),
+)
 const hotkeyProfile = object({
   id: string,
   label: string,
@@ -152,6 +203,14 @@ const hotkeyProfile = object({
   target_lang: string,
   deck_name: nullable(string),
 })
+const learnedLanguage = object({
+  lang: string,
+  deck_name: string,
+  model_name: string,
+  field_mapping: nullable(fieldMapping),
+  create_reverse: boolean,
+})
+const learningConfig = object({ languages: array(learnedLanguage) })
 const translationConfig = object({
   source_lang: string,
   target_lang: string,
@@ -164,8 +223,9 @@ const ankiConfig = object({
   deck_name: string,
   model_name: string,
   create_reverse: boolean,
-  field_mapping: fieldMapping,
+  field_mapping: nullable(fieldMapping),
 })
+const setupAssistantState = object({ closed_at: nullable(instant), finished: boolean })
 const appConfig = object({
   ui_lang: string,
   hotkeys: string,
@@ -173,8 +233,11 @@ const appConfig = object({
   translation: translationConfig,
   anki: ankiConfig,
   consent: consentState,
+  learning: learningConfig,
+  setup_assistant: setupAssistantState,
 })
 const captureErrorPayload = object({ message: string })
+const accessibilityStatus = object({ required: boolean, trusted: boolean })
 
 const SCHEMAS = {
   ScriptMetadata: scriptMetadata,
@@ -182,7 +245,12 @@ const SCHEMAS = {
   ProviderError: providerError,
   PipelineStage: pipelineStage,
   PipelineWarning: pipelineWarning,
+  Script: script,
+  DetectionMethod: detectionMethod,
+  LanguageScore: languageScore,
+  Detection: detection,
   PendingCapture: pendingCapture,
+  PendingFiling: pendingFiling,
   CaptureOrigin: captureOrigin,
   StoredCapture: storedCapture,
   SubmitResult: submitResult,
@@ -196,11 +264,19 @@ const SCHEMAS = {
   CardField: cardField,
   FieldBinding: fieldBinding,
   FieldMapping: fieldMapping,
+  AutoMatch: autoMatch,
+  RecommendedNoteType: recommendedNoteType,
+  LostValue: lostValue,
+  FieldCheck: fieldCheck,
   HotkeyProfile: hotkeyProfile,
+  LearnedLanguage: learnedLanguage,
+  LearningConfig: learningConfig,
   TranslationConfig: translationConfig,
   AnkiConfig: ankiConfig,
   AppConfig: appConfig,
   CaptureErrorPayload: captureErrorPayload,
+  AccessibilityStatus: accessibilityStatus,
+  SetupAssistantState: setupAssistantState,
 }
 
 /** The interfaces of ./types.ts the schemas stand for, by name. */
@@ -210,7 +286,12 @@ interface Types {
   ProviderError: T.ProviderError
   PipelineStage: T.PipelineStage
   PipelineWarning: T.PipelineWarning
+  Script: T.Script
+  DetectionMethod: T.DetectionMethod
+  LanguageScore: T.LanguageScore
+  Detection: T.Detection
   PendingCapture: T.PendingCapture
+  PendingFiling: T.PendingFiling
   CaptureOrigin: T.CaptureOrigin
   StoredCapture: T.StoredCapture
   SubmitResult: T.SubmitResult
@@ -224,11 +305,19 @@ interface Types {
   CardField: T.CardField
   FieldBinding: T.FieldBinding
   FieldMapping: T.FieldMapping
+  AutoMatch: T.AutoMatch
+  RecommendedNoteType: T.RecommendedNoteType
+  LostValue: T.LostValue
+  FieldCheck: T.FieldCheck
   HotkeyProfile: T.HotkeyProfile
+  LearnedLanguage: T.LearnedLanguage
+  LearningConfig: T.LearningConfig
   TranslationConfig: T.TranslationConfig
   AnkiConfig: T.AnkiConfig
   AppConfig: T.AppConfig
   CaptureErrorPayload: T.CaptureErrorPayload
+  AccessibilityStatus: T.AccessibilityStatus
+  SetupAssistantState: T.SetupAssistantState
 }
 
 // A compile error here names the type whose schema differs from its interface.
@@ -251,6 +340,7 @@ interface Results {
   AppConfig: T.AppConfig
   null: null
   'PendingCapture | null': T.PendingCapture | null
+  PendingCapture: T.PendingCapture
   SubmitResult: T.SubmitResult
   AnkiStatus: T.AnkiStatus
   'string[]': string[]
@@ -260,6 +350,11 @@ interface Results {
   boolean: boolean
   'StoredCapture[]': T.StoredCapture[]
   SyncReport: T.SyncReport
+  AutoMatch: T.AutoMatch
+  RecommendedNoteType: T.RecommendedNoteType
+  'FieldCheck | null': T.FieldCheck | null
+  AccessibilityStatus: T.AccessibilityStatus
+  SetupAssistantState: T.SetupAssistantState
   never: never
 }
 
@@ -270,14 +365,21 @@ const RETURNS = {
   discardPendingPayload: 'null',
   executeCardGeneration: 'SubmitResult',
   captureText: 'null',
+  rerunPendingCapture: 'PendingCapture',
   ankiStatus: 'AnkiStatus',
   ankiModelFieldNames: 'string[]',
+  suggestFieldMapping: 'AutoMatch',
+  checkPendingFields: 'FieldCheck | null',
+  createRecommendedNoteType: 'RecommendedNoteType',
   launchAnkiDesktop: 'string',
   getSetupStatus: 'SetupStatus',
   grantConsent: 'ConsentState',
   downloadAndInstallAnki: 'string',
   autoProvisionAnkiconnect: 'string',
   checkAnkiconnectInstalled: 'boolean',
+  getAccessibilityStatus: 'AccessibilityStatus',
+  requestAccessibility: 'AccessibilityStatus',
+  closeSetupAssistant: 'SetupAssistantState',
   listRecentCaptures: 'StoredCapture[]',
   deleteCapture: 'boolean',
   syncPendingCaptures: 'SyncReport',
@@ -304,14 +406,21 @@ const CALLS: Record<Wrapper, () => Promise<unknown>> = {
   discardPendingPayload: () => commands.discardPendingPayload(),
   executeCardGeneration: () => commands.executeCardGeneration(sample('Card')),
   captureText: () => commands.captureText('house', null),
+  rerunPendingCapture: () => commands.rerunPendingCapture('en', 'message', 1),
   ankiStatus: () => commands.ankiStatus(),
   ankiModelFieldNames: () => commands.ankiModelFieldNames('Basic'),
+  suggestFieldMapping: () => commands.suggestFieldMapping('Basic', 'en', 'de'),
+  checkPendingFields: () => commands.checkPendingFields(sample('Card')),
+  createRecommendedNoteType: () => commands.createRecommendedNoteType(),
   launchAnkiDesktop: () => commands.launchAnkiDesktop(),
   getSetupStatus: () => commands.getSetupStatus(),
   grantConsent: () => commands.grantConsent('anki_install'),
   downloadAndInstallAnki: () => commands.downloadAndInstallAnki(),
   autoProvisionAnkiconnect: () => commands.autoProvisionAnkiconnect(),
   checkAnkiconnectInstalled: () => commands.checkAnkiconnectInstalled(),
+  getAccessibilityStatus: () => commands.getAccessibilityStatus(),
+  requestAccessibility: () => commands.requestAccessibility(),
+  closeSetupAssistant: () => commands.closeSetupAssistant(true),
   listRecentCaptures: () => commands.listRecentCaptures(50),
   deleteCapture: () => commands.deleteCapture(7),
   syncPendingCaptures: () => commands.syncPendingCaptures(),
@@ -388,6 +497,20 @@ describe('the Rust shapes of the Automator', () => {
       new Set(['network', 'quota_exceeded', 'http', 'malformed', 'not_found', 'unsupported']),
     )
     expect(new Set(samples.CardField)).toEqual(new Set(CARD_FIELDS))
+    expect(new Set(samples.LostValue.map((value) => (value as T.LostValue).kind))).toEqual(
+      new Set(['missing_field', 'unmapped', 'audio']),
+    )
+    expect(new Set(samples.FieldCheck.map((value) => (value as T.FieldCheck).status))).toEqual(
+      new Set(['unchecked', 'failed', 'checked']),
+    )
+    expect(new Set(samples.Detection.map((value) => (value as T.Detection).method))).toEqual(
+      new Set(samples.DetectionMethod),
+    )
+    expect(samples.DetectionMethod).toHaveLength(6)
+    expect(samples.Script).toHaveLength(7)
+    expect(
+      samples.PendingCapture.map((value) => (value as T.PendingCapture).detection === null),
+    ).toEqual(expect.arrayContaining([true, false]))
   })
 })
 

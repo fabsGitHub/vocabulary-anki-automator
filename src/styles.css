@@ -822,7 +822,8 @@ textarea[readonly] {
   max-width: 40%;
 }
 
-.profiles-editor {
+.profiles-editor,
+.learned-editor {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -848,6 +849,41 @@ textarea[readonly] {
   flex: 1;
 }
 
+.learned-mapping summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.learned-mapping summary .badge {
+  margin-left: 8px;
+}
+
+.learned-mapping-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.learned-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.note-type-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.note-type-offer .inline-result {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.mapping-choice,
 .mapping-editor {
   display: flex;
   flex-direction: column;
@@ -1006,6 +1042,28 @@ textarea[readonly] {
   flex-wrap: wrap;
 }
 
+.language-chips {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.language-chips .badge {
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.language-chips .badge:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.language-chips .badge:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .chinese-row {
   display: flex;
   align-items: flex-end;
@@ -1110,4 +1168,185 @@ textarea[readonly] {
 
 .license-text p + p {
   margin-top: 8px;
+}
+
+/* First-run setup assistant (SetupAssistant.vue) */
+.assistant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.assistant-header .input-hint {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.assistant-everything {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+}
+
+.assistant-everything .btn {
+  flex-shrink: 0;
+}
+
+.assistant-body {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.assistant-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.assistant-step {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.assistant-step:hover {
+  background: var(--bg-field);
+}
+
+.assistant-step.current {
+  background: var(--primary-soft);
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.assistant-mark {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.assistant-step.current .assistant-mark {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.assistant-step.done .assistant-mark {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--text-inverse);
+}
+
+.assistant-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 220px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.assistant-detail-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.assistant-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.assistant-more summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.assistant-more p {
+  margin-top: 4px;
+}
+
+.assistant-restart {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.assistant-nav {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.practice-word {
+  align-self: flex-start;
+  padding: 10px 18px;
+  font-size: 20px;
+  font-weight: 600;
+  border: 1px dashed var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-field);
+  user-select: all;
+  cursor: text;
+}
+
+.consent-download + .consent-download {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.consent-download h4,
+.consent-plan h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.consent-plan {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.consent-plan ul {
+  padding-left: 18px;
+}
+
+@media (max-width: 620px) {
+  .assistant-body {
+    grid-template-columns: 1fr;
+  }
+
+  .assistant-everything {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

@@ -13,7 +13,12 @@
  * disk-only `get_setup_status` say which step is missing. Installing is
  * always two-step (§ 8.4): an install request opens the consent dialog, and
  * only "Agree" records the consent with `grant_consent` and then starts the
- * download, so nothing is fetched without an explicit click.
+ * download, so nothing is fetched without an explicit click. The setup
+ * assistant's "Set up everything" shows one dialog for both installs and
+ * then runs them with {@link AnkiConnection.installAll}.
+ *
+ * Creating the recommended note type is one of the operations too, so it
+ * never overlaps another, and the note type lists are read again after it.
  */
 
 import {
@@ -31,6 +36,7 @@ import {
 import {
   ankiStatus,
   autoProvisionAnkiconnect,
+  createRecommendedNoteType as createRecommendedNoteTypeCommand,
   downloadAndInstallAnki,
   errorMessage,
   getSetupStatus,
@@ -39,6 +45,7 @@ import {
   type AnkiStatus,
   type ConsentAction,
   type ConsentState,
+  type RecommendedNoteType,
   type SetupStatus,
 } from '../api'
 import type { MessageKey } from '../i18n'
@@ -47,7 +54,11 @@ export type AnkiConnectionState =
   'checking' | 'anki_missing' | 'plugin_missing' | 'anki_closed' | 'online'
 
 /** The user-triggered operation in flight; at most one at a time. */
-export type AnkiActivity = 'rescan' | 'launch' | 'install' | 'provision'
+export type AnkiActivity = 'rescan' | 'launch' | 'install' | 'provision' | 'note_type'
+
+/** What creating the recommended note type came to. */
+export type NoteTypeOutcome =
+  { ok: true; noteType: RecommendedNoteType } | { ok: false; error: string }
 
 /** A message for the tab's feedback line, as a key the view translates. */
 export interface AnkiFeedback {
@@ -93,6 +104,19 @@ export interface AnkiConnection {
   confirmConsent(): Promise<void>
   /** "Cancel": closes the dialog; nothing is recorded or downloaded. */
   cancelConsent(): void
+  /**
+   * After the user agreed to `actions` in one consent dialog: for each in
+   * turn, `grant_consent` and its install, stopping at the first failure;
+   * then a re-check. `true` when everything was installed; `false` without
+   * doing anything while another operation runs.
+   */
+  installAll(actions: readonly ConsentAction[]): Promise<boolean>
+  /**
+   * `create_recommended_note_type`, then a re-check, so the note type lists
+   * include it; `null` while another operation runs. It writes to the
+   * user's Anki collection, so only a click may call it.
+   */
+  createRecommendedNoteType(): Promise<NoteTypeOutcome | null>
   /** Stops polling; called automatically when the owning scope ends. */
   dispose(): void
 }
@@ -239,41 +263,80 @@ export function useAnkiConnection(options: AnkiConnectionOptions = {}): AnkiConn
   async function confirmConsent(): Promise<void> {
     const action = pendingConsent.value
     if (!action || activity.value) return
-    pendingConsent.value = null
+    await installAll([action])
+  }
+
+  /** `grant_consent`, then the install, with the feedback line set for either outcome. */
+  async function grantAndInstall(action: ConsentAction): Promise<'ok' | 'no_consent' | 'failed'> {
     const installing = action === 'anki_install'
     activity.value = installing ? 'install' : 'provision'
     feedback.value = { tone: 'info', key: installing ? 'anki.installing' : 'anki.provisioning' }
+    let consent: ConsentState
     try {
-      let consent: ConsentState
-      try {
-        consent = await grantConsent(action)
-      } catch (err) {
-        feedback.value = {
-          tone: 'error',
-          key: 'anki.feedback.consentFailed',
-          params: { error: errorMessage(err) },
-        }
-        return
+      consent = await grantConsent(action)
+    } catch (err) {
+      feedback.value = {
+        tone: 'error',
+        key: 'anki.feedback.consentFailed',
+        params: { error: errorMessage(err) },
       }
-      if (setup.value) setup.value = { ...setup.value, consent }
-      options.onConsentChanged?.(consent)
+      return 'no_consent'
+    }
+    if (setup.value) setup.value = { ...setup.value, consent }
+    options.onConsentChanged?.(consent)
 
-      try {
-        if (installing) await downloadAndInstallAnki()
-        else await autoProvisionAnkiconnect()
-        feedback.value = {
-          tone: 'success',
-          key: installing ? 'anki.feedback.installed' : 'anki.feedback.provisioned',
-        }
-      } catch (err) {
-        feedback.value = {
-          tone: 'error',
-          key: 'anki.feedback.installFailed',
-          params: { error: errorMessage(err) },
-        }
+    try {
+      if (installing) await downloadAndInstallAnki()
+      else await autoProvisionAnkiconnect()
+      feedback.value = {
+        tone: 'success',
+        key: installing ? 'anki.feedback.installed' : 'anki.feedback.provisioned',
       }
+      return 'ok'
+    } catch (err) {
+      feedback.value = {
+        tone: 'error',
+        key: 'anki.feedback.installFailed',
+        params: { error: errorMessage(err) },
+      }
+      return 'failed'
+    }
+  }
+
+  async function installAll(actions: readonly ConsentAction[]): Promise<boolean> {
+    if (activity.value || actions.length === 0) return false
+    pendingConsent.value = null
+    try {
+      let outcome: 'ok' | 'no_consent' | 'failed' = 'ok'
+      let attempted = 0
+      for (const action of actions) {
+        outcome = await grantAndInstall(action)
+        if (outcome !== 'no_consent') attempted++
+        if (outcome !== 'ok') break
+      }
+      // Without a recorded consent nothing was installed, so nothing changed.
+      if (attempted === 0) return false
       state.value = 'checking'
       await resolveState()
+      return outcome === 'ok'
+    } finally {
+      activity.value = null
+    }
+  }
+
+  async function createRecommendedNoteType(): Promise<NoteTypeOutcome | null> {
+    if (activity.value) return null
+    activity.value = 'note_type'
+    try {
+      let outcome: NoteTypeOutcome
+      try {
+        outcome = { ok: true, noteType: await createRecommendedNoteTypeCommand() }
+      } catch (err) {
+        outcome = { ok: false, error: errorMessage(err) }
+      }
+      // Lists the new note type, or notices that Anki went away.
+      await resolveState()
+      return outcome
     } finally {
       activity.value = null
     }
@@ -305,6 +368,8 @@ export function useAnkiConnection(options: AnkiConnectionOptions = {}): AnkiConn
     requestProvision,
     confirmConsent,
     cancelConsent,
+    installAll,
+    createRecommendedNoteType,
     dispose,
   }
 }

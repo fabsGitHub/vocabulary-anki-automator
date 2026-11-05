@@ -2,20 +2,39 @@
 /**
  * The "Anki connection" tab: what is missing for Anki to receive cards, the
  * consent-gated ways to fix it (Milestone E), and where cards go: deck, note
- * type and field mapping (Milestones H and J5).
+ * type, field mapping and reverse card (Milestones H and J5). With languages
+ * listed under "My languages", these apply only to text in other languages,
+ * which the tab says.
+ *
+ * The field mapping is matched by field name until the user customizes it
+ * (`null`, the default), with the same preview, "Customize" and "Stop
+ * customizing" as each "My languages" entry (`MappingChoiceEditor`); the
+ * preview is for the main language pair, and each card is matched for its
+ * own. Offline, "Customize" starts from the Apple-style preset.
  *
  * Deck and note type stay editable while Anki is offline, as free text; the
- * lists Anki reports replace the text fields once it is online.
+ * lists Anki reports replace the text fields once it is online. While it is
+ * online, "Create the recommended note type" (`RecommendedNoteType`) adds the
+ * note type with a field for every value and selects it here, matched by
+ * name (`selectRecommendedNoteType`).
  */
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { ankiModelFieldNames, errorMessage } from '../api'
 import ConsentDialog from '../components/ConsentDialog.vue'
-import FieldMappingEditor from '../components/FieldMappingEditor.vue'
+import MappingChoiceEditor from '../components/MappingChoiceEditor.vue'
+import RecommendedNoteType from '../components/RecommendedNoteType.vue'
 import { useAnkiConnectionContext } from '../composables/useAnkiConnection'
+import { useAutoMatches, type AutoMatchRequest } from '../composables/useAutoMatches'
 import { useConfigStore } from '../composables/useConfig'
 import { useIssueText } from '../composables/useIssueText'
+import { useModelFields } from '../composables/useModelFields'
+import {
+  appleStyleMapping,
+  needsChineseNoteType,
+  recommendedNoteTypeAction,
+  selectRecommendedNoteType,
+} from '../domain/fieldMapping'
 
 const { t } = useI18n()
 const store = useConfigStore()
@@ -40,47 +59,22 @@ const modelOptions = computed(() => {
   const current = config.value.anki.model_name
   return current && !models.value.includes(current) ? [...models.value, current] : models.value
 })
+const matched = computed(() => config.value.anki.field_mapping === null)
 
-const modelFields = ref<string[] | null>(null)
-const fieldsLoading = ref(false)
-const fieldsError = ref<string | null>(null)
-/** Note type -> its fields, for as long as Anki stays online. */
-const fieldCache = new Map<string, string[]>()
-let fieldsRequest = 0
+/** A customized mapping is edited against the note type's fields. */
+const modelFields = useModelFields(() => (matched.value ? [] : [config.value.anki.model_name]))
+const fields = computed(() => modelFields.state(config.value.anki.model_name))
 
-async function loadModelFields(): Promise<void> {
-  const request = ++fieldsRequest
-  const model = config.value.anki.model_name.trim()
-  fieldsError.value = null
-  if (!online.value) fieldCache.clear()
-  if (!online.value || !model) {
-    modelFields.value = null
-    fieldsLoading.value = false
-    return
-  }
-  const cached = fieldCache.get(model)
-  if (cached) {
-    modelFields.value = cached
-    fieldsLoading.value = false
-    return
-  }
-  modelFields.value = null
-  fieldsLoading.value = true
-  try {
-    const fields = await ankiModelFieldNames(model)
-    if (request !== fieldsRequest) return
-    fieldCache.set(model, fields)
-    modelFields.value = fields
-  } catch (err) {
-    if (request === fieldsRequest) fieldsError.value = errorMessage(err)
-  } finally {
-    if (request === fieldsRequest) fieldsLoading.value = false
-  }
-}
-
-watch([online, () => config.value.anki.model_name], () => void loadModelFields(), {
-  immediate: true,
+const matchRequest = (): AutoMatchRequest => ({
+  model: config.value.anki.model_name,
+  sourceLang: config.value.translation.source_lang,
+  targetLang: config.value.translation.target_lang,
 })
+const autoMatches = useAutoMatches(() => (matched.value ? [matchRequest()] : []))
+const suggestion = computed(() => autoMatches.state(matchRequest()))
+
+const chineseWarning = computed(() => needsChineseNoteType(config.value, suggestion.value.match))
+const fallback = appleStyleMapping()
 </script>
 
 <template>
@@ -198,6 +192,13 @@ watch([online, () => config.value.anki.model_name], () => void loadModelFields()
 
     <section class="pane-layout">
       <h3 class="pane-title">{{ t('anki.targetTitle') }}</h3>
+      <p
+        v-if="config.learning.languages.length > 0"
+        class="input-hint"
+        data-test="anki-fallback-hint"
+      >
+        {{ t('anki.otherLanguagesHint') }}
+      </p>
       <p v-if="!online && state !== 'checking'" class="input-hint">
         {{ t('anki.offlineEditing') }}
       </p>
@@ -247,19 +248,53 @@ watch([online, () => config.value.anki.model_name], () => void loadModelFields()
           }}</span>
         </div>
       </div>
+      <RecommendedNoteType
+        :model-name="config.anki.model_name"
+        @use="(noteType) => selectRecommendedNoteType(config.anki, noteType)"
+      />
     </section>
 
     <section class="pane-layout">
-      <FieldMappingEditor
-        :model-fields="modelFields"
-        :fields-loading="fieldsLoading"
-        :fields-error="fieldsError"
-      />
+      <div v-if="matched" class="pane-title-row">
+        <h3 class="pane-title">{{ t('mapping.title') }}</h3>
+        <span class="badge badge-muted" data-test="mapping-badge">{{ t('mapping.auto') }}</span>
+      </div>
+      <MappingChoiceEditor
+        v-model:mapping="config.anki.field_mapping"
+        :model-name="config.anki.model_name"
+        :source-lang="config.translation.source_lang"
+        :target-lang="config.translation.target_lang"
+        :suggestion="suggestion"
+        :fields="fields"
+        :fallback="fallback"
+        :issue="issueText('anki.field_mapping')"
+      >
+        <template #notices>
+          <div
+            v-if="chineseWarning"
+            class="notice warning"
+            role="alert"
+            data-test="chinese-warning"
+          >
+            {{ t('mapping.chineseWarning', { button: t(recommendedNoteTypeAction(models)) }) }}
+          </div>
+        </template>
+        <template #options>
+          <label class="checkbox-row">
+            <input
+              v-model="config.anki.create_reverse"
+              type="checkbox"
+              data-test="create-reverse"
+            />
+            <span>{{ t('mapping.createReverse') }}</span>
+          </label>
+        </template>
+      </MappingChoiceEditor>
     </section>
 
     <ConsentDialog
       v-if="pendingConsent"
-      :action="pendingConsent"
+      :actions="[pendingConsent]"
       :anki-version="ankiVersion"
       @agree="anki.confirmConsent()"
       @cancel="anki.cancelConsent()"

@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="{{build.lang}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{meta.title}}</title>
+    <meta name="description" content="{{meta.description}}" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#120e16" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="{{build.canonical}}" />
+    <link rel="alternate" hreflang="en" href="{{build.enUrl}}" />
+    <link rel="alternate" hreflang="de" href="{{build.deUrl}}" />
+    <link rel="alternate" hreflang="x-default" href="{{build.enUrl}}" />
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/main.js" defer></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Polywort" />
+    <meta property="og:title" content="{{meta.ogTitle}}" />
+    <meta property="og:description" content="{{meta.ogDescription}}" />
+    <meta property="og:url" content="{{build.canonical}}" />
+    <meta property="og:locale" content="{{build.ogLocale}}" />
+    <meta property="og:locale:alternate" content="{{build.ogLocaleAlt}}" />
+    {{#og}}
+    <meta property="og:image" content="{{build.ogImage}}" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="{{meta.ogImageAlt}}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="{{build.ogImage}}" />
+    <meta name="twitter:image:alt" content="{{meta.ogImageAlt}}" />
+    {{/og}} {{^og}}
+    <meta name="twitter:card" content="summary" />
+    {{/og}}
+    <meta name="twitter:title" content="{{meta.ogTitle}}" />
+    <meta name="twitter:description" content="{{meta.ogDescription}}" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">{{nav.skip}}</a>
+
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="{{build.homePath}}">
+          {{>mark}}
+          <span class="brand-name">Polywort</span>
+        </a>
+
+        <nav class="nav-desktop" aria-label="{{nav.label}}">
+          <ul class="nav-list" role="list">
+            <li><a href="#how">{{nav.how}}</a></li>
+            <li><a href="#features">{{nav.features}}</a></li>
+            <li><a href="#data">{{nav.data}}</a></li>
+            <li><a href="#requirements">{{nav.requirements}}</a></li>
+            <li><a href="#download">{{nav.download}}</a></li>
+            <li><a href="#faq">{{nav.faq}}</a></li>
+          </ul>
+        </nav>
+
+        <div class="header-actions">
+          <a
+            class="header-link"
+            href="{{build.altPath}}"
+            hreflang="{{build.altLang}}"
+            lang="{{build.altLang}}"
+            aria-label="{{nav.langSwitchAria}}"
+          >
+            {{icon:globe}}<span>{{nav.langSwitch}}</span>
+          </a>
+          <a class="header-link" href="{{build.repoUrl}}" aria-label="{{nav.githubAria}}">
+            {{icon:code}}<span>{{nav.github}}</span>
+          </a>
+        </div>
+
+        <details class="nav-mobile" data-menu>
+          <summary class="nav-mobile-toggle"><span>{{nav.menu}}</span>{{icon:menu}}</summary>
+          <div class="nav-mobile-panel">
+            <nav aria-label="{{nav.label}}">
+              <ul class="nav-mobile-list" role="list">
+                <li><a href="#how">{{nav.how}}</a></li>
+                <li><a href="#features">{{nav.features}}</a></li>
+                <li><a href="#data">{{nav.data}}</a></li>
+                <li><a href="#requirements">{{nav.requirements}}</a></li>
+                <li><a href="#download">{{nav.download}}</a></li>
+                <li><a href="#faq">{{nav.faq}}</a></li>
+              </ul>
+            </nav>
+            <div class="nav-mobile-actions">
+              <a
+                class="header-link"
+                href="{{build.altPath}}"
+                hreflang="{{build.altLang}}"
+                lang="{{build.altLang}}"
+                aria-label="{{nav.langSwitchAria}}"
+              >
+                {{icon:globe}}<span>{{nav.langSwitch}}</span>
+              </a>
+              <a class="header-link" href="{{build.repoUrl}}" aria-label="{{nav.githubAria}}">
+                {{icon:code}}<span>{{nav.github}}</span>
+              </a>
+            </div>
+          </div>
+        </details>
+      </div>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="container hero-inner">
+          <div class="hero-copy">
+            <p class="eyebrow">{{hero.eyebrow}}</p>
+            <h1 id="hero-title">{{hero.title_html}}</h1>
+            <p class="hero-lead">{{hero.subline_html}}</p>
+
+            <div class="hero-actions">
+              {{#dmg}}
+              <a class="btn btn-primary btn-lg" href="{{build.dmgHref}}" download data-download>
+                {{icon:download}}<span>{{hero.cta}}</span>
+              </a>
+              {{/dmg}} {{^dmg}}
+              <a class="btn btn-primary btn-lg" href="{{build.releasesUrl}}">
+                {{icon:arrowUpRight}}<span>{{hero.ctaFallback}}</span>
+              </a>
+              {{/dmg}}
+              <a class="btn btn-secondary btn-lg" href="#how">{{hero.secondary}}</a>
+            </div>
+
+            <p class="hero-meta">{{hero.meta}}{{#dmg}}&nbsp;· {{build.dmgSize}}{{/dmg}}</p>
+            {{^dmg}}
+            <p class="hero-meta">{{hero.metaFallback}}</p>
+            {{/dmg}}
+            <p class="hero-note os-note os-note-desktop">{{hero.note}}</p>
+            <p class="hero-note os-note os-note-mobile">{{hero.mobileNote}}</p>
+            <p class="hero-source">
+              <a class="text-link" href="{{build.repoUrl}}">
+                {{icon:code}}<span>{{hero.source}}</span>
+              </a>
+            </p>
+          </div>
+
+          <div class="hero-visual">
+            <div class="keycaps" aria-hidden="true"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>C</kbd></div>
+            <div
+              class="mock-window"
+              role="img"
+              aria-label="{{mock.label}}"
+              aria-describedby="mock-description"
+            >
+              <div class="mock-titlebar">
+                <span class="mock-lights"><span></span><span></span><span></span></span>
+              </div>
+              <div class="mock-view">
+                <div class="mock-card">
+                  <div class="mock-header">
+                    <span class="mock-h2">{{mock.title}}</span>
+                    <span class="mock-meta">
+                      <span class="mock-chips">
+                        <span class="mock-badge">{{mock.langActive}}</span>
+                        <span class="mock-badge mock-badge-muted">{{mock.langOther}}</span>
+                      </span>
+                      <span class="mock-badge mock-badge-muted">{{mock.target}}</span>
+                      <span class="mock-badge mock-badge-muted">{{mock.deck}}</span>
+                      <span class="mock-badge mock-badge-muted">{{mock.model}}</span>
+                    </span>
+                  </div>
+                  <div class="mock-grid">
+                    <span class="mock-field">
+                      <span class="mock-label">{{mock.front}}</span>
+                      <span class="mock-input-row">
+                        <span class="mock-input" lang="en">{{mock.frontValue}}</span>
+                        <span class="mock-btn mock-btn-icon">▶</span>
+                      </span>
+                    </span>
+                    <span class="mock-field">
+                      <span class="mock-label">{{mock.back}}</span>
+                      <span class="mock-input" lang="de">{{mock.backValue}}</span>
+                    </span>
+                  </div>
+                  <span class="mock-field">
+                    <span class="mock-label">{{mock.example}}</span>
+                    <span class="mock-input mock-textarea" lang="en">{{mock.exampleValue}}</span>
+                  </span>
+                  <span class="mock-field">
+                    <span class="mock-label">{{mock.exampleTarget}}</span>
+                    <span class="mock-input mock-textarea" lang="de"
+                      >{{mock.exampleTargetValue}}</span
+                    >
+                  </span>
+                  <span class="mock-field">
+                    <span class="mock-label">{{mock.notes}}</span>
+                    <span class="mock-input mock-input-empty"></span>
+                  </span>
+                  <span class="mock-actions">
+                    <span class="mock-hint">{{mock.hint}}</span>
+                    <span class="mock-buttons">
+                      <span class="mock-btn">{{mock.discard}}</span>
+                      <span class="mock-btn mock-btn-primary">{{mock.approve}}</span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p id="mock-description" class="visually-hidden">{{mock.description}}</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="how" class="section" aria-labelledby="how-title">
+        <div class="container">
+          <h2 id="how-title" class="section-title">{{how.title}}</h2>
+          <ol class="steps" role="list">
+            <li class="step">
+              <span class="step-number" aria-hidden="true">1</span>
+              <h3 class="step-title">{{how.s1.title}}</h3>
+              <p>{{how.s1.body_html}}</p>
+            </li>
+            <li class="step">
+              <span class="step-number" aria-hidden="true">2</span>
+              <h3 class="step-title">{{how.s2.title}}</h3>
+              <p>{{how.s2.body}}</p>
+            </li>
+            <li class="step">
+              <span class="step-number" aria-hidden="true">3</span>
+              <h3 class="step-title">{{how.s3.title}}</h3>
+              <p>{{how.s3.body_html}}</p>
+            </li>
+            <li class="step">
+              <span class="step-number" aria-hidden="true">4</span>
+              <h3 class="step-title">{{how.s4.title}}</h3>
+              <p>{{how.s4.body}}</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="features" class="section section-alt" aria-labelledby="features-title">
+        <div class="container">
+          <h2 id="features-title" class="section-title">{{features.title}}</h2>
+          <ul class="feature-grid" role="list">
+            <li class="feature">
+              <span class="feature-icon">{{icon:window}}</span>
+              <h3 class="feature-title">{{features.f1.title}}</h3>
+              <p>{{features.f1.body}}</p>
+            </li>
+            <li class="feature">
+              <span class="feature-icon">{{icon:checkCircle}}</span>
+              <h3 class="feature-title">{{features.f2.title}}</h3>
+              <p>{{features.f2.body}}</p>
+            </li>
+            <li class="feature">
+              <span class="feature-icon">{{icon:layers}}</span>
+              <h3 class="feature-title">{{features.f4.title}}</h3>
+              <p>{{features.f4.body}}</p>
+            </li>
+            <li class="feature feature-with-visual">
+              <span class="feature-icon">{{icon:languages}}</span>
+              <h3 class="feature-title">{{features.f3.title}}</h3>
+              <p>{{features.f3.body}}</p>
+              <div class="feature-visual" role="img" aria-label="{{features.f3.visualLabel}}">
+                <span class="mock-panel">
+                  <span class="mock-meta">
+                    <span class="mock-chips">
+                      <span class="mock-badge mock-badge-warning">{{features.f3.chipActive}}</span>
+                      <span class="mock-badge mock-badge-muted">{{features.f3.chipOther}}</span>
+                    </span>
+                    <span class="mock-badge mock-badge-muted">{{features.f3.target}}</span>
+                  </span>
+                  <span class="mock-notice">{{features.f3.hint}}</span>
+                </span>
+              </div>
+            </li>
+            <li class="feature feature-with-visual">
+              <span class="feature-icon">{{icon:alert}}</span>
+              <h3 class="feature-title">{{features.f5.title}}</h3>
+              <p>{{features.f5.body}}</p>
+              <div class="feature-visual" role="img" aria-label="{{features.f5.visualLabel}}">
+                <span class="mock-panel">
+                  <span class="mock-notice">
+                    <strong>{{features.f5.lostTitle}}</strong>
+                    <span class="mock-notice-item">{{features.f5.lostItem}}</span>
+                  </span>
+                </span>
+              </div>
+            </li>
+            <li class="feature feature-with-visual">
+              <span class="feature-icon">{{icon:hanzi}}</span>
+              <h3 class="feature-title">{{features.f6.title}}</h3>
+              <p>{{features.f6.body}}</p>
+              <div class="feature-visual" role="img" aria-label="{{features.f6.visualLabel}}">
+                <span class="mock-panel">
+                  <span class="mock-field">
+                    <span class="mock-label">{{features.f6.front}}</span>
+                    <span class="mock-input mock-hanzi" lang="zh-Hans">{{features.f6.hanzi}}</span>
+                  </span>
+                  <span class="mock-chinese-row">
+                    <span class="mock-field">
+                      <span class="mock-label">{{features.f6.pinyinLabel}}</span>
+                      <span class="mock-readonly" lang="zh-Latn">{{features.f6.pinyin}}</span>
+                    </span>
+                    <span class="mock-badge">{{features.f6.hsk}}</span>
+                  </span>
+                </span>
+              </div>
+            </li>
+          </ul>
+
+          <ul class="feature-more" role="list">
+            <li>
+              <span class="feature-more-icon">{{icon:history}}</span>
+              <div>
+                <h3 class="feature-more-title">{{features.f7.title}}</h3>
+                <p>{{features.f7.body}}</p>
+              </div>
+            </li>
+            <li>
+              <span class="feature-more-icon">{{icon:flag}}</span>
+              <div>
+                <h3 class="feature-more-title">{{features.f8.title}}</h3>
+                <p>{{features.f8.body}}</p>
+              </div>
+            </li>
+            <li>
+              <span class="feature-more-icon">{{icon:keyboard}}</span>
+              <div>
+                <h3 class="feature-more-title">{{features.f9.title}}</h3>
+                <p>{{features.f9.body}}</p>
+              </div>
+            </li>
+            <li>
+              <span class="feature-more-icon">{{icon:shield}}</span>
+              <div>
+                <h3 class="feature-more-title">{{features.f10.title}}</h3>
+                <p>{{features.f10.body}}</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="data" class="section" aria-labelledby="data-title">
+        <div class="container">
+          <div class="section-head">
+            <h2 id="data-title" class="section-title">{{data.title}}</h2>
+            <p class="section-lead">{{data.intro}}</p>
+          </div>
+
+          <div class="table-frame">
+            <table class="data-table" role="table">
+              <caption class="visually-hidden">
+                {{data.caption}}
+              </caption>
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th role="columnheader" scope="col">{{data.colWhat}}</th>
+                  <th role="columnheader" scope="col">{{data.colTo}}</th>
+                  <th role="columnheader" scope="col">{{data.colWhen}}</th>
+                </tr>
+              </thead>
+              <tbody role="rowgroup">
+                <tr role="row">
+                  <td role="cell" data-label="{{data.colWhat}}">{{data.r1.what}}</td>
+                  <td role="cell" data-label="{{data.colTo}}">{{data.r1.to_html}}</td>
+                  <td role="cell" data-label="{{data.colWhen}}">{{data.r1.when}}</td>
+                </tr>
+                <tr role="row">
+                  <td role="cell" data-label="{{data.colWhat}}">{{data.r2.what}}</td>
+                  <td role="cell" data-label="{{data.colTo}}">{{data.r2.to_html}}</td>
+                  <td role="cell" data-label="{{data.colWhen}}">{{data.r2.when}}</td>
+                </tr>
+                <tr role="row">
+                  <td role="cell" data-label="{{data.colWhat}}">{{data.r3.what}}</td>
+                  <td role="cell" data-label="{{data.colTo}}">{{data.r3.to_html}}</td>
+                  <td role="cell" data-label="{{data.colWhen}}">{{data.r3.when}}</td>
+                </tr>
+                <tr role="row">
+                  <td role="cell" data-label="{{data.colWhat}}">{{data.r4.what}}</td>
+                  <td role="cell" data-label="{{data.colTo}}">{{data.r4.to_html}}</td>
+                  <td role="cell" data-label="{{data.colWhen}}">{{data.r4.when}}</td>
+                </tr>
+                <tr role="row">
+                  <td role="cell" data-label="{{data.colWhat}}">{{data.r5.what}}</td>
+                  <td role="cell" data-label="{{data.colTo}}">{{data.r5.to_html}}</td>
+                  <td role="cell" data-label="{{data.colWhen}}">{{data.r5.when}}</td>
+                </tr>
+                <tr role="row">
+                  <td role="cell" data-label="{{data.colWhat}}">{{data.r6.what}}</td>
+                  <td role="cell" data-label="{{data.colTo}}">{{data.r6.to_html}}</td>
+                  <td role="cell" data-label="{{data.colWhen}}">{{data.r6.when}}</td>
+                </tr>
+                <tr role="row">
+                  <td role="cell" data-label="{{data.colWhat}}">{{data.r7.what}}</td>
+                  <td role="cell" data-label="{{data.colTo}}">{{data.r7.to_html}}</td>
+                  <td role="cell" data-label="{{data.colWhen}}">{{data.r7.when}}</td>
+                </tr>
+                <tr role="row">
+                  <td role="cell" data-label="{{data.colWhat}}">{{data.r8.what}}</td>
+                  <td role="cell" data-label="{{data.colTo}}">{{data.r8.to_html}}</td>
+                  <td role="cell" data-label="{{data.colWhen}}">{{data.r8.when}}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <ul class="data-notes" role="list">
+            <li class="data-note">
+              <span class="data-note-icon">{{icon:laptop}}</span>
+              <p><strong>{{data.n1.title}}</strong> {{data.n1.body}}</p>
+            </li>
+            <li class="data-note">
+              <span class="data-note-icon">{{icon:refresh}}</span>
+              <p><strong>{{data.n2.title}}</strong> {{data.n2.body}}</p>
+            </li>
+            <li class="data-note data-note-warning">
+              <span class="data-note-icon">{{icon:alert}}</span>
+              <p><strong>{{data.n3.title}}</strong> {{data.n3.body}}</p>
+            </li>
+            <li class="data-note">
+              <span class="data-note-icon">{{icon:folder}}</span>
+              <p><strong>{{data.n4.title}}</strong> {{data.n4.body_html}}</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="requirements" class="section section-alt" aria-labelledby="requirements-title">
+        <div class="container">
+          <h2 id="requirements-title" class="section-title">{{req.title}}</h2>
+          <ul class="req-grid" role="list">
+            <li class="req">
+              <span class="feature-icon">{{icon:laptop}}</span>
+              <h3 class="feature-title">{{req.i1.title}}</h3>
+              <p>{{req.i1.body}}</p>
+            </li>
+            <li class="req">
+              <span class="feature-icon">{{icon:cards}}</span>
+              <h3 class="feature-title">{{req.i2.title_html}}</h3>
+              <p>{{req.i2.body_html}}</p>
+            </li>
+            <li class="req">
+              <span class="feature-icon">{{icon:accessibility}}</span>
+              <h3 class="feature-title">{{req.i3.title}}</h3>
+              <p>{{req.i3.body_html}}</p>
+            </li>
+            <li class="req">
+              <span class="feature-icon">{{icon:wifi}}</span>
+              <h3 class="feature-title">{{req.i4.title}}</h3>
+              <p>{{req.i4.body}}</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="download" class="section" aria-labelledby="download-title">
+        <div class="container">
+          <h2 id="download-title" class="section-title">{{download.title}}</h2>
+
+          <div class="platforms">
+            <article class="platform platform-mac" aria-labelledby="mac-title">
+              <div class="platform-head">
+                <span class="feature-icon">{{icon:laptop}}</span>
+                <span class="os-badge">{{download.yourSystem}}</span>
+              </div>
+              <h3 id="mac-title" class="platform-title">{{download.macTitle}}</h3>
+              <p class="platform-meta">
+                {{download.macMeta}}{{#dmg}}&nbsp;· {{build.dmgSize}}{{/dmg}}
+              </p>
+              {{#dmg}}
+              <a class="btn btn-primary btn-lg" href="{{build.dmgHref}}" download>
+                {{icon:download}}<span>{{download.macButton}}</span>
+              </a>
+              <div class="checksum">
+                <div class="checksum-row">
+                  <span class="checksum-label">{{download.checksumLabel}}</span>
+                  <button
+                    type="button"
+                    class="copy-button"
+                    data-copy="sha256"
+                    data-label="{{download.copy}}"
+                    data-copied-label="{{download.copied}}"
+                    aria-label="{{download.copyAria}}"
+                    hidden
+                  >
+                    {{icon:copy}}<span data-copy-text>{{download.copy}}</span>
+                  </button>
+                </div>
+                <code id="sha256" class="checksum-value">{{build.dmgSha256}}</code>
+                <span class="visually-hidden" role="status" data-copy-status></span>
+              </div>
+              <p class="platform-help">{{download.checksumHelp_html}}</p>
+              {{/dmg}} {{^dmg}}
+              <p class="platform-body">{{download.macFallback}}</p>
+              <a class="btn btn-primary btn-lg" href="{{build.releasesUrl}}">
+                {{icon:arrowUpRight}}<span>{{download.macFallbackButton}}</span>
+              </a>
+              {{/dmg}}
+            </article>
+
+            <article class="platform platform-other" aria-labelledby="other-title">
+              <div class="platform-head">
+                <span class="feature-icon">{{icon:monitor}}</span>
+                <span class="os-badge">{{download.yourSystem}}</span>
+              </div>
+              <h3 id="other-title" class="platform-title">{{download.otherTitle}}</h3>
+              <p class="platform-body">{{download.otherBody}}</p>
+              <a class="text-link" href="{{build.releasesUrl}}">
+                <span>{{download.otherLink}}</span>{{icon:arrowUpRight}}
+              </a>
+            </article>
+          </div>
+
+          <aside class="callout" aria-labelledby="preview-title">
+            <span class="callout-icon">{{icon:info}}</span>
+            <div>
+              <h3 id="preview-title" class="callout-title">{{download.previewTitle}}</h3>
+              <p>{{download.previewBody}}</p>
+            </div>
+          </aside>
+
+          <div class="install">
+            <div class="install-main">
+              <h3 id="install" class="install-title">{{download.stepsTitle}}</h3>
+              <ol class="install-steps" role="list">
+                <li class="install-step">
+                  <span class="install-number" aria-hidden="true">1</span>
+                  <div>
+                    <h4>{{download.s1.title}}</h4>
+                    <p>{{download.s1.body}}</p>
+                  </div>
+                </li>
+                <li class="install-step">
+                  <span class="install-number" aria-hidden="true">2</span>
+                  <div>
+                    <h4>{{download.s2.title}}</h4>
+                    <ul class="install-variants">
+                      <li>{{download.s2.sequoia_html}}</li>
+                      <li>{{download.s2.sonoma_html}}</li>
+                    </ul>
+                    <p class="install-aside-note">{{download.s2.once}}</p>
+                  </div>
+                </li>
+                <li class="install-step">
+                  <span class="install-number" aria-hidden="true">3</span>
+                  <div>
+                    <h4>{{download.s3.title}}</h4>
+                    <p>{{download.s3.body_html}}</p>
+                  </div>
+                </li>
+                <li class="install-step">
+                  <span class="install-number" aria-hidden="true">4</span>
+                  <div>
+                    <h4>{{download.s4.title}}</h4>
+                    <p>{{download.s4.body_html}}</p>
+                  </div>
+                </li>
+                <li class="install-step">
+                  <span class="install-number" aria-hidden="true">5</span>
+                  <div>
+                    <h4>{{download.s5.title}}</h4>
+                    <p>{{download.s5.body_html}}</p>
+                  </div>
+                </li>
+                <li class="install-step">
+                  <span class="install-number" aria-hidden="true">6</span>
+                  <div>
+                    <h4>{{download.s6.title}}</h4>
+                    <p>{{download.s6.body_html}}</p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div class="install-side">
+              <section class="box" aria-labelledby="know-title">
+                <h3 id="know-title" class="box-title">{{download.knowTitle}}</h3>
+                <ul class="check-list" role="list">
+                  <li>{{download.k1}}</li>
+                  <li>{{download.k2}}</li>
+                  <li>{{download.k3}}</li>
+                  <li>{{download.k4}}</li>
+                  <li>{{download.k5}}</li>
+                </ul>
+              </section>
+              <section class="box" aria-labelledby="update-title">
+                <h3 id="update-title" class="box-title">{{download.updateTitle}}</h3>
+                <p>{{download.updateBody_html}}</p>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" class="section section-alt" aria-labelledby="faq-title">
+        <div class="container faq">
+          <h2 id="faq-title" class="section-title">{{faq.title}}</h2>
+          <div class="faq-list">
+            <details class="faq-item">
+              <summary>{{faq.q1.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q1.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q2.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q2.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q3.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q3.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q4.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q4.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q5.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q5.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q6.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q6.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q7.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q7.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q8.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q8.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q9.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q9.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q10.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q10.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q11.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q11.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q12.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q12.a_html}}</p></div>
+            </details>
+            <details class="faq-item">
+              <summary>{{faq.q13.q}}{{icon:chevron}}</summary>
+              <div class="faq-answer"><p>{{faq.q13.a_html}}</p></div>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div class="footer-top">
+          <a class="brand" href="{{build.homePath}}">
+            {{>mark}}
+            <span class="brand-name">Polywort</span>
+          </a>
+          <ul class="footer-links" role="list">
+            <li><a href="{{build.repoUrl}}">{{footer.source}}</a></li>
+            <li><a href="{{build.releasesUrl}}">{{footer.releases}}</a></li>
+            <li>
+              <a
+                href="{{build.altPath}}"
+                hreflang="{{build.altLang}}"
+                lang="{{build.altLang}}"
+                aria-label="{{nav.langSwitchAria}}"
+                >{{nav.langSwitch}}</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="footer-notes">
+          <p class="footer-version">{{footer.line}}</p>
+          <p>{{footer.independence}}</p>
+          <p>{{footer.credits}}</p>
+          <p>{{footer.siteNote}}</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

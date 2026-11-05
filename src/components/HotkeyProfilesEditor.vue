@@ -11,6 +11,7 @@ import LanguageSelect from './LanguageSelect.vue'
 import { useConfigStore } from '../composables/useConfig'
 import { useIssueText } from '../composables/useIssueText'
 import { isSupportedLang } from '../domain/language'
+import { learnedEntry } from '../domain/learning'
 import { LANGUAGE_NAME_KEYS } from '../i18n'
 
 defineProps<{
@@ -51,6 +52,12 @@ function addProfile(): void {
 
 function removeProfile(index: number): void {
   config.value.hotkey_profiles.splice(index, 1)
+}
+
+/** The deck a profile without its own goes to: its language's under "My languages", else the global one. */
+function defaultDeck(profile: HotkeyProfile): string {
+  const learned = learnedEntry(config.value, profile.source_lang)?.deck_name.trim()
+  return learned || config.value.anki.deck_name
 }
 
 function setDeck(profile: HotkeyProfile, value: string): void {
@@ -177,7 +184,7 @@ function issue(index: number, field: keyof HotkeyProfile): string | null {
             list="profile-decks"
             data-test="profile-deck"
             :value="profile.deck_name ?? ''"
-            :placeholder="t('profiles.deckPlaceholder', { deck: config.anki.deck_name })"
+            :placeholder="t('profiles.deckPlaceholder', { deck: defaultDeck(profile) })"
             @input="setDeck(profile, ($event.target as HTMLInputElement).value)"
           />
         </div>
